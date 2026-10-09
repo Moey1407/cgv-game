@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import './styles.css';
 import './screens.css';
 import { MAX_RINGS, createSoundMaterial, createSoundUniforms } from './shaders.js';
+import { createStageSystem } from './stages.js';
 
 const ui = {
   start: document.querySelector('#start-screen'),
@@ -12,6 +13,7 @@ const ui = {
   reticle: document.querySelector('#reticle'),
   minimap: document.querySelector('#minimap'),
   objective: document.querySelector('#objective'),
+  stageLabel: document.querySelector('#stage-label'),
   noise: document.querySelector('#noise-fill'),
   guard: document.querySelector('#guard-state'),
   interaction: document.querySelector('#interaction'),
@@ -75,6 +77,7 @@ const clock = new THREE.Clock();
 
 const state = {
   running: false,
+  stage: 1,
   ended: false,
   locked: false,
   carrying: false,
@@ -112,6 +115,8 @@ let playerMarker;
 let guardMarker;
 let artifactMarker;
 let guard;
+let stages;
+const museumLights = [];
 
 function addBox(name, size, position, material, solid = true) {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z), material);
@@ -214,6 +219,7 @@ function createWorld() {
 
   const hemi = new THREE.HemisphereLight(0x244657, 0x05070a, 0.42);
   scene.add(hemi);
+  museumLights.push(hemi);
   const moon = new THREE.DirectionalLight(0x8dcce5, 1.05);
   moon.position.set(-12, 20, 8);
   moon.castShadow = true;
@@ -223,11 +229,13 @@ function createWorld() {
   moon.shadow.camera.top = 25;
   moon.shadow.camera.bottom = -25;
   scene.add(moon);
+  museumLights.push(moon);
 
   for (const x of [-10, 0, 10]) {
     const light = new THREE.PointLight(0xffbb72, 14, 8, 2);
     light.position.set(x, 3.8, 11);
     scene.add(light);
+    museumLights.push(light);
     const lamp = new THREE.Mesh(
       new THREE.SphereGeometry(0.08, 10, 8),
       new THREE.MeshBasicMaterial({ color: 0xffd39a })
@@ -287,6 +295,15 @@ function createWorld() {
   minimapScene.add(playerMarker);
 
   createGuard();
+  stages = createStageSystem({
+    scene,
+    level,
+    minimapScene,
+    materials,
+    colliders,
+    lights: museumLights,
+    sharedUniforms
+  });
 }
 
 function createGuard() {
@@ -388,10 +405,11 @@ function ping(source) {
 
 function isBlocked(position) {
   const r = player.radius;
-  return colliders.some((box) =>
-    position.x + r > box.minX && position.x - r < box.maxX &&
-    position.z + r > box.minZ && position.z - r < box.maxZ
-  );
+  return colliders.some((box) => {
+    if (box.stage && box.stage !== state.stage) return false;
+    return position.x + r > box.minX && position.x - r < box.maxX &&
+      position.z + r > box.minZ && position.z - r < box.maxZ;
+  });
 }
 
 function updatePlayer(dt) {
@@ -480,7 +498,7 @@ function updateGuard(dt) {
     }
   } else {
     delta.normalize();
-    const pace = guard.state === 'investigate' ? 2.4 : guard.speed;
+    const pace = guard.state === 'investigate' ? (state.stage === 2 ? 2.05 : 1.9) : guard.speed;
     guard.group.position.addScaledVector(delta, pace * dt);
     guard.group.rotation.y = Math.atan2(delta.x, delta.z);
   }
@@ -490,7 +508,7 @@ function updateGuard(dt) {
     guard.group.position.z - player.position.z
   );
   guardMarker.position.set(guard.group.position.x, 0.15, guard.group.position.z);
-  if (distance < 1.35) finish(false);
+  if (distance < 1.05) finish(false, 'guard');
   ui.guard.textContent = guard.state === 'investigate' ? 'INVESTIGATING' : 'UNDETECTED';
   ui.guard.classList.toggle('alert', guard.state === 'investigate');
 }
@@ -549,45 +567,58 @@ function interact() {
   }
 }
 
-function resetGame() {
-  state.running = true;
-  state.ended = false;
-  state.carrying = false;
-  state.startTime = performance.now();
-  state.elapsed = 0;
-  state.ringCount = 0;
-  state.alerts = 0;
-  state.yaw = 0;
-  state.pitch = 0;
-  state.footstepTimer = 0;
-  state.guardSoundTimer = 0.6;
-  state.throwCooldown = 0;
-  player.position.set(0, 0, 18);
-  player.velocity.set(0, 0, 0);
-  camera.position.set(0, 1.68, 18);
-  artifact.position.set(0, 1.55, -19.2);
-  artifact.visible = true;
-  artifactGlow.position.copy(artifact.position);
-  artifactMarker.position.set(0, 0.14, -19.2);
-  guard.group.position.set(10, 0, -10);
-  guard.state = 'patrol';
-  guard.waypoint = 0;
-  rings.length = 0;
+function clearThrowables() {
   for (const item of throwables) {
     scene.remove(item.mesh);
     item.mesh.geometry.dispose();
     item.mesh.material.dispose();
   }
   throwables.length = 0;
-  ui.objective.textContent = 'Locate the artefact';
+}
+
+function setStagePreview(stage, announce = true) {
+  state.stage = stage;
+  state.carrying = false;
+  state.ended = false;
+  const config = stages.setStage(stage);
+  player.position.set(0, 0, 18);
+  player.velocity.set(0, 0, 0);
+  camera.position.set(0, 1.68, 18);
+  state.yaw = 0;
+  state.pitch = 0;
+  artifact.position.copy(config.artifact);
+  artifact.visible = true;
+  artifactGlow.position.copy(artifact.position);
+  artifactMarker.position.set(config.artifact.x, 0.14, config.artifact.z);
+  guard.group.position.copy(config.guard);
+  guardMarker.position.set(config.guard.x, 0.15, config.guard.z);
+  guard.state = 'patrol';
+  guard.waypoint = 0;
+  state.guardSoundTimer = 0.65;
+  rings.length = 0;
+  clearThrowables();
+  ui.stageLabel.textContent = config.name + ' / ALPHA 0' + stage;
+  ui.objective.textContent = config.objective;
+  emitRing(new THREE.Vector3(0, 0.12, 18), colours.player, stage === 3 ? 15 : 11, 'player');
+  if (announce) showToast('LEVEL 0' + stage + ' // ' + config.name);
+}
+
+function resetGame() {
+  state.running = true;
+  state.ended = false;
+  state.startTime = performance.now();
+  state.elapsed = 0;
+  state.ringCount = 0;
+  state.alerts = 0;
+  state.footstepTimer = 0;
+  state.throwCooldown = 0;
+  setStagePreview(1, false);
   ui.result.classList.add('is-hidden');
   ui.hud.classList.remove('is-hidden');
   ui.reticle.classList.remove('is-hidden');
   ui.minimap.classList.remove('is-hidden');
   ui.creditsButton.classList.add('is-hidden');
-  emitRing(new THREE.Vector3(0, 0.12, 18), colours.player, 11, 'player');
 }
-
 function startGame() {
   ui.start.classList.add('is-hidden');
   if (!audioContext) audioContext = new AudioContext();
@@ -596,7 +627,7 @@ function startGame() {
   canvas.requestPointerLock();
 }
 
-function finish(won) {
+function finish(won, reason = 'guard') {
   if (state.ended) return;
   state.ended = true;
   state.running = false;
@@ -609,7 +640,9 @@ function finish(won) {
   ui.resultTitle.textContent = won ? 'SIGNAL LOST.' : 'YOU WERE HEARD.';
   ui.resultCopy.textContent = won
     ? 'The artefact is secure. You left nothing behind but an echo.'
-    : 'The guard followed the wavefront back to its source. Move quieter—or send the sound somewhere else.';
+    : reason === 'laser'
+      ? 'The laser grid caught you standing. Crouch before crossing the red beam.'
+      : 'The guard followed the wavefront back to its source. Move quieter—or send the sound somewhere else.';
   ui.statTime.textContent = formatTime(state.elapsed);
   ui.statRings.textContent = String(state.ringCount);
   ui.statAlerts.textContent = String(state.alerts);
@@ -672,6 +705,7 @@ function animate() {
     state.elapsed = (performance.now() - state.startTime) / 1000;
     state.throwCooldown = Math.max(0, state.throwCooldown - dt);
     updatePlayer(dt);
+    stages.update(state.stage, player.position, state.crouching, elapsed, () => finish(false, 'laser'));
     updateGuard(dt);
     updateThrowables(dt);
   }
@@ -684,6 +718,7 @@ document.addEventListener('keydown', (event) => {
   keys[event.code] = true;
   if (event.code === 'Enter' && !state.running && !state.ended && !ui.start.classList.contains('is-hidden')) startGame();
   if (event.code === 'KeyE') interact();
+  if (state.running && ['Digit1','Digit2','Digit3'].includes(event.code)) setStagePreview(Number(event.code.slice(-1)));
   if (event.code === 'KeyR' && state.ended) {
     resetGame();
     canvas.requestPointerLock();
