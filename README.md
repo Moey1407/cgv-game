@@ -37,6 +37,7 @@ Clearing extraction automatically advances to the next security zone. Escaping B
 - Keyboard, mouse, pointer-lock, audio, collision, interaction, and state-transition systems
 - Guard patrol/investigate state machine with level-specific routes and speed
 - Speed-driven player noise, throwable decoys, sonar cooldown, lasers, extraction, and scoring
+- Level-specific procedural Web Audio ambience and transition cues with no external sound files
 - Orthographic acoustic minimap, disabled for the Blackout level
 - Responsive cinematic UI, level transitions, progress indicators, success, failure, and restart screens
 - No external runtime assets, database, or backend services

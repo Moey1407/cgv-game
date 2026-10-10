@@ -115,6 +115,7 @@ const colours = {
 };
 
 let audioContext = null;
+let ambience = null;
 let artifact;
 let artifactGlow;
 let extraction;
@@ -410,6 +411,73 @@ function ping(source) {
   oscillator.stop(now + 0.24);
 }
 
+function startAmbience() {
+  if (!audioContext || ambience) return;
+  const master = audioContext.createGain();
+  const filter = audioContext.createBiquadFilter();
+  const droneA = audioContext.createOscillator();
+  const droneB = audioContext.createOscillator();
+  const drift = audioContext.createOscillator();
+  const driftAmount = audioContext.createGain();
+
+  master.gain.value = 0.0001;
+  filter.type = 'lowpass';
+  filter.frequency.value = 220;
+  filter.Q.value = 2.4;
+  droneA.type = 'sine';
+  droneB.type = 'triangle';
+  droneA.frequency.value = 48;
+  droneB.frequency.value = 72;
+  droneB.detune.value = -7;
+  drift.type = 'sine';
+  drift.frequency.value = 0.11;
+  driftAmount.gain.value = 2.2;
+
+  drift.connect(driftAmount).connect(droneB.detune);
+  droneA.connect(filter);
+  droneB.connect(filter);
+  filter.connect(master).connect(audioContext.destination);
+  droneA.start();
+  droneB.start();
+  drift.start();
+
+  ambience = { master, filter, droneA, droneB };
+  setAmbienceForStage(state.stage);
+}
+
+function setAmbienceForStage(stage) {
+  if (!ambience || !audioContext) return;
+  const settings = {
+    1: { root: 48, harmony: 72, cutoff: 235, gain: 0.012 },
+    2: { root: 37, harmony: 55, cutoff: 145, gain: 0.016 },
+    3: { root: 29, harmony: 43, cutoff: 92, gain: 0.019 }
+  }[stage];
+  const now = audioContext.currentTime;
+  ambience.droneA.frequency.setTargetAtTime(settings.root, now, 0.7);
+  ambience.droneB.frequency.setTargetAtTime(settings.harmony, now, 0.7);
+  ambience.filter.frequency.setTargetAtTime(settings.cutoff, now, 0.8);
+  ambience.master.gain.cancelScheduledValues(now);
+  ambience.master.gain.setTargetAtTime(settings.gain, now, 1.1);
+}
+
+function playTransitionCue(stage) {
+  if (!audioContext) return;
+  const now = audioContext.currentTime;
+  const notes = stage === 2 ? [110, 146.83, 220] : [73.42, 98, 146.83];
+  notes.forEach((frequency, index) => {
+    const oscillator = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    oscillator.type = index === 0 ? 'sine' : 'triangle';
+    oscillator.frequency.value = frequency;
+    gain.gain.setValueAtTime(0.0001, now + index * 0.08);
+    gain.gain.exponentialRampToValueAtTime(0.025 / (index + 1), now + 0.08 + index * 0.08);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.65 + index * 0.08);
+    oscillator.connect(gain).connect(audioContext.destination);
+    oscillator.start(now + index * 0.08);
+    oscillator.stop(now + 0.8 + index * 0.08);
+  });
+}
+
 function isBlocked(position) {
   const r = player.radius;
   return colliders.some((box) => {
@@ -596,6 +664,7 @@ function setStagePreview(stage, announce = true) {
   state.carrying = false;
   state.ended = false;
   const config = stages.setStage(stage);
+  setAmbienceForStage(stage);
   player.position.set(0, 0, 18);
   player.velocity.set(0, 0, 0);
   camera.position.set(0, 1.68, 18);
@@ -645,6 +714,7 @@ function completeStage() {
   ui.transitionTitle.textContent = nextConfig.name;
   ui.transitionCopy.textContent = nextConfig.intro;
   ui.transition.classList.remove('is-hidden');
+  playTransitionCue(nextStage);
   emitRing(extraction.position, colours.artefact, 20, 'player');
 
   window.setTimeout(() => {
@@ -677,6 +747,7 @@ function startGame() {
   ui.start.classList.add('is-hidden');
   if (!audioContext) audioContext = new AudioContext();
   if (audioContext.state === 'suspended') audioContext.resume();
+  startAmbience();
   resetGame();
   canvas.requestPointerLock();
 }
@@ -687,6 +758,7 @@ function finish(won, reason = 'guard') {
   state.transitioning = false;
   state.running = false;
   ui.transition.classList.add('is-hidden');
+  if (ambience && audioContext) ambience.master.gain.setTargetAtTime(0.0025, audioContext.currentTime, 0.7);
   state.elapsed = (performance.now() - state.startTime) / 1000;
   if (document.pointerLockElement) document.exitPointerLock();
   ui.hud.classList.add('is-hidden');
