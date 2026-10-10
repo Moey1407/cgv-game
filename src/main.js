@@ -13,6 +13,8 @@ const ui = {
   hud: document.querySelector('#hud'),
   reticle: document.querySelector('#reticle'),
   minimap: document.querySelector('#minimap'),
+  mapCanvas: document.querySelector('#map-canvas'),
+  sonar: document.querySelector('#sonar-status'),
   objective: document.querySelector('#objective'),
   stageLabel: document.querySelector('#stage-label'),
   progressSteps: document.querySelectorAll('#level-progress i'),
@@ -117,14 +119,18 @@ const colours = {
   player: new THREE.Color(0x70efff),
   guard: new THREE.Color(0xff315a),
   alert: new THREE.Color(0xffa43b),
-  artefact: new THREE.Color(0xc7fbff)
+  artefact: new THREE.Color(0xffd76a)
 };
+
+const mapContext = ui.mapCanvas.getContext('2d');
 
 let audioContext = null;
 let ambience = null;
 let artifact;
 let artifactGlow;
 let extraction;
+let extractionPortal;
+let extractionRings = [];
 let playerMarker;
 let guardMarker;
 let artifactMarker;
@@ -201,6 +207,62 @@ function addPedestal(x, z, shape, colour) {
   decor.push({ mesh: object, speed: 0.12 + Math.random() * 0.12 });
 }
 
+function createLabelSprite(text) {
+  const labelCanvas = document.createElement('canvas');
+  labelCanvas.width = 512;
+  labelCanvas.height = 128;
+  const context = labelCanvas.getContext('2d');
+  context.fillStyle = 'rgba(2, 12, 18, .82)';
+  context.fillRect(4, 4, 504, 120);
+  context.strokeStyle = '#72efff';
+  context.lineWidth = 4;
+  context.strokeRect(4, 4, 504, 120);
+  context.fillStyle = '#dffcff';
+  context.font = '700 42px Consolas, monospace';
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  context.fillText(text, 256, 66);
+  const texture = new THREE.CanvasTexture(labelCanvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false }));
+  sprite.scale.set(3.4, 0.85, 1);
+  return sprite;
+}
+
+function createExtractionPortal() {
+  const portal = new THREE.Group();
+  portal.position.set(0, 0, 19.35);
+  const frameMaterial = new THREE.MeshStandardMaterial({ color: 0x153b46, emissive: 0x4de8ff, emissiveIntensity: 1.2, roughness: 0.28, metalness: 0.68 });
+  const fieldMaterial = new THREE.MeshBasicMaterial({ color: 0x58eaff, transparent: true, opacity: 0.075, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending });
+  const left = new THREE.Mesh(new THREE.BoxGeometry(0.14, 3.1, 0.14), frameMaterial);
+  const right = left.clone();
+  left.position.set(-1.55, 1.55, 0);
+  right.position.set(1.55, 1.55, 0);
+  const top = new THREE.Mesh(new THREE.BoxGeometry(3.24, 0.14, 0.14), frameMaterial);
+  top.position.set(0, 3.04, 0);
+  const field = new THREE.Mesh(new THREE.PlaneGeometry(2.85, 2.78), fieldMaterial);
+  field.position.set(0, 1.5, 0.03);
+  const beacon = new THREE.Mesh(
+    new THREE.OctahedronGeometry(0.27, 0),
+    new THREE.MeshBasicMaterial({ color: 0xc7fbff })
+  );
+  beacon.position.set(0, 3.55, 0);
+  const label = createLabelSprite('EXTRACTION // EXIT');
+  label.position.set(0, 4.15, 0);
+  extractionRings = [1.15, 1.38].map((radius, index) => {
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(radius, index === 0 ? 0.045 : 0.025, 8, 48),
+      new THREE.MeshBasicMaterial({ color: 0x72efff, transparent: true, opacity: index === 0 ? 0.75 : 0.35 })
+    );
+    ring.position.set(0, 1.52, 0);
+    portal.add(ring);
+    return ring;
+  });
+  portal.add(left, right, top, field, beacon, label);
+  level.add(portal);
+  return portal;
+}
+
 function createWorld() {
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(34, 46, 1, 1), materials.floor);
   floor.rotation.x = -Math.PI / 2;
@@ -272,28 +334,30 @@ function createWorld() {
   }
 
   artifact = new THREE.Mesh(
-    new THREE.OctahedronGeometry(0.62, 1),
+    new THREE.OctahedronGeometry(0.74, 0),
     new THREE.MeshPhysicalMaterial({
-      color: 0xd4fbff,
-      emissive: 0x57ddeb,
-      emissiveIntensity: 1.7,
-      roughness: 0.08,
-      metalness: 0.35,
-      clearcoat: 1
+      color: 0xffd568,
+      emissive: 0xffa51f,
+      emissiveIntensity: 1.25,
+      roughness: 0.12,
+      metalness: 0.62,
+      clearcoat: 1,
+      clearcoatRoughness: 0.08
     })
   );
   artifact.position.set(0, 1.55, -19.2);
+  artifact.scale.setScalar(1);
   artifact.castShadow = true;
   level.add(artifact);
   artifactMarker = new THREE.Mesh(
     new THREE.CircleGeometry(0.58, 20),
-    new THREE.MeshBasicMaterial({ color: 0xc7fbff, side: THREE.DoubleSide })
+    new THREE.MeshBasicMaterial({ color: 0xffd76a, side: THREE.DoubleSide })
   );
   artifactMarker.rotation.x = -Math.PI / 2;
   artifactMarker.position.set(0, 0.14, -19.2);
   minimapScene.add(artifactMarker);
 
-  artifactGlow = new THREE.PointLight(0x6befff, 8, 5, 2);
+  artifactGlow = new THREE.PointLight(0xffb12f, 12, 7, 2);
   artifactGlow.position.copy(artifact.position);
   level.add(artifactGlow);
   addBox('artefact-plinth', new THREE.Vector3(1.7, 1.15, 1.7), new THREE.Vector3(0, 0.575, -19.2), materials.stone, true);
@@ -312,6 +376,7 @@ function createWorld() {
   extraction.rotation.x = -Math.PI / 2;
   extraction.position.set(0, 0.035, 19.4);
   level.add(extraction);
+  extractionPortal = createExtractionPortal();
 
   extractionMarker = new THREE.Mesh(
     new THREE.RingGeometry(1.15, 1.42, 32),
@@ -404,6 +469,37 @@ function createGuard() {
   };
 }
 
+function createPulseVisual(position, colour, source) {
+  const count = source === 'sonar' ? 3 : 1;
+  const visuals = [];
+  for (let index = 0; index < count; index += 1) {
+    const material = new THREE.MeshBasicMaterial({
+      color: colour,
+      transparent: true,
+      opacity: source === 'sonar' ? 0.72 / (index + 1) : 0.32,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
+    });
+    const mesh = new THREE.Mesh(new THREE.RingGeometry(0.92, 1.08, 64), material);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.copy(position);
+    mesh.position.y += 0.025 + index * 0.012;
+    mesh.scale.setScalar(0.01);
+    scene.add(mesh);
+    visuals.push(mesh);
+  }
+  return visuals;
+}
+
+function disposeRing(ring) {
+  for (const visual of ring.visuals) {
+    scene.remove(visual);
+    visual.geometry.dispose();
+    visual.material.dispose();
+  }
+}
+
 function emitRing(position, colour, maxRadius, source) {
   rings.push({
     position: position.clone(),
@@ -411,19 +507,20 @@ function emitRing(position, colour, maxRadius, source) {
     age: 0,
     duration: Math.max(1.15, maxRadius / 8.4),
     maxRadius,
-    source
+    source,
+    visuals: createPulseVisual(position, colour, source)
   });
-  while (rings.length > MAX_RINGS) rings.shift();
+  while (rings.length > MAX_RINGS) disposeRing(rings.shift());
   state.ringCount += 1;
   ping(source);
-  if ((source === 'player' || source === 'decoy') && guard) {
+  if ((source === 'player' || source === 'decoy' || source === 'sonar') && guard) {
     const dx = guard.group.position.x - position.x;
     const dz = guard.group.position.z - position.z;
     if (Math.hypot(dx, dz) < maxRadius + 3) {
       guard.state = 'investigate';
       guard.target.set(position.x, 0, position.z);
       state.alerts += 1;
-      showToast('GUARD HEARD ' + (source === 'decoy' ? 'THE DECOY' : 'YOU'));
+      showToast('GUARD HEARD ' + (source === 'decoy' ? 'THE DECOY' : source === 'sonar' ? 'THE SONAR PULSE' : 'YOU'));
     }
   }
 }
@@ -432,7 +529,17 @@ function updateRingUniforms(dt, elapsed) {
   sharedUniforms.uTime.value = elapsed;
   for (let i = rings.length - 1; i >= 0; i -= 1) {
     rings[i].age += dt;
-    if (rings[i].age >= rings[i].duration) rings.splice(i, 1);
+    const t = Math.min(1, rings[i].age / rings[i].duration);
+    const life = Math.pow(1 - t, rings[i].source === 'sonar' ? 0.85 : 1.25);
+    rings[i].visuals.forEach((visual, visualIndex) => {
+      const radius = Math.max(0.01, t * rings[i].maxRadius - visualIndex * 0.78);
+      visual.scale.setScalar(radius);
+      visual.material.opacity = life * (rings[i].source === 'sonar' ? 0.72 / (visualIndex + 1) : 0.34);
+    });
+    if (rings[i].age >= rings[i].duration) {
+      disposeRing(rings[i]);
+      rings.splice(i, 1);
+    }
   }
   for (let i = 0; i < MAX_RINGS; i += 1) {
     const ring = rings[i];
@@ -454,7 +561,7 @@ function ping(source) {
   const oscillator = audioContext.createOscillator();
   const gain = audioContext.createGain();
   oscillator.type = source === 'guard' ? 'sawtooth' : 'sine';
-  oscillator.frequency.setValueAtTime(source === 'guard' ? 105 : source === 'decoy' ? 480 : 240, now);
+  oscillator.frequency.setValueAtTime(source === 'guard' ? 105 : source === 'decoy' ? 480 : source === 'sonar' ? 310 : 240, now);
   oscillator.frequency.exponentialRampToValueAtTime(source === 'guard' ? 62 : 120, now + 0.16);
   gain.gain.setValueAtTime(0.0001, now);
   gain.gain.exponentialRampToValueAtTime(source === 'guard' ? 0.022 : 0.016, now + 0.012);
@@ -592,8 +699,9 @@ function updatePlayer(dt) {
   playerLight.position.copy(camera.position);
 
   if (state.carrying) {
-    const held = new THREE.Vector3(0.38, -0.28, -0.72).applyEuler(camera.rotation).add(camera.position);
+    const held = new THREE.Vector3(0.48, -0.48, -1.65).applyEuler(camera.rotation).add(camera.position);
     artifact.position.copy(held);
+    artifact.scale.setScalar(THREE.MathUtils.lerp(artifact.scale.x, 0.2, 1 - Math.exp(-dt * 12)));
     artifact.rotation.y += dt * 1.8;
     artifactGlow.position.copy(artifact.position);
     artifactMarker.position.set(player.position.x, 0.14, player.position.z);
@@ -702,7 +810,11 @@ function activePulse() {
   if (!state.running || !state.locked || state.transitioning || state.pingCooldown > 0) return;
   state.pingCooldown = 2.6;
   const radius = state.stage === 3 ? 22 : 16;
-  emitRing(new THREE.Vector3(player.position.x, 0.18, player.position.z), colours.player, radius, 'player');
+  emitRing(new THREE.Vector3(player.position.x, 0.18, player.position.z), colours.player, radius, 'sonar');
+  document.body.classList.remove('sonar-flash');
+  void document.body.offsetWidth;
+  document.body.classList.add('sonar-flash');
+  window.setTimeout(() => document.body.classList.remove('sonar-flash'), 450);
   showToast('ACTIVE SONAR // HOSTILES CAN TRACE IT');
 }
 
@@ -738,6 +850,7 @@ function setStagePreview(stage, announce = true) {
   state.yaw = 0;
   state.pitch = 0;
   artifact.position.copy(config.artifact);
+  artifact.scale.setScalar(1);
   artifact.visible = true;
   artifactGlow.position.copy(artifact.position);
   artifactMarker.position.set(config.artifact.x, 0.14, config.artifact.z);
@@ -749,6 +862,7 @@ function setStagePreview(stage, announce = true) {
   guard.waypoint = 0;
   extraction.material.color.setHex(config.accent);
   state.guardSoundTimer = 0.65;
+  rings.forEach(disposeRing);
   rings.length = 0;
   clearThrowables();
   ui.stageLabel.textContent = config.name + ' / ALPHA 0' + stage;
@@ -757,7 +871,8 @@ function setStagePreview(stage, announce = true) {
     step.classList.toggle('active', index === stage - 1);
     step.classList.toggle('complete', index < stage - 1);
   });
-  ui.minimap.classList.toggle('is-hidden', stage === 3);
+  ui.minimap.classList.remove('is-hidden');
+  ui.minimap.classList.toggle('is-jammed', stage === 3);
   ui.mapStatus.textContent = stage === 3 ? 'JAMMED' : 'LIVE';
   ui.transition.classList.add('is-hidden');
   state.transitioning = false;
@@ -807,7 +922,9 @@ function resetGame() {
   ui.result.classList.add('is-hidden');
   ui.hud.classList.remove('is-hidden');
   ui.reticle.classList.remove('is-hidden');
-  ui.minimap.classList.toggle('is-hidden', state.stage === 3);
+  ui.minimap.classList.remove('is-hidden');
+  ui.minimap.classList.toggle('is-jammed', state.stage === 3);
+  ui.sonar.classList.remove('is-hidden');
   ui.transition.classList.add('is-hidden');
   ui.creditsButton.classList.add('is-hidden');
 }
@@ -832,6 +949,7 @@ function finish(won, reason = 'guard') {
   ui.hud.classList.add('is-hidden');
   ui.reticle.classList.add('is-hidden');
   ui.minimap.classList.add('is-hidden');
+  ui.sonar.classList.add('is-hidden');
   ui.resultKicker.textContent = won ? 'MISSION COMPLETE' : 'SIGNAL INTERCEPTED';
   ui.resultTitle.textContent = won ? 'SIGNAL LOST.' : 'YOU WERE HEARD.';
   ui.resultCopy.textContent = won
@@ -864,26 +982,112 @@ function updateToast(dt) {
   }
 }
 
+function drawMapArrow(context, x, y, angle, colour, size = 14) {
+  context.save();
+  context.translate(x, y);
+  context.rotate(angle + Math.PI / 2);
+  context.beginPath();
+  context.moveTo(0, -size);
+  context.lineTo(size * 0.72, size * 0.68);
+  context.lineTo(0, size * 0.38);
+  context.lineTo(-size * 0.72, size * 0.68);
+  context.closePath();
+  context.fillStyle = colour;
+  context.shadowColor = colour;
+  context.shadowBlur = 12;
+  context.fill();
+  context.restore();
+}
+
+function drawMinimap() {
+  const context = mapContext;
+  const width = ui.mapCanvas.width;
+  const height = ui.mapCanvas.height;
+  const mapX = (x) => 22 + ((x + 17) / 34) * (width - 44);
+  const mapY = (z) => 38 + ((z + 23) / 46) * (height - 84);
+  context.clearRect(0, 0, width, height);
+  context.fillStyle = 'rgba(2, 10, 15, .92)';
+  context.fillRect(0, 0, width, height);
+
+  if (state.stage === 3) {
+    context.fillStyle = 'rgba(255, 49, 90, .12)';
+    for (let line = 0; line < 11; line += 1) {
+      const y = 38 + line * 22 + Math.sin(clock.elapsedTime * 3 + line) * 5;
+      context.fillRect(28, y, width - 56, line % 3 === 0 ? 3 : 1);
+    }
+    context.textAlign = 'center';
+    context.fillStyle = '#ff5571';
+    context.font = '700 28px Consolas, monospace';
+    context.fillText('SIGNAL JAMMED', width / 2, height / 2 - 5);
+    context.fillStyle = '#7f99a4';
+    context.font = '500 17px Consolas, monospace';
+    context.fillText('USE SONAR TO NAVIGATE', width / 2, height / 2 + 28);
+    return;
+  }
+
+  for (const box of colliders) {
+    if (box.stage && box.stage !== state.stage) continue;
+    const x = mapX(box.minX);
+    const y = mapY(box.minZ);
+    const boxWidth = Math.max(2, mapX(box.maxX) - x);
+    const boxHeight = Math.max(2, mapY(box.maxZ) - y);
+    context.fillStyle = box.stage === 2 ? 'rgba(184, 49, 78, .58)' : 'rgba(41, 133, 151, .62)';
+    context.strokeStyle = box.stage === 2 ? 'rgba(255, 91, 119, .9)' : 'rgba(114, 239, 255, .72)';
+    context.lineWidth = 1.5;
+    context.fillRect(x, y, boxWidth, boxHeight);
+    context.strokeRect(x, y, boxWidth, boxHeight);
+  }
+
+  const exitX = mapX(0);
+  const exitY = mapY(19.4);
+  context.beginPath();
+  context.arc(exitX, exitY, 13, 0, Math.PI * 2);
+  context.strokeStyle = '#76ffb2';
+  context.lineWidth = 4;
+  context.shadowColor = '#76ffb2';
+  context.shadowBlur = 10;
+  context.stroke();
+  context.shadowBlur = 0;
+  context.fillStyle = '#9affc4';
+  context.font = '700 14px Consolas, monospace';
+  context.textAlign = 'center';
+  context.fillText('EXIT', exitX, exitY - 18);
+
+  const targetPosition = state.carrying ? player.position : artifact.position;
+  const targetX = mapX(targetPosition.x);
+  const targetY = mapY(targetPosition.z);
+  context.save();
+  context.translate(targetX, targetY);
+  context.rotate(Math.PI / 4);
+  context.fillStyle = '#ffd76a';
+  context.shadowColor = '#ffd76a';
+  context.shadowBlur = 14;
+  context.fillRect(-8, -8, 16, 16);
+  context.restore();
+
+  const guardX = mapX(guard.group.position.x);
+  const guardY = mapY(guard.group.position.z);
+  const guardAngle = Math.atan2(Math.cos(guard.group.rotation.y), Math.sin(guard.group.rotation.y));
+  context.beginPath();
+  context.moveTo(guardX, guardY);
+  context.arc(guardX, guardY, 48, guardAngle - 0.48, guardAngle + 0.48);
+  context.closePath();
+  context.fillStyle = 'rgba(255, 49, 90, .13)';
+  context.fill();
+  drawMapArrow(context, guardX, guardY, guardAngle, '#ff315a', 13);
+
+  const playerX = mapX(player.position.x);
+  const playerY = mapY(player.position.z);
+  const playerAngle = Math.atan2(-Math.cos(state.yaw), -Math.sin(state.yaw));
+  drawMapArrow(context, playerX, playerY, playerAngle, '#72efff', 14);
+}
+
 function render() {
   renderer.setViewport(0, 0, renderer.domElement.width, renderer.domElement.height);
   renderer.setScissorTest(false);
   renderer.clear();
   renderer.render(scene, camera);
-
-  if (state.running && state.stage !== 3) {
-    const ratio = renderer.getPixelRatio();
-    const width = Math.round((window.innerWidth < 800 ? 144 : 220) * ratio);
-    const height = Math.round((window.innerWidth < 800 ? 96 : 152) * ratio);
-    const margin = Math.round((window.innerWidth < 800 ? 16 : 29) * ratio);
-    const x = renderer.domElement.width - width - margin;
-    const y = margin;
-    renderer.setScissorTest(true);
-    renderer.setScissor(x, y, width, height);
-    renderer.setViewport(x, y, width, height);
-    renderer.clear(true, true, true);
-    renderer.render(minimapScene, minimapCamera);
-    renderer.setScissorTest(false);
-  }
+  drawMinimap();
 }
 
 function animate() {
@@ -896,12 +1100,19 @@ function animate() {
   artifact.rotation.x = Math.sin(elapsed * 0.8) * 0.12;
   if (!state.carrying) artifact.position.y = 1.55 + Math.sin(elapsed * 1.4) * 0.08;
   extraction.material.opacity = 0.2 + Math.sin(elapsed * 2.2) * 0.1;
+  extractionRings.forEach((ring, index) => {
+    const pulse = 1 + Math.sin(elapsed * 2.4 + index * 1.3) * (state.carrying ? 0.065 : 0.025);
+    ring.scale.setScalar(pulse);
+    ring.material.opacity = (state.carrying ? 0.78 : 0.42) - index * 0.16;
+  });
   for (const item of decor) item.mesh.rotation.y += dt * item.speed;
 
   if (state.running && state.locked && !state.transitioning) {
     state.elapsed = (performance.now() - state.startTime) / 1000;
     state.throwCooldown = Math.max(0, state.throwCooldown - dt);
     state.pingCooldown = Math.max(0, state.pingCooldown - dt);
+    ui.sonar.textContent = state.pingCooldown > 0 ? 'SONAR RECHARGING ' + state.pingCooldown.toFixed(1) + 's' : 'SONAR READY  SPACE';
+    ui.sonar.classList.toggle('cooldown', state.pingCooldown > 0);
     updatePlayer(dt);
     stages.update(state.stage, player.position, state.crouching, elapsed, () => finish(false, 'laser'));
     updateGuard(dt);
@@ -962,6 +1173,7 @@ if (new URLSearchParams(window.location.search).has('qa')) {
     completeStage,
     takeArtifact: interact,
     movePlayer: (x, z) => player.position.set(x, 0, z),
+    setView: (yaw, pitch = 0) => { state.yaw = yaw; state.pitch = pitch; },
     getState: () => ({ stage: state.stage, running: state.running, ended: state.ended, transitioning: state.transitioning, carrying: state.carrying, rings: state.ringCount, alerts: state.alerts })
   };
 }

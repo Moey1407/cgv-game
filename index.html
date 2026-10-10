@@ -26,7 +26,8 @@
   <div id="reticle" class="is-hidden" aria-hidden="true"><i></i></div>
   <div id="interaction" class="interaction is-hidden"></div>
   <div id="toast" class="toast is-hidden" role="status"></div>
-  <aside id="minimap" class="minimap is-hidden" aria-label="Museum floor minimap"><span>ACOUSTIC MAP <b id="map-status">LIVE</b></span><div class="map-grid"></div><div class="map-legend"><i class="you"></i>YOU <i class="target"></i>TARGET <i class="hostile"></i>GUARD</div></aside>
+  <div id="sonar-status" class="sonar-status is-hidden">SONAR READY <kbd>SPACE</kbd></div>
+  <aside id="minimap" class="minimap is-hidden" aria-label="Museum floor minimap"><canvas id="map-canvas" class="map-canvas" width="440" height="304"></canvas><span>TACTICAL MAP <b id="map-status">LIVE</b></span><div class="map-grid"></div><div class="map-legend"><i class="you"></i>YOU <i class="target"></i>DIAMOND <i class="hostile"></i>GUARD</div></aside>
 
   <section id="start-screen" class="screen start-screen">
     <div class="start-copy">
