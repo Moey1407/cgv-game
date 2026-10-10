@@ -6,6 +6,7 @@ export function createStageSystem({ scene, level, minimapScene, materials, colli
   const vaultMap = new THREE.Group();
   const blackoutMap = new THREE.Group();
   const lasers = [];
+  const traps = [];
   level.add(vault, blackout);
   minimapScene.add(vaultMap, blackoutMap);
 
@@ -33,11 +34,25 @@ export function createStageSystem({ scene, level, minimapScene, materials, colli
     return mesh;
   }
 
-  // Level 2: a tight emergency-lit vault spine with crouch-only laser gates.
-  addStageBox(vault, vaultMap, 2, new THREE.Vector3(4.8, 3.4, 0.35), new THREE.Vector3(-14.2, 1.7, 3.2), materials.dark, mapVault);
-  addStageBox(vault, vaultMap, 2, new THREE.Vector3(4.8, 3.4, 0.35), new THREE.Vector3(14.2, 1.7, 3.2), materials.dark, mapVault);
-  addStageBox(vault, vaultMap, 2, new THREE.Vector3(0.4, 3.4, 10), new THREE.Vector3(-3.8, 1.7, -11.5), materials.dark, mapVault);
-  addStageBox(vault, vaultMap, 2, new THREE.Vector3(0.4, 3.4, 10), new THREE.Vector3(3.8, 1.7, -11.5), materials.dark, mapVault);
+  // Level 2: an alternating vault gauntlet. Each blast wall forces a different route.
+  const vaultWalls = [
+    [new THREE.Vector3(20, 3.8, 0.55), new THREE.Vector3(7, 1.9, 8)],
+    [new THREE.Vector3(20, 3.8, 0.55), new THREE.Vector3(-7, 1.9, 0)],
+    [new THREE.Vector3(20, 3.8, 0.55), new THREE.Vector3(7, 1.9, -8)],
+    [new THREE.Vector3(20, 3.8, 0.55), new THREE.Vector3(-7, 1.9, -15)]
+  ];
+  for (const [size, position] of vaultWalls) {
+    addStageBox(vault, vaultMap, 2, size, position, materials.dark, mapVault);
+  }
+
+  // Armoured vault ribs make the layout read differently from the gallery.
+  for (const [x, z] of [[-15.2, 12], [15.2, 4], [-15.2, -4], [15.2, -12]]) {
+    const rib = new THREE.Mesh(new THREE.BoxGeometry(1.1, 4.4, 1.1), materials.stone);
+    rib.position.set(x, 2.2, z);
+    rib.rotation.y = Math.PI / 4;
+    rib.castShadow = true;
+    vault.add(rib);
+  }
 
   const laserMaterial = new THREE.MeshBasicMaterial({
     color: 0xff315a,
@@ -45,18 +60,62 @@ export function createStageSystem({ scene, level, minimapScene, materials, colli
     opacity: 0.78,
     blending: THREE.AdditiveBlending
   });
-  for (const z of [4.3, -5.8, -12.8]) {
-    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 6.8, 8), laserMaterial.clone());
+  const emitterMaterial = new THREE.MeshStandardMaterial({ color: 0x281018, emissive: 0xff214a, emissiveIntensity: 2.4, metalness: 0.7, roughness: 0.25 });
+
+  function addLaserGate(x, z, length, baseY, amplitude, speed, phase) {
+    const rig = new THREE.Group();
+    rig.position.set(x, baseY, z);
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, length, 8), laserMaterial.clone());
     beam.rotation.z = Math.PI / 2;
-    beam.position.set(0, 1.12, z);
-    vault.add(beam);
-    const glow = new THREE.PointLight(0xff214a, 4, 4, 2);
-    glow.position.set(0, 1.2, z);
-    vault.add(glow);
-    lasers.push({ z, width: 3.6, beam });
+    const emitterA = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.34, 10), emitterMaterial);
+    const emitterB = emitterA.clone();
+    emitterA.rotation.z = Math.PI / 2;
+    emitterB.rotation.z = Math.PI / 2;
+    emitterA.position.x = -length / 2;
+    emitterB.position.x = length / 2;
+    rig.add(beam, emitterA, emitterB);
+    vault.add(rig);
+
+    for (const railX of [x - length / 2, x + length / 2]) {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.12, 2.8, 0.12), emitterMaterial);
+      rail.position.set(railX, 1.4, z);
+      rail.material = emitterMaterial.clone();
+      rail.material.emissiveIntensity = 0.65;
+      vault.add(rail);
+    }
+
+    const glow = new THREE.PointLight(0xff214a, 4, 4.5, 2);
+    glow.position.set(0, 0, 0);
+    rig.add(glow);
+    lasers.push({ x, z, length, baseY, amplitude, speed, phase, rig, beam, currentY: baseY });
   }
 
-  for (const z of [7, -2, -11, -19]) {
+  addLaserGate(-8, 5.3, 16, 1.18, 0, 0, 0);
+  addLaserGate(8, -2.7, 16, 1.15, 0.72, 1.25, 0.4);
+  addLaserGate(-8, -10.4, 16, 1.1, 0.62, 1.55, 2.2);
+  addLaserGate(8, -17.1, 16, 1.2, 0.42, 1.05, 4.1);
+
+  function addFloorTrap(x, z, width = 2.5, depth = 2.5, phase = 0) {
+    const material = new THREE.MeshStandardMaterial({ color: 0x21080e, emissive: 0xff284f, emissiveIntensity: 0.55, roughness: 0.48, metalness: 0.72 });
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(width, 0.08, depth), material);
+    plate.position.set(x, 0.045, z);
+    vault.add(plate);
+    const warning = new THREE.Mesh(
+      new THREE.RingGeometry(Math.min(width, depth) * 0.25, Math.min(width, depth) * 0.33, 4),
+      new THREE.MeshBasicMaterial({ color: 0xff315a, transparent: true, opacity: 0.52, side: THREE.DoubleSide })
+    );
+    warning.rotation.x = -Math.PI / 2;
+    warning.rotation.z = Math.PI / 4;
+    warning.position.set(x, 0.095, z);
+    vault.add(warning);
+    traps.push({ x, z, halfX: width / 2, halfZ: depth / 2, plate, warning, phase });
+  }
+
+  addFloorTrap(8.5, 3.6, 2.8, 2.5, 0.2);
+  addFloorTrap(-8.5, -4.2, 2.6, 3.0, 1.7);
+  addFloorTrap(7.8, -12.2, 3.1, 2.4, 3.1);
+
+  for (const z of [12, 4, -4, -12, -19]) {
     const lamp = new THREE.PointLight(0xff315a, 7, 6, 2);
     lamp.position.set(z % 2 === 0 ? -2.8 : 2.8, 2.8, z);
     vault.add(lamp);
@@ -105,17 +164,20 @@ export function createStageSystem({ scene, level, minimapScene, materials, colli
     },
     2: {
       name: 'THE VAULT',
-      objective: 'Crouch beneath the laser grid',
-      intro: 'Security escalation // Stay low beneath every red beam.',
-      artifact: new THREE.Vector3(0, 1.55, -18),
-      guard: new THREE.Vector3(-10, 0, -8),
+      objective: 'Cross the moving grid and avoid floor traps',
+      intro: 'New floorplan // Weave through moving lasers and armed pressure plates.',
+      artifact: new THREE.Vector3(0, 1.55, -19),
+      guard: new THREE.Vector3(-10, 0, 12),
       guardSpeed: 1.85,
       waypoints: [
-        new THREE.Vector3(-10, 0, -8),
-        new THREE.Vector3(-10, 0, 6),
-        new THREE.Vector3(8, 0, 6),
-        new THREE.Vector3(8, 0, -17),
-        new THREE.Vector3(-8, 0, -17)
+        new THREE.Vector3(-10, 0, 12),
+        new THREE.Vector3(-10, 0, 4),
+        new THREE.Vector3(10, 0, 4),
+        new THREE.Vector3(10, 0, -4),
+        new THREE.Vector3(-10, 0, -4),
+        new THREE.Vector3(-10, 0, -12),
+        new THREE.Vector3(10, 0, -12),
+        new THREE.Vector3(8, 0, -18)
       ],
       accent: 0xff315a,
       ambient: 0.17,
@@ -125,7 +187,7 @@ export function createStageSystem({ scene, level, minimapScene, materials, colli
     3: {
       name: 'BLACKOUT',
       objective: 'Navigate by sound alone',
-      intro: 'Power failure // No map. Every footstep briefly reveals the way.',
+      intro: 'Power failure // A separate maze. The map feed is jammed; sonar reveals the walls.',
       artifact: new THREE.Vector3(12, 1.55, -16),
       guard: new THREE.Vector3(-12, 0, -14),
       guardSpeed: 2.05,
@@ -158,17 +220,31 @@ export function createStageSystem({ scene, level, minimapScene, materials, colli
     return config;
   }
 
-  function update(stage, player, crouching, elapsed, onLaserTrip) {
+  function update(stage, player, crouching, elapsed, onHazardTrip) {
     if (stage !== 2) return;
     for (let i = 0; i < lasers.length; i += 1) {
       const laser = lasers[i];
+      laser.currentY = laser.baseY + Math.sin(elapsed * laser.speed + laser.phase) * laser.amplitude;
+      laser.rig.position.y = laser.currentY;
       laser.beam.material.opacity = 0.58 + Math.sin(elapsed * 7 + i) * 0.22;
-      if (!crouching && Math.abs(player.z - laser.z) < 0.18 && Math.abs(player.x) < laser.width) {
-        onLaserTrip();
+      const playerHeight = crouching ? 0.96 : 1.72;
+      if (Math.abs(player.z - laser.z) < 0.2 && Math.abs(player.x - laser.x) < laser.length / 2 && laser.currentY < playerHeight) {
+        onHazardTrip('laser');
+        return;
+      }
+    }
+
+    for (const trap of traps) {
+      const pulse = 0.48 + Math.sin(elapsed * 3.2 + trap.phase) * 0.3;
+      trap.plate.material.emissiveIntensity = 0.45 + pulse;
+      trap.warning.material.opacity = 0.32 + pulse * 0.42;
+      trap.warning.rotation.z = Math.PI / 4 + elapsed * 0.35;
+      if (Math.abs(player.x - trap.x) < trap.halfX && Math.abs(player.z - trap.z) < trap.halfZ) {
+        onHazardTrip('trap');
         return;
       }
     }
   }
 
-  return { setStage, update, configurations };
+  return { setStage, update, configurations, hazards: { lasers, traps } };
 }

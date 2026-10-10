@@ -11,8 +11,8 @@ The deployed build is public and requires no sign-in.
 ## Three-level mission
 
 1. **Galleries** - learn the echo system, misdirect the patrol, steal the first artefact, and return to extraction.
-2. **The Vault** - remain crouched beneath three red laser gates while evading a faster patrol.
-3. **Blackout** - the acoustic map is disabled and lighting collapses; navigate through sound wavefronts alone.
+2. **The Vault** - cross a separate blast-wall gauntlet with moving laser grids, visible emitters, pressure plates, and a faster patrol.
+3. **Blackout** - enter a separate maze where the acoustic map is jammed and lighting collapses; navigate through sound wavefronts alone.
 
 Clearing extraction automatically advances to the next security zone. Escaping Blackout completes the full run. Number keys 1-3 remain available as practice jumps for demonstrations.
 
@@ -23,7 +23,7 @@ Clearing extraction automatically advances to the next security zone. Escaping B
 - **Shift** - hold to walk quietly (Valorant-style); normal movement runs
 - **C** or **Ctrl** - crouch / quiet movement
 - **Space** - active sonar pulse; reveals a large area but can attract the guard
-- **Left click** - throw a sound decoy
+- **Left click** - throw a sound decoy (3 charges; one charge returns every 6 seconds)
 - **E** - take the artefact
 - **1 / 2 / 3** - practice-select a level
 - **R** - restart after success or failure
@@ -34,13 +34,13 @@ Clearing extraction automatically advances to the next security zone. Escaping B
 - Three.js realtime 3D scene with procedural museum geometry
 - Original GLSL vertex and fragment shader for expanding acoustic wavefronts
 - High-performance static Vite deployment with relative asset paths
-- Cacheable Three.js vendor chunk with a 9.7 KB gzip game entry
+- Cacheable Three.js vendor chunk with a compact, approximately 14 KB gzip game entry
 - Adaptive render resolution and suspended idle rendering to reduce GPU work
 - Keyboard, mouse, pointer-lock, audio, collision, interaction, and state-transition systems
 - Guard patrol/investigate state machine with level-specific routes and speed
-- Speed-driven player noise, throwable decoys, sonar cooldown, lasers, extraction, and scoring
+- Speed-driven player noise, three-charge throwable decoys, sonar cooldown, moving lasers, floor traps, extraction, and scoring
 - Level-specific procedural Web Audio ambience and transition cues with no external sound files
-- Dedicated 2D tactical minimap with player, guard, gold diamond, and extraction markers; Blackout clearly jams the feed
+- Dedicated 2D tactical map that stays dormant in darkness and illuminates during sound pulses; Blackout clearly jams the feed
 - Responsive cinematic UI, level transitions, progress indicators, success, failure, and restart screens
 - No external runtime assets, database, or backend services
 

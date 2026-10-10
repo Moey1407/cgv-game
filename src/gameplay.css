@@ -33,15 +33,17 @@
 
 .minimap > span b {
   margin-left: .38rem;
-  color: #76ffb2;
+  color: #5f7882;
   font: 600 .43rem Consolas, monospace;
   letter-spacing: .08em;
 }
 
 .minimap.is-jammed > span b { color: var(--red); }
 .minimap.is-jammed .map-grid { opacity: .05; }
+.minimap.revealed > span b { color: #76ffb2; }
 
-.map-grid { z-index: 1; opacity: .14; }
+.map-grid { z-index: 1; opacity: .025; transition: opacity .25s; }
+.minimap.revealed .map-grid { opacity: .16; }
 
 .map-legend {
   position: absolute;
@@ -84,11 +86,18 @@
 .movement-state.walk { border-color: #76ffb2; color: #76ffb2; }
 .movement-state.crouch { border-color: #8398a2; color: #a8bac1; }
 
-.sonar-status {
+.ability-stack {
   position: fixed;
   z-index: 8;
   left: 1.8rem;
   bottom: 1.8rem;
+  display: grid;
+  gap: .45rem;
+  pointer-events: none;
+}
+
+.sonar-status,
+.decoy-status {
   padding: .62rem .72rem;
   border: 1px solid rgba(114, 239, 255, .34);
   border-left: 2px solid var(--cyan);
@@ -99,7 +108,8 @@
   box-shadow: 0 0 22px rgba(49, 205, 231, .08);
 }
 
-.sonar-status kbd {
+.sonar-status kbd,
+.decoy-status kbd {
   margin-left: .5rem;
   padding: .2rem .3rem;
   border: 1px solid currentColor;
@@ -108,6 +118,7 @@
 }
 
 .sonar-status.cooldown { border-color: rgba(255, 174, 69, .4); color: var(--amber); }
+.decoy-status.cooldown { border-color: rgba(255, 174, 69, .4); color: var(--amber); }
 
 body.sonar-flash::after {
   content: "";
@@ -132,5 +143,5 @@ body.sonar-flash::after {
 @media (max-width: 800px) {
   .movement-state, .map-legend { display: none; }
   .minimap { width: 9rem; height: 6rem; }
-  .sonar-status { left: 1rem; bottom: 1rem; }
+  .ability-stack { left: 1rem; bottom: 1rem; }
 }

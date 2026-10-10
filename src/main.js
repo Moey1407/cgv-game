@@ -15,6 +15,7 @@ const ui = {
   minimap: document.querySelector('#minimap'),
   mapCanvas: document.querySelector('#map-canvas'),
   sonar: document.querySelector('#sonar-status'),
+  decoy: document.querySelector('#decoy-status'),
   objective: document.querySelector('#objective'),
   stageLabel: document.querySelector('#stage-label'),
   progressSteps: document.querySelectorAll('#level-progress i'),
@@ -105,7 +106,10 @@ const state = {
   footstepTimer: 0,
   guardSoundTimer: 0,
   throwCooldown: 0,
+  decoyCharges: 3,
+  decoyRecharge: 0,
   pingCooldown: 0,
+  mapReveal: 0,
   toastTimer: 0
 };
 
@@ -138,20 +142,24 @@ let extractionMarker;
 let guard;
 let stages;
 let playerLight;
+let gallery;
+let artifactPlinth;
+let artifactCase;
 const museumLights = [];
 
-function addBox(name, size, position, material, solid = true) {
+function addBox(name, size, position, material, solid = true, parent = level, stage = null) {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z), material);
   mesh.name = name;
   mesh.position.copy(position);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
-  level.add(mesh);
+  parent.add(mesh);
   if (solid) {
     const mapBlock = new THREE.Mesh(new THREE.BoxGeometry(size.x, 0.12, size.z), minimapMaterial);
     mapBlock.position.set(position.x, 0, position.z);
     minimapScene.add(mapBlock);
     colliders.push({
+      stage,
       minX: position.x - size.x / 2,
       maxX: position.x + size.x / 2,
       minZ: position.z - size.z / 2,
@@ -172,7 +180,7 @@ function createMapArrow(colour, scale = 1) {
   return new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: colour, side: THREE.DoubleSide }));
 }
 
-function addFrame(x, y, z, rotY, colour) {
+function addFrame(x, y, z, rotY, colour, parent = level) {
   const group = new THREE.Group();
   group.position.set(x, y, z);
   group.rotation.y = rotY;
@@ -186,11 +194,11 @@ function addFrame(x, y, z, rotY, colour) {
   );
   art.position.z = 0.061;
   group.add(backing, art);
-  level.add(group);
+  parent.add(group);
 }
 
-function addPedestal(x, z, shape, colour) {
-  addBox('pedestal', new THREE.Vector3(1.45, 1.05, 1.45), new THREE.Vector3(x, 0.525, z), materials.stone, true);
+function addPedestal(x, z, shape, colour, parent = level, stage = null) {
+  addBox('pedestal', new THREE.Vector3(1.45, 1.05, 1.45), new THREE.Vector3(x, 0.525, z), materials.stone, true, parent, stage);
   const object = new THREE.Mesh(
     shape,
     new THREE.MeshStandardMaterial({
@@ -203,7 +211,7 @@ function addPedestal(x, z, shape, colour) {
   );
   object.position.set(x, 1.65, z);
   object.castShadow = true;
-  level.add(object);
+  parent.add(object);
   decor.push({ mesh: object, speed: 0.12 + Math.random() * 0.12 });
 }
 
@@ -268,43 +276,45 @@ function createWorld() {
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
   level.add(floor);
+  gallery = new THREE.Group();
+  level.add(gallery);
 
   addBox('north-wall', new THREE.Vector3(34, 5.5, 0.45), new THREE.Vector3(0, 2.75, -23), materials.wall);
   addBox('south-wall', new THREE.Vector3(34, 5.5, 0.45), new THREE.Vector3(0, 2.75, 23), materials.wall);
   addBox('west-wall', new THREE.Vector3(0.45, 5.5, 46), new THREE.Vector3(-17, 2.75, 0), materials.wall);
   addBox('east-wall', new THREE.Vector3(0.45, 5.5, 46), new THREE.Vector3(17, 2.75, 0), materials.wall);
 
-  addBox('divider-a', new THREE.Vector3(12, 4.2, 0.38), new THREE.Vector3(-10.5, 2.1, 8), materials.wall);
-  addBox('divider-b', new THREE.Vector3(12, 4.2, 0.38), new THREE.Vector3(10.5, 2.1, 8), materials.wall);
-  addBox('divider-c', new THREE.Vector3(0.38, 4.2, 13), new THREE.Vector3(-7, 2.1, -7.5), materials.wall);
-  addBox('divider-d', new THREE.Vector3(0.38, 4.2, 13), new THREE.Vector3(7, 2.1, -7.5), materials.wall);
+  addBox('divider-a', new THREE.Vector3(12, 4.2, 0.38), new THREE.Vector3(-10.5, 2.1, 8), materials.wall, true, gallery, 1);
+  addBox('divider-b', new THREE.Vector3(12, 4.2, 0.38), new THREE.Vector3(10.5, 2.1, 8), materials.wall, true, gallery, 1);
+  addBox('divider-c', new THREE.Vector3(0.38, 4.2, 13), new THREE.Vector3(-7, 2.1, -7.5), materials.wall, true, gallery, 1);
+  addBox('divider-d', new THREE.Vector3(0.38, 4.2, 13), new THREE.Vector3(7, 2.1, -7.5), materials.wall, true, gallery, 1);
 
   for (const x of [-12.5, -4.2, 4.2, 12.5]) {
     const column = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.62, 5.2, 10), materials.stone);
     column.position.set(x, 2.6, -1);
     column.castShadow = true;
     column.receiveShadow = true;
-    level.add(column);
-    colliders.push({ minX: x - 0.64, maxX: x + 0.64, minZ: -1.64, maxZ: -0.36 });
+    gallery.add(column);
+    colliders.push({ stage: 1, minX: x - 0.64, maxX: x + 0.64, minZ: -1.64, maxZ: -0.36 });
   }
 
-  addPedestal(-11, 14, new THREE.IcosahedronGeometry(0.72, 1), 0x375b6a);
-  addPedestal(11, 14, new THREE.TorusKnotGeometry(0.48, 0.16, 64, 10), 0x604941);
-  addPedestal(-12, -15, new THREE.OctahedronGeometry(0.76, 0), 0x5b3b4e);
-  addPedestal(12, -15, new THREE.TorusGeometry(0.62, 0.17, 12, 48), 0x31576b);
+  addPedestal(-11, 14, new THREE.IcosahedronGeometry(0.72, 1), 0x375b6a, gallery, 1);
+  addPedestal(11, 14, new THREE.TorusKnotGeometry(0.48, 0.16, 64, 10), 0x604941, gallery, 1);
+  addPedestal(-12, -15, new THREE.OctahedronGeometry(0.76, 0), 0x5b3b4e, gallery, 1);
+  addPedestal(12, -15, new THREE.TorusGeometry(0.62, 0.17, 12, 48), 0x31576b, gallery, 1);
 
-  addFrame(-16.72, 2.55, 13, Math.PI / 2, 0x2b7080);
-  addFrame(-16.72, 2.55, 3.5, Math.PI / 2, 0x74334a);
-  addFrame(16.72, 2.55, 13, -Math.PI / 2, 0x71522c);
-  addFrame(16.72, 2.55, 3.5, -Math.PI / 2, 0x2c526d);
-  addFrame(-5, 2.6, -22.72, 0, 0x4b2b67);
-  addFrame(5, 2.6, -22.72, 0, 0x2f6f69);
+  addFrame(-16.72, 2.55, 13, Math.PI / 2, 0x2b7080, gallery);
+  addFrame(-16.72, 2.55, 3.5, Math.PI / 2, 0x74334a, gallery);
+  addFrame(16.72, 2.55, 13, -Math.PI / 2, 0x71522c, gallery);
+  addFrame(16.72, 2.55, 3.5, -Math.PI / 2, 0x2c526d, gallery);
+  addFrame(-5, 2.6, -22.72, 0, 0x4b2b67, gallery);
+  addFrame(5, 2.6, -22.72, 0, 0x2f6f69, gallery);
 
   const grid = new THREE.GridHelper(34, 34, 0x1a5a68, 0x0c252d);
   grid.position.y = 0.012;
   grid.material.transparent = true;
   grid.material.opacity = 0.16;
-  level.add(grid);
+  gallery.add(grid);
 
   const hemi = new THREE.HemisphereLight(0x244657, 0x05070a, 0.42);
   scene.add(hemi);
@@ -360,14 +370,14 @@ function createWorld() {
   artifactGlow = new THREE.PointLight(0xffb12f, 12, 7, 2);
   artifactGlow.position.copy(artifact.position);
   level.add(artifactGlow);
-  addBox('artefact-plinth', new THREE.Vector3(1.7, 1.15, 1.7), new THREE.Vector3(0, 0.575, -19.2), materials.stone, true);
+  artifactPlinth = addBox('artefact-plinth', new THREE.Vector3(1.7, 1.15, 1.7), new THREE.Vector3(0, 0.575, -19.2), materials.stone, false);
 
-  const glass = new THREE.Mesh(
+  artifactCase = new THREE.Mesh(
     new THREE.BoxGeometry(1.45, 1.6, 1.45),
     new THREE.MeshPhysicalMaterial({ color: 0x8de9f5, transparent: true, opacity: 0.08, roughness: 0.06, metalness: 0, side: THREE.DoubleSide })
   );
-  glass.position.set(0, 1.7, -19.2);
-  level.add(glass);
+  artifactCase.position.set(0, 1.7, -19.2);
+  level.add(artifactCase);
 
   extraction = new THREE.Mesh(
     new THREE.RingGeometry(1.9, 2.08, 64),
@@ -510,6 +520,8 @@ function emitRing(position, colour, maxRadius, source) {
     source,
     visuals: createPulseVisual(position, colour, source)
   });
+  const revealStrength = source === 'sonar' ? 1 : source === 'decoy' ? 0.72 : source === 'guard' ? 0.38 : 0.48;
+  state.mapReveal = Math.max(state.mapReveal, revealStrength);
   while (rings.length > MAX_RINGS) disposeRing(rings.shift());
   state.ringCount += 1;
   ping(source);
@@ -764,7 +776,15 @@ function updateGuard(dt) {
 }
 
 function throwDecoy() {
-  if (!state.running || !state.locked || state.throwCooldown > 0 || throwables.length >= 3) return;
+  if (!state.running || !state.locked || state.throwCooldown > 0) return;
+  if (state.decoyCharges <= 0) {
+    showToast('DECOYS RECHARGING // HOLD POSITION');
+    return;
+  }
+  if (throwables.length >= 3) {
+    showToast('TOO MANY ACTIVE DECOYS');
+    return;
+  }
   const direction = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation).normalize();
   const mesh = new THREE.Mesh(
     new THREE.IcosahedronGeometry(0.16, 1),
@@ -780,6 +800,23 @@ function throwDecoy() {
     age: 0
   });
   state.throwCooldown = 0.75;
+  state.decoyCharges -= 1;
+  if (state.decoyRecharge <= 0) state.decoyRecharge = 6;
+}
+
+function updateDecoyCooldown(dt) {
+  if (state.decoyCharges < 3) {
+    state.decoyRecharge -= dt;
+    if (state.decoyRecharge <= 0) {
+      state.decoyCharges += 1;
+      state.decoyRecharge = state.decoyCharges < 3 ? 6 : 0;
+      showToast('DECOY CHARGE RESTORED // ×' + state.decoyCharges);
+    }
+  }
+  ui.decoy.textContent = state.decoyCharges > 0
+    ? 'DECOY ×' + state.decoyCharges + (state.decoyCharges < 3 ? '  NEXT ' + state.decoyRecharge.toFixed(1) + 's' : '  CLICK')
+    : 'DECOY EMPTY  ' + Math.max(0, state.decoyRecharge).toFixed(1) + 's';
+  ui.decoy.classList.toggle('cooldown', state.decoyCharges < 3);
 }
 
 function updateThrowables(dt) {
@@ -843,6 +880,7 @@ function setStagePreview(stage, announce = true) {
   state.carrying = false;
   state.ended = false;
   const config = stages.setStage(stage);
+  gallery.visible = stage === 1;
   setAmbienceForStage(stage);
   player.position.set(0, 0, 18);
   player.velocity.set(0, 0, 0);
@@ -852,6 +890,8 @@ function setStagePreview(stage, announce = true) {
   artifact.position.copy(config.artifact);
   artifact.scale.setScalar(1);
   artifact.visible = true;
+  artifactPlinth.position.set(config.artifact.x, 0.575, config.artifact.z);
+  artifactCase.position.set(config.artifact.x, 1.7, config.artifact.z);
   artifactGlow.position.copy(artifact.position);
   artifactMarker.position.set(config.artifact.x, 0.14, config.artifact.z);
   guard.group.position.copy(config.guard);
@@ -917,7 +957,10 @@ function resetGame() {
   state.alerts = 0;
   state.footstepTimer = 0;
   state.throwCooldown = 0;
+  state.decoyCharges = 3;
+  state.decoyRecharge = 0;
   state.pingCooldown = 0;
+  state.mapReveal = 0;
   setStagePreview(1, false);
   ui.result.classList.add('is-hidden');
   ui.hud.classList.remove('is-hidden');
@@ -925,6 +968,7 @@ function resetGame() {
   ui.minimap.classList.remove('is-hidden');
   ui.minimap.classList.toggle('is-jammed', state.stage === 3);
   ui.sonar.classList.remove('is-hidden');
+  ui.decoy.classList.remove('is-hidden');
   ui.transition.classList.add('is-hidden');
   ui.creditsButton.classList.add('is-hidden');
 }
@@ -950,13 +994,16 @@ function finish(won, reason = 'guard') {
   ui.reticle.classList.add('is-hidden');
   ui.minimap.classList.add('is-hidden');
   ui.sonar.classList.add('is-hidden');
+  ui.decoy.classList.add('is-hidden');
   ui.resultKicker.textContent = won ? 'MISSION COMPLETE' : 'SIGNAL INTERCEPTED';
   ui.resultTitle.textContent = won ? 'SIGNAL LOST.' : 'YOU WERE HEARD.';
   ui.resultCopy.textContent = won
     ? 'All three artefacts are secure. You left nothing behind but an echo.'
     : reason === 'laser'
-      ? 'The laser grid caught you standing. Crouch before crossing the red beam.'
-      : 'The guard followed the wavefront back to its source. Move quieter—or send the sound somewhere else.';
+      ? 'The moving laser grid crossed your body. Watch the emitters, wait for an opening, and crouch beneath high beams.'
+      : reason === 'trap'
+        ? 'A pressure plate armed beneath your feet. Read the floor markings and route around the glowing trap panels.'
+        : 'The guard followed the wavefront back to its source. Move quieter—or send the sound somewhere else.';
   ui.statTime.textContent = formatTime(state.elapsed);
   ui.statRings.textContent = String(state.ringCount);
   ui.statAlerts.textContent = String(state.alerts);
@@ -1025,6 +1072,10 @@ function drawMinimap() {
     return;
   }
 
+  const reveal = THREE.MathUtils.clamp(state.mapReveal, 0, 1);
+  context.save();
+  context.globalAlpha = 0.045 + reveal * 0.955;
+
   for (const box of colliders) {
     if (box.stage && box.stage !== state.stage) continue;
     const x = mapX(box.minX);
@@ -1036,6 +1087,34 @@ function drawMinimap() {
     context.lineWidth = 1.5;
     context.fillRect(x, y, boxWidth, boxHeight);
     context.strokeRect(x, y, boxWidth, boxHeight);
+  }
+
+  if (state.stage === 2) {
+    for (const laser of stages.hazards.lasers) {
+      const startX = mapX(laser.x - laser.length / 2);
+      const endX = mapX(laser.x + laser.length / 2);
+      const y = mapY(laser.z);
+      context.beginPath();
+      context.moveTo(startX, y);
+      context.lineTo(endX, y);
+      context.strokeStyle = '#ff315a';
+      context.lineWidth = 3.5;
+      context.shadowColor = '#ff315a';
+      context.shadowBlur = 8;
+      context.stroke();
+    }
+    context.shadowBlur = 0;
+    for (const trap of stages.hazards.traps) {
+      const left = mapX(trap.x - trap.halfX);
+      const top = mapY(trap.z - trap.halfZ);
+      const trapWidth = mapX(trap.x + trap.halfX) - left;
+      const trapHeight = mapY(trap.z + trap.halfZ) - top;
+      context.fillStyle = 'rgba(255, 49, 90, .5)';
+      context.fillRect(left, top, trapWidth, trapHeight);
+      context.strokeStyle = '#ff9a45';
+      context.lineWidth = 2;
+      context.strokeRect(left, top, trapWidth, trapHeight);
+    }
   }
 
   const exitX = mapX(0);
@@ -1075,11 +1154,23 @@ function drawMinimap() {
   context.fillStyle = 'rgba(255, 49, 90, .13)';
   context.fill();
   drawMapArrow(context, guardX, guardY, guardAngle, '#ff315a', 13);
+  context.restore();
 
   const playerX = mapX(player.position.x);
   const playerY = mapY(player.position.z);
   const playerAngle = Math.atan2(-Math.cos(state.yaw), -Math.sin(state.yaw));
   drawMapArrow(context, playerX, playerY, playerAngle, '#72efff', 14);
+  if (reveal > 0.05) {
+    const radius = 18 + reveal * 62;
+    context.beginPath();
+    context.arc(playerX, playerY, radius, 0, Math.PI * 2);
+    context.strokeStyle = 'rgba(114, 239, 255, ' + (0.2 + reveal * 0.65) + ')';
+    context.lineWidth = 3;
+    context.shadowColor = '#72efff';
+    context.shadowBlur = 12;
+    context.stroke();
+    context.shadowBlur = 0;
+  }
 }
 
 function render() {
@@ -1106,15 +1197,21 @@ function animate() {
     ring.material.opacity = (state.carrying ? 0.78 : 0.42) - index * 0.16;
   });
   for (const item of decor) item.mesh.rotation.y += dt * item.speed;
+  state.mapReveal = Math.max(0, state.mapReveal - dt * 0.3);
+  if (state.stage !== 3) {
+    ui.mapStatus.textContent = state.mapReveal > 0.08 ? 'ECHO' : 'DORMANT';
+    ui.minimap.classList.toggle('revealed', state.mapReveal > 0.08);
+  }
 
   if (state.running && state.locked && !state.transitioning) {
     state.elapsed = (performance.now() - state.startTime) / 1000;
     state.throwCooldown = Math.max(0, state.throwCooldown - dt);
     state.pingCooldown = Math.max(0, state.pingCooldown - dt);
+    updateDecoyCooldown(dt);
     ui.sonar.textContent = state.pingCooldown > 0 ? 'SONAR RECHARGING ' + state.pingCooldown.toFixed(1) + 's' : 'SONAR READY  SPACE';
     ui.sonar.classList.toggle('cooldown', state.pingCooldown > 0);
     updatePlayer(dt);
-    stages.update(state.stage, player.position, state.crouching, elapsed, () => finish(false, 'laser'));
+    stages.update(state.stage, player.position, state.crouching, elapsed, (reason) => finish(false, reason));
     updateGuard(dt);
     updateThrowables(dt);
   }
@@ -1174,7 +1271,8 @@ if (new URLSearchParams(window.location.search).has('qa')) {
     takeArtifact: interact,
     movePlayer: (x, z) => player.position.set(x, 0, z),
     setView: (yaw, pitch = 0) => { state.yaw = yaw; state.pitch = pitch; },
-    getState: () => ({ stage: state.stage, running: state.running, ended: state.ended, transitioning: state.transitioning, carrying: state.carrying, rings: state.ringCount, alerts: state.alerts })
+    isBlockedAt: (x, z) => isBlocked(new THREE.Vector3(x, 0, z)),
+    getState: () => ({ stage: state.stage, running: state.running, ended: state.ended, transitioning: state.transitioning, carrying: state.carrying, rings: state.ringCount, alerts: state.alerts, decoys: state.decoyCharges, mapReveal: state.mapReveal })
   };
 }
 
