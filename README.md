@@ -34,6 +34,8 @@ Clearing extraction automatically advances to the next security zone. Escaping B
 - Three.js realtime 3D scene with procedural museum geometry
 - Original GLSL vertex and fragment shader for expanding acoustic wavefronts
 - High-performance static Vite deployment with relative asset paths
+- Cacheable Three.js vendor chunk with a 9.7 KB gzip game entry
+- Adaptive render resolution and suspended idle rendering to reduce GPU work
 - Keyboard, mouse, pointer-lock, audio, collision, interaction, and state-transition systems
 - Guard patrol/investigate state machine with level-specific routes and speed
 - Speed-driven player noise, throwable decoys, sonar cooldown, lasers, extraction, and scoring

@@ -36,7 +36,8 @@ const ui = {
 
 const canvas = document.querySelector('#game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+const pixelRatioCap = () => window.innerWidth < 900 ? 1 : 1.25;
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, pixelRatioCap()));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -821,6 +822,7 @@ function render() {
 function animate() {
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.05);
+  if (!state.running) return;
   const elapsed = clock.elapsedTime;
   sharedUniforms.uTime.value = elapsed;
   artifact.rotation.y += dt * 0.75;
@@ -877,6 +879,7 @@ canvas.addEventListener('mousedown', (event) => {
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, pixelRatioCap()));
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 ui.startButton.addEventListener('click', startGame);
