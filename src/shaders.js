@@ -39,7 +39,8 @@ const fragmentShader = [
   '  vec3 moon = normalize(vec3(-0.35, 0.82, 0.25));',
   '  float diffuse = max(dot(n, moon), 0.0);',
   '  float edge = pow(1.0 - abs(dot(n, normalize(cameraPosition - vWorldPos))), 3.0);',
-  '  vec3 colour = uBaseColor * (uAmbient + diffuse * 0.42) + vec3(0.01,0.025,0.035) * edge;',
+  '  float skyFill = 0.08 + max(n.y, 0.0) * 0.1;',
+  '  vec3 colour = uBaseColor * (uAmbient + skyFill + diffuse * 0.52) + vec3(0.025,0.07,0.09) * edge;',
   '  for(int i=0;i<8;i++){',
   '    vec3 toRing = uRings[i].xyz - vWorldPos;',
   '    float d = length(toRing);',
@@ -52,7 +53,7 @@ const fragmentShader = [
   '  }',
   '  float micro = (hash(floor(vWorldPos.xz * 4.0)) - 0.5) * 0.012;',
   '  colour += micro;',
-  '  float fog = smoothstep(24.0, 49.0, distance(cameraPosition, vWorldPos));',
+  '  float fog = smoothstep(29.0, 54.0, distance(cameraPosition, vWorldPos));',
   '  colour = mix(colour, vec3(0.002,0.005,0.009), fog);',
   '  gl_FragColor = vec4(colour, 1.0);',
   '}'

@@ -1,0 +1,84 @@
+/* Gameplay clarity pass: the WebGL map stays visible beneath this lightweight HUD frame. */
+.minimap {
+  width: 13.75rem;
+  height: 9.5rem;
+  border-color: rgba(114, 239, 255, .36);
+  background: rgba(1, 7, 12, .22);
+  box-shadow: inset 0 0 34px rgba(14, 73, 89, .16), 0 0 26px rgba(3, 17, 24, .8);
+}
+
+.minimap::after {
+  content: "";
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  border: 1px solid rgba(199, 251, 255, .07);
+  box-shadow: inset 0 0 18px rgba(0, 0, 0, .38);
+}
+
+.minimap > span {
+  z-index: 3;
+  color: rgba(155, 244, 255, .88);
+  font-weight: 600;
+  text-shadow: 0 0 9px rgba(114, 239, 255, .6);
+}
+
+.minimap > span b {
+  margin-left: .38rem;
+  color: #76ffb2;
+  font: 600 .43rem Consolas, monospace;
+  letter-spacing: .08em;
+}
+
+.map-grid { z-index: 1; opacity: .14; }
+
+.map-legend {
+  position: absolute;
+  z-index: 3;
+  left: .6rem;
+  right: .6rem;
+  bottom: .42rem;
+  display: flex;
+  align-items: center;
+  gap: .28rem;
+  color: #75909a;
+  font: 500 .42rem Consolas, monospace;
+  letter-spacing: .08em;
+}
+
+.map-legend i {
+  width: .34rem;
+  height: .34rem;
+  margin-left: .35rem;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 6px currentColor;
+}
+
+.map-legend i:first-child { margin-left: 0; }
+.map-legend .target { color: #e9fdff; background: #e9fdff; }
+.map-legend .hostile { color: var(--red); background: var(--red); }
+
+.movement-state {
+  min-width: 4.5rem;
+  padding: .44rem .55rem;
+  border-left: 2px solid var(--cyan);
+  background: rgba(3, 13, 20, .6);
+  color: #9fefff;
+  font: 600 .5rem Consolas, monospace;
+  letter-spacing: .11em;
+  text-align: center;
+}
+
+.movement-state.walk { border-color: #76ffb2; color: #76ffb2; }
+.movement-state.crouch { border-color: #8398a2; color: #a8bac1; }
+
+#vignette {
+  box-shadow: inset 0 0 12vmax 5vmax rgba(0, 0, 0, .68);
+  background: linear-gradient(180deg, rgba(0, 0, 0, .24), transparent 24%, transparent 74%, rgba(0, 0, 0, .42));
+}
+
+@media (max-width: 800px) {
+  .movement-state, .map-legend { display: none; }
+  .minimap { width: 9rem; height: 6rem; }
+}

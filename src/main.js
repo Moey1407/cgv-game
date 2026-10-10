@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import './styles.css';
 import './screens.css';
+import './gameplay.css';
 import { MAX_RINGS, createSoundMaterial, createSoundUniforms } from './shaders.js';
 import { createStageSystem } from './stages.js';
 
@@ -20,6 +21,8 @@ const ui = {
   transitionTitle: document.querySelector('#transition-title'),
   transitionCopy: document.querySelector('#transition-copy'),
   noise: document.querySelector('#noise-fill'),
+  movement: document.querySelector('#movement-state'),
+  mapStatus: document.querySelector('#map-status'),
   guard: document.querySelector('#guard-state'),
   interaction: document.querySelector('#interaction'),
   toast: document.querySelector('#toast'),
@@ -41,7 +44,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, pixelRatioCap()));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.18;
+renderer.toneMappingExposure = 1.42;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.autoClear = false;
@@ -62,9 +65,11 @@ const level = new THREE.Group();
 scene.add(level);
 const minimapScene = new THREE.Scene();
 minimapScene.background = new THREE.Color(0x02090d);
-const minimapMaterial = new THREE.MeshBasicMaterial({ color: 0x123a47 });
+const minimapMaterial = new THREE.MeshBasicMaterial({ color: 0x1f7082 });
 const minimapGrid = new THREE.GridHelper(46, 23, 0x1c6e7d, 0x0b2730);
 minimapGrid.position.y = -0.03;
+minimapGrid.material.transparent = true;
+minimapGrid.material.opacity = 0.68;
 minimapScene.add(minimapGrid);
 
 const materials = {
@@ -123,8 +128,10 @@ let extraction;
 let playerMarker;
 let guardMarker;
 let artifactMarker;
+let extractionMarker;
 let guard;
 let stages;
+let playerLight;
 const museumLights = [];
 
 function addBox(name, size, position, material, solid = true) {
@@ -146,6 +153,17 @@ function addBox(name, size, position, material, solid = true) {
     });
   }
   return mesh;
+}
+
+function createMapArrow(colour, scale = 1) {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute([
+    -0.42 * scale, 0, 0.34 * scale,
+    0.42 * scale, 0, 0.34 * scale,
+    0, 0, -0.72 * scale
+  ], 3));
+  geometry.computeVertexNormals();
+  return new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: colour, side: THREE.DoubleSide }));
 }
 
 function addFrame(x, y, z, rotY, colour) {
@@ -268,7 +286,7 @@ function createWorld() {
   artifact.castShadow = true;
   level.add(artifact);
   artifactMarker = new THREE.Mesh(
-    new THREE.CircleGeometry(0.34, 20),
+    new THREE.CircleGeometry(0.58, 20),
     new THREE.MeshBasicMaterial({ color: 0xc7fbff, side: THREE.DoubleSide })
   );
   artifactMarker.rotation.x = -Math.PI / 2;
@@ -295,13 +313,20 @@ function createWorld() {
   extraction.position.set(0, 0.035, 19.4);
   level.add(extraction);
 
-  playerMarker = new THREE.Mesh(
-    new THREE.RingGeometry(0.35, 0.5, 24),
-    new THREE.MeshBasicMaterial({ color: 0x72efff, side: THREE.DoubleSide })
+  extractionMarker = new THREE.Mesh(
+    new THREE.RingGeometry(1.15, 1.42, 32),
+    new THREE.MeshBasicMaterial({ color: 0x69f6ff, transparent: true, opacity: 0.72, side: THREE.DoubleSide })
   );
-  playerMarker.rotation.x = -Math.PI / 2;
+  extractionMarker.rotation.x = -Math.PI / 2;
+  extractionMarker.position.set(0, 0.11, 19.4);
+  minimapScene.add(extractionMarker);
+
+  playerMarker = createMapArrow(0x72efff, 1.7);
   playerMarker.position.y = 0.06;
   minimapScene.add(playerMarker);
+
+  playerLight = new THREE.PointLight(0x7bddff, 1.15, 8, 2);
+  scene.add(playerLight);
 
   createGuard();
   stages = createStageSystem({
@@ -317,23 +342,49 @@ function createWorld() {
 
 function createGuard() {
   const group = new THREE.Group();
-  const redMaterial = new THREE.MeshStandardMaterial({ color: 0x2a0911, emissive: 0xff274e, emissiveIntensity: 1.25, roughness: 0.55 });
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 1.05, 5, 10), redMaterial);
-  body.position.y = 1.05;
-  body.castShadow = true;
-  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.16, 0.1), new THREE.MeshBasicMaterial({ color: 0xff6a7e }));
-  visor.position.set(0, 1.48, -0.38);
-  group.add(body, visor);
+  const uniform = new THREE.MeshStandardMaterial({ color: 0x101923, roughness: 0.62, metalness: 0.18 });
+  const armour = new THREE.MeshStandardMaterial({ color: 0x26313d, roughness: 0.38, metalness: 0.55 });
+  const red = new THREE.MeshStandardMaterial({ color: 0x3b0711, emissive: 0xff294f, emissiveIntensity: 2.1, roughness: 0.35 });
+  const skin = new THREE.MeshStandardMaterial({ color: 0x6d5148, roughness: 0.9 });
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.38, 0.62, 4, 8), uniform);
+  body.position.y = 1.22;
+  body.scale.z = 0.72;
+  const vest = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.72, 0.4), armour);
+  vest.position.set(0, 1.24, 0.03);
+  const belt = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.12, 0.43), red);
+  belt.position.set(0, 0.92, 0.02);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.27, 12, 8), skin);
+  head.position.set(0, 1.88, 0);
+  const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.57), armour);
+  helmet.position.set(0, 1.92, 0);
+  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.12, 0.07), new THREE.MeshBasicMaterial({ color: 0xff5871 }));
+  visor.position.set(0, 1.9, 0.255);
+  const capBrim = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.05, 0.22), armour);
+  capBrim.position.set(0, 2.09, 0.14);
+  const badge = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.2, 0.035), red);
+  badge.position.set(0.19, 1.37, 0.225);
+  const leftArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.12, 0.58, 3, 6), uniform);
+  const rightArm = leftArm.clone();
+  leftArm.position.set(-0.48, 1.23, 0);
+  rightArm.position.set(0.48, 1.23, 0);
+  const leftLeg = new THREE.Mesh(new THREE.CapsuleGeometry(0.14, 0.62, 3, 6), uniform);
+  const rightLeg = leftLeg.clone();
+  leftLeg.position.set(-0.2, 0.43, 0);
+  rightLeg.position.set(0.2, 0.43, 0);
+  const flashlightBeam = new THREE.Mesh(
+    new THREE.ConeGeometry(1.15, 3.7, 18, 1, true),
+    new THREE.MeshBasicMaterial({ color: 0xff315a, transparent: true, opacity: 0.055, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending })
+  );
+  flashlightBeam.rotation.x = -Math.PI / 2;
+  flashlightBeam.position.set(0, 1.35, 1.85);
+  [body, vest, belt, head, helmet, visor, capBrim, badge, leftArm, rightArm, leftLeg, rightLeg].forEach((part) => { part.castShadow = true; });
+  group.add(body, vest, belt, head, helmet, visor, capBrim, badge, leftArm, rightArm, leftLeg, rightLeg, flashlightBeam);
   group.position.set(10, 0, -10);
   scene.add(group);
-  const light = new THREE.PointLight(0xff254e, 5, 4.5, 2);
-  light.position.set(0, 1.3, 0);
+  const light = new THREE.PointLight(0xff254e, 7, 5.5, 2);
+  light.position.set(0, 1.55, 0.45);
   group.add(light);
-  guardMarker = new THREE.Mesh(
-    new THREE.CircleGeometry(0.38, 20),
-    new THREE.MeshBasicMaterial({ color: 0xff315a, side: THREE.DoubleSide })
-  );
-  guardMarker.rotation.x = -Math.PI / 2;
+  guardMarker = createMapArrow(0xff315a, 1.7);
   guardMarker.position.set(10, 0.15, -10);
   minimapScene.add(guardMarker);
   guard = {
@@ -342,6 +393,7 @@ function createGuard() {
     waypoint: 0,
     target: new THREE.Vector3(),
     speed: 1.65,
+    limbs: { leftArm, rightArm, leftLeg, rightLeg },
     waypoints: [
       new THREE.Vector3(10, 0, -10),
       new THREE.Vector3(10, 0, 5),
@@ -490,7 +542,8 @@ function isBlocked(position) {
 
 function updatePlayer(dt) {
   state.crouching = Boolean(keys.KeyC || keys.ControlLeft);
-  let speed = state.crouching ? 1.65 : keys.ShiftLeft ? 5.7 : 3.25;
+  const walking = !state.crouching && Boolean(keys.ShiftLeft || keys.ShiftRight);
+  let speed = state.crouching ? 1.55 : walking ? 2.45 : 4.85;
   if (state.carrying) speed *= 0.88;
   const input = new THREE.Vector2(
     (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0),
@@ -511,26 +564,32 @@ function updatePlayer(dt) {
   if (!isBlocked(nextZ)) player.position.z = nextZ.z;
 
   const moving = input.lengthSq() > 0.05;
-  const noiseLevel = !moving ? 0.03 : state.crouching ? 0.16 : keys.ShiftLeft ? 0.95 : 0.48;
+  const noiseLevel = !moving ? 0.03 : state.crouching ? 0.1 : walking ? 0.22 : 0.78;
   ui.noise.style.width = Math.round(noiseLevel * 100) + '%';
-  ui.noise.style.background = noiseLevel > 0.8 ? 'var(--red)' : 'var(--cyan)';
+  ui.noise.style.background = noiseLevel > 0.7 ? 'var(--red)' : 'var(--cyan)';
+  ui.movement.textContent = state.crouching ? 'CROUCH' : walking ? 'WALKING' : 'RUNNING';
+  ui.movement.classList.toggle('walk', walking);
+  ui.movement.classList.toggle('crouch', state.crouching);
 
   if (moving) {
     state.footstepTimer -= dt;
     if (state.footstepTimer <= 0) {
-      const radius = (state.carrying ? 1.3 : 1) * (state.crouching ? 4.1 : keys.ShiftLeft ? 15.5 : 8.5);
+      const radius = (state.carrying ? 1.3 : 1) * (state.crouching ? 2.9 : walking ? 5.1 : 12.4);
       emitRing(new THREE.Vector3(player.position.x, 0.12, player.position.z), colours.player, radius, 'player');
-      state.footstepTimer = state.crouching ? 1.25 : keys.ShiftLeft ? 0.31 : 0.62;
+      state.footstepTimer = state.crouching ? 1.35 : walking ? 0.88 : 0.4;
     }
   } else {
     state.footstepTimer = Math.min(state.footstepTimer, 0.1);
   }
 
-  const targetHeight = state.crouching ? 1.08 : 1.68;
+  const bobSpeed = state.crouching ? 5 : walking ? 7 : 11;
+  const bobAmount = state.crouching ? 0.012 : walking ? 0.018 : 0.042;
+  const targetHeight = (state.crouching ? 1.08 : 1.68) + (moving ? Math.sin(clock.elapsedTime * bobSpeed) * bobAmount : 0);
   camera.position.set(player.position.x, THREE.MathUtils.lerp(camera.position.y, targetHeight, 1 - Math.exp(-dt * 10)), player.position.z);
   camera.rotation.set(state.pitch, state.yaw, 0);
   playerMarker.position.set(player.position.x, 0.06, player.position.z);
-  playerMarker.rotation.z = -state.yaw;
+  playerMarker.rotation.y = state.yaw;
+  playerLight.position.copy(camera.position);
 
   if (state.carrying) {
     const held = new THREE.Vector3(0.38, -0.28, -0.72).applyEuler(camera.rotation).add(camera.position);
@@ -579,11 +638,18 @@ function updateGuard(dt) {
     guard.group.rotation.y = Math.atan2(delta.x, delta.z);
   }
 
+  const stride = Math.sin(clock.elapsedTime * (guard.state === 'investigate' ? 10 : 7)) * 0.42;
+  guard.limbs.leftArm.rotation.x = stride;
+  guard.limbs.rightArm.rotation.x = -stride;
+  guard.limbs.leftLeg.rotation.x = -stride * 0.7;
+  guard.limbs.rightLeg.rotation.x = stride * 0.7;
+
   const distance = Math.hypot(
     guard.group.position.x - player.position.x,
     guard.group.position.z - player.position.z
   );
   guardMarker.position.set(guard.group.position.x, 0.15, guard.group.position.z);
+  guardMarker.rotation.y = guard.group.rotation.y + Math.PI;
   if (distance < 1.05) finish(false, 'guard');
   ui.guard.textContent = guard.state === 'investigate' ? 'INVESTIGATING' : 'UNDETECTED';
   ui.guard.classList.toggle('alert', guard.state === 'investigate');
@@ -692,6 +758,7 @@ function setStagePreview(stage, announce = true) {
     step.classList.toggle('complete', index < stage - 1);
   });
   ui.minimap.classList.toggle('is-hidden', stage === 3);
+  ui.mapStatus.textContent = stage === 3 ? 'JAMMED' : 'LIVE';
   ui.transition.classList.add('is-hidden');
   state.transitioning = false;
   emitRing(new THREE.Vector3(0, 0.12, 18), colours.player, stage === 3 ? 15 : 11, 'player');
@@ -805,15 +872,15 @@ function render() {
 
   if (state.running && state.stage !== 3) {
     const ratio = renderer.getPixelRatio();
-    const width = Math.round((window.innerWidth < 800 ? 144 : 200) * ratio);
-    const height = Math.round((window.innerWidth < 800 ? 96 : 136) * ratio);
+    const width = Math.round((window.innerWidth < 800 ? 144 : 220) * ratio);
+    const height = Math.round((window.innerWidth < 800 ? 96 : 152) * ratio);
     const margin = Math.round((window.innerWidth < 800 ? 16 : 29) * ratio);
     const x = renderer.domElement.width - width - margin;
     const y = margin;
-    renderer.clearDepth();
     renderer.setScissorTest(true);
     renderer.setScissor(x, y, width, height);
     renderer.setViewport(x, y, width, height);
+    renderer.clear(true, true, true);
     renderer.render(minimapScene, minimapCamera);
     renderer.setScissorTest(false);
   }

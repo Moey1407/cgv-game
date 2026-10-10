@@ -20,7 +20,7 @@ Clearing extraction automatically advances to the next security zone. Escaping B
 
 - **WASD** - move
 - **Mouse** - look
-- **Shift** - sprint / loud movement
+- **Shift** - hold to walk quietly (Valorant-style); normal movement runs
 - **C** or **Ctrl** - crouch / quiet movement
 - **Space** - active sonar pulse; reveals a large area but can attract the guard
 - **Left click** - throw a sound decoy

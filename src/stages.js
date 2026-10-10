@@ -9,8 +9,8 @@ export function createStageSystem({ scene, level, minimapScene, materials, colli
   level.add(vault, blackout);
   minimapScene.add(vaultMap, blackoutMap);
 
-  const mapVault = new THREE.MeshBasicMaterial({ color: 0x70283a });
-  const mapBlackout = new THREE.MeshBasicMaterial({ color: 0x25445d });
+  const mapVault = new THREE.MeshBasicMaterial({ color: 0xb33b58 });
+  const mapBlackout = new THREE.MeshBasicMaterial({ color: 0x356d8c });
 
   function addStageBox(group, mapGroup, stage, size, position, material, mapMaterial, solid = true) {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z), material);
@@ -99,9 +99,9 @@ export function createStageSystem({ scene, level, minimapScene, materials, colli
         new THREE.Vector3(0, 0, -16)
       ],
       accent: 0x72efff,
-      ambient: 0.2,
-      fog: 0x02050a,
-      fogDensity: 0.026
+      ambient: 0.3,
+      fog: 0x04101a,
+      fogDensity: 0.021
     },
     2: {
       name: 'THE VAULT',
@@ -118,9 +118,9 @@ export function createStageSystem({ scene, level, minimapScene, materials, colli
         new THREE.Vector3(-8, 0, -17)
       ],
       accent: 0xff315a,
-      ambient: 0.095,
-      fog: 0x090207,
-      fogDensity: 0.03
+      ambient: 0.17,
+      fog: 0x10040a,
+      fogDensity: 0.026
     },
     3: {
       name: 'BLACKOUT',
@@ -138,9 +138,9 @@ export function createStageSystem({ scene, level, minimapScene, materials, colli
         new THREE.Vector3(0, 0, -5)
       ],
       accent: 0x72efff,
-      ambient: 0.012,
-      fog: 0x000103,
-      fogDensity: 0.038
+      ambient: 0.035,
+      fog: 0x00040a,
+      fogDensity: 0.032
     }
   };
 
