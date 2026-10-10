@@ -15,7 +15,7 @@
 
   <header id="hud" class="is-hidden">
     <div class="brand-lockup"><span class="signal-mark"></span><div><strong>SIGNAL</strong><span id="stage-label">GALLERIES / ALPHA 01</span></div></div>
-    <div class="objective-block"><span class="eyebrow">CURRENT OBJECTIVE</span><strong id="objective">Locate the artefact</strong></div>
+    <div class="objective-block"><span class="eyebrow">CURRENT OBJECTIVE</span><strong id="objective">Locate the artefact</strong><div id="level-progress" class="level-progress"><i class="active">01</i><i>02</i><i>03</i></div></div>
     <div class="status-cluster">
       <div class="noise-readout"><span>NOISE</span><div class="noise-track"><i id="noise-fill"></i></div></div>
       <div id="guard-state" class="guard-state">UNDETECTED</div>
@@ -33,11 +33,11 @@
       <h1>SIGNAL</h1>
       <p class="tagline">Sound is the only thing you can see.</p>
       <p class="premise">Break into a museum after dark. Every footstep exposes the room—and you. Read the echoes, misdirect the guard, steal the artefact, and disappear.</p>
-      <button id="start-button" class="primary-button"><span>BEGIN INFILTRATION</span><b>ENTER</b></button>
+      <button id="start-button" class="primary-button"><span>BEGIN THREE-LEVEL RUN</span><b>ENTER</b></button>
       <div class="controls-grid">
         <div><kbd>WASD</kbd><span>MOVE</span></div><div><kbd>MOUSE</kbd><span>LOOK</span></div>
         <div><kbd>SHIFT</kbd><span>RUN / LOUD</span></div><div><kbd>C</kbd><span>CROUCH / QUIET</span></div>
-        <div><kbd>CLICK</kbd><span>THROW DECOY</span></div><div><kbd>E</kbd><span>INTERACT</span></div><div><kbd>1/2/3</kbd><span>LEVEL PREVIEW</span></div>
+        <div><kbd>CLICK</kbd><span>THROW DECOY</span></div><div><kbd>E</kbd><span>INTERACT</span></div><div><kbd>SPACE</kbd><span>SONAR PULSE</span></div><div><kbd>1/2/3</kbd><span>PRACTICE SELECT</span></div>
       </div>
     </div>
     <div class="start-visual" aria-hidden="true">
@@ -45,6 +45,12 @@
       <span class="visual-label label-a">PLAYER / CYAN</span><span class="visual-label label-b">HOSTILE / RED</span>
     </div>
     <footer><span>COMS3006A / COMS3025A</span><span>THREE.JS REALTIME PROTOTYPE</span></footer>
+  </section>
+
+  <section id="stage-transition" class="stage-transition is-hidden" aria-live="polite">
+    <span id="transition-kicker" class="kicker">LEVEL CLEARED</span>
+    <h2 id="transition-title">THE VAULT</h2>
+    <p id="transition-copy">Security is awake. Stay below the laser grid.</p>
   </section>
 
   <section id="result-screen" class="screen result-screen is-hidden">

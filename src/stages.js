@@ -86,9 +86,19 @@ export function createStageSystem({ scene, level, minimapScene, materials, colli
   const configurations = {
     1: {
       name: 'GALLERIES',
-      objective: 'Locate the artefact',
+      objective: 'Locate the gallery artefact',
+      intro: 'Read the echoes. Misdirect the guard. Reach the display chamber.',
       artifact: new THREE.Vector3(0, 1.55, -19.2),
       guard: new THREE.Vector3(10, 0, -10),
+      guardSpeed: 1.65,
+      waypoints: [
+        new THREE.Vector3(10, 0, -10),
+        new THREE.Vector3(10, 0, 5),
+        new THREE.Vector3(-10, 0, 5),
+        new THREE.Vector3(-10, 0, -10),
+        new THREE.Vector3(0, 0, -16)
+      ],
+      accent: 0x72efff,
       ambient: 0.2,
       fog: 0x02050a,
       fogDensity: 0.026
@@ -96,8 +106,18 @@ export function createStageSystem({ scene, level, minimapScene, materials, colli
     2: {
       name: 'THE VAULT',
       objective: 'Crouch beneath the laser grid',
+      intro: 'Security escalation // Stay low beneath every red beam.',
       artifact: new THREE.Vector3(0, 1.55, -18),
       guard: new THREE.Vector3(-10, 0, -8),
+      guardSpeed: 1.85,
+      waypoints: [
+        new THREE.Vector3(-10, 0, -8),
+        new THREE.Vector3(-10, 0, 6),
+        new THREE.Vector3(8, 0, 6),
+        new THREE.Vector3(8, 0, -17),
+        new THREE.Vector3(-8, 0, -17)
+      ],
+      accent: 0xff315a,
       ambient: 0.095,
       fog: 0x090207,
       fogDensity: 0.03
@@ -105,8 +125,19 @@ export function createStageSystem({ scene, level, minimapScene, materials, colli
     3: {
       name: 'BLACKOUT',
       objective: 'Navigate by sound alone',
+      intro: 'Power failure // No map. Every footstep briefly reveals the way.',
       artifact: new THREE.Vector3(12, 1.55, -16),
       guard: new THREE.Vector3(-12, 0, -14),
+      guardSpeed: 2.05,
+      waypoints: [
+        new THREE.Vector3(-12, 0, -14),
+        new THREE.Vector3(-12, 0, 8),
+        new THREE.Vector3(0, 0, 12),
+        new THREE.Vector3(12, 0, 8),
+        new THREE.Vector3(12, 0, -14),
+        new THREE.Vector3(0, 0, -5)
+      ],
+      accent: 0x72efff,
       ambient: 0.012,
       fog: 0x000103,
       fogDensity: 0.038

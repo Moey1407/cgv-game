@@ -14,6 +14,11 @@ const ui = {
   minimap: document.querySelector('#minimap'),
   objective: document.querySelector('#objective'),
   stageLabel: document.querySelector('#stage-label'),
+  progressSteps: document.querySelectorAll('#level-progress i'),
+  transition: document.querySelector('#stage-transition'),
+  transitionKicker: document.querySelector('#transition-kicker'),
+  transitionTitle: document.querySelector('#transition-title'),
+  transitionCopy: document.querySelector('#transition-copy'),
   noise: document.querySelector('#noise-fill'),
   guard: document.querySelector('#guard-state'),
   interaction: document.querySelector('#interaction'),
@@ -79,6 +84,7 @@ const state = {
   running: false,
   stage: 1,
   ended: false,
+  transitioning: false,
   locked: false,
   carrying: false,
   startTime: 0,
@@ -91,6 +97,7 @@ const state = {
   footstepTimer: 0,
   guardSoundTimer: 0,
   throwCooldown: 0,
+  pingCooldown: 0,
   toastTimer: 0
 };
 
@@ -472,7 +479,7 @@ function updatePlayer(dt) {
     ui.interaction.classList.add('is-hidden');
   }
 
-  if (state.carrying && player.position.z > 18.4 && Math.abs(player.position.x) < 3.2) finish(true);
+  if (state.carrying && player.position.z > 18.4 && Math.abs(player.position.x) < 3.2) completeStage();
 }
 
 function updateGuard(dt) {
@@ -556,6 +563,14 @@ function updateThrowables(dt) {
   }
 }
 
+function activePulse() {
+  if (!state.running || !state.locked || state.transitioning || state.pingCooldown > 0) return;
+  state.pingCooldown = 2.6;
+  const radius = state.stage === 3 ? 22 : 16;
+  emitRing(new THREE.Vector3(player.position.x, 0.18, player.position.z), colours.player, radius, 'player');
+  showToast('ACTIVE SONAR // HOSTILES CAN TRACE IT');
+}
+
 function interact() {
   if (!state.running || state.carrying) return;
   const distance = Math.hypot(player.position.x - artifact.position.x, player.position.z - artifact.position.z);
@@ -592,31 +607,70 @@ function setStagePreview(stage, announce = true) {
   artifactMarker.position.set(config.artifact.x, 0.14, config.artifact.z);
   guard.group.position.copy(config.guard);
   guardMarker.position.set(config.guard.x, 0.15, config.guard.z);
+  guard.waypoints = config.waypoints.map((point) => point.clone());
+  guard.speed = config.guardSpeed;
   guard.state = 'patrol';
   guard.waypoint = 0;
+  extraction.material.color.setHex(config.accent);
   state.guardSoundTimer = 0.65;
   rings.length = 0;
   clearThrowables();
   ui.stageLabel.textContent = config.name + ' / ALPHA 0' + stage;
   ui.objective.textContent = config.objective;
+  ui.progressSteps.forEach((step, index) => {
+    step.classList.toggle('active', index === stage - 1);
+    step.classList.toggle('complete', index < stage - 1);
+  });
+  ui.minimap.classList.toggle('is-hidden', stage === 3);
+  ui.transition.classList.add('is-hidden');
+  state.transitioning = false;
   emitRing(new THREE.Vector3(0, 0.12, 18), colours.player, stage === 3 ? 15 : 11, 'player');
-  if (announce) showToast('LEVEL 0' + stage + ' // ' + config.name);
+  if (announce) showToast('PRACTICE JUMP // LEVEL 0' + stage + ' // ' + config.name);
+}
+
+function completeStage() {
+  if (state.transitioning || state.ended) return;
+  if (state.stage === 3) {
+    finish(true);
+    return;
+  }
+
+  const completed = state.stage;
+  const nextStage = completed + 1;
+  const nextConfig = stages.configurations[nextStage];
+  state.transitioning = true;
+  player.velocity.set(0, 0, 0);
+  ui.interaction.classList.add('is-hidden');
+  ui.transitionKicker.textContent = 'LEVEL 0' + completed + ' CLEARED';
+  ui.transitionTitle.textContent = nextConfig.name;
+  ui.transitionCopy.textContent = nextConfig.intro;
+  ui.transition.classList.remove('is-hidden');
+  emitRing(extraction.position, colours.artefact, 20, 'player');
+
+  window.setTimeout(() => {
+    if (state.ended) return;
+    setStagePreview(nextStage, false);
+    showToast('LEVEL 0' + nextStage + ' // ' + nextConfig.name);
+  }, 2100);
 }
 
 function resetGame() {
   state.running = true;
   state.ended = false;
+  state.transitioning = false;
   state.startTime = performance.now();
   state.elapsed = 0;
   state.ringCount = 0;
   state.alerts = 0;
   state.footstepTimer = 0;
   state.throwCooldown = 0;
+  state.pingCooldown = 0;
   setStagePreview(1, false);
   ui.result.classList.add('is-hidden');
   ui.hud.classList.remove('is-hidden');
   ui.reticle.classList.remove('is-hidden');
-  ui.minimap.classList.remove('is-hidden');
+  ui.minimap.classList.toggle('is-hidden', state.stage === 3);
+  ui.transition.classList.add('is-hidden');
   ui.creditsButton.classList.add('is-hidden');
 }
 function startGame() {
@@ -630,7 +684,9 @@ function startGame() {
 function finish(won, reason = 'guard') {
   if (state.ended) return;
   state.ended = true;
+  state.transitioning = false;
   state.running = false;
+  ui.transition.classList.add('is-hidden');
   state.elapsed = (performance.now() - state.startTime) / 1000;
   if (document.pointerLockElement) document.exitPointerLock();
   ui.hud.classList.add('is-hidden');
@@ -639,7 +695,7 @@ function finish(won, reason = 'guard') {
   ui.resultKicker.textContent = won ? 'MISSION COMPLETE' : 'SIGNAL INTERCEPTED';
   ui.resultTitle.textContent = won ? 'SIGNAL LOST.' : 'YOU WERE HEARD.';
   ui.resultCopy.textContent = won
-    ? 'The artefact is secure. You left nothing behind but an echo.'
+    ? 'All three artefacts are secure. You left nothing behind but an echo.'
     : reason === 'laser'
       ? 'The laser grid caught you standing. Crouch before crossing the red beam.'
       : 'The guard followed the wavefront back to its source. Move quieter—or send the sound somewhere else.';
@@ -674,7 +730,7 @@ function render() {
   renderer.clear();
   renderer.render(scene, camera);
 
-  if (state.running) {
+  if (state.running && state.stage !== 3) {
     const ratio = renderer.getPixelRatio();
     const width = Math.round((window.innerWidth < 800 ? 144 : 200) * ratio);
     const height = Math.round((window.innerWidth < 800 ? 96 : 136) * ratio);
@@ -701,9 +757,10 @@ function animate() {
   extraction.material.opacity = 0.2 + Math.sin(elapsed * 2.2) * 0.1;
   for (const item of decor) item.mesh.rotation.y += dt * item.speed;
 
-  if (state.running && state.locked) {
+  if (state.running && state.locked && !state.transitioning) {
     state.elapsed = (performance.now() - state.startTime) / 1000;
     state.throwCooldown = Math.max(0, state.throwCooldown - dt);
+    state.pingCooldown = Math.max(0, state.pingCooldown - dt);
     updatePlayer(dt);
     stages.update(state.stage, player.position, state.crouching, elapsed, () => finish(false, 'laser'));
     updateGuard(dt);
@@ -718,7 +775,11 @@ document.addEventListener('keydown', (event) => {
   keys[event.code] = true;
   if (event.code === 'Enter' && !state.running && !state.ended && !ui.start.classList.contains('is-hidden')) startGame();
   if (event.code === 'KeyE') interact();
-  if (state.running && ['Digit1','Digit2','Digit3'].includes(event.code)) setStagePreview(Number(event.code.slice(-1)));
+  if (event.code === 'Space' && !event.repeat) {
+    event.preventDefault();
+    activePulse();
+  }
+  if (state.running && !state.transitioning && ['Digit1','Digit2','Digit3'].includes(event.code)) setStagePreview(Number(event.code.slice(-1)));
   if (event.code === 'KeyR' && state.ended) {
     resetGame();
     canvas.requestPointerLock();
@@ -753,6 +814,15 @@ ui.restartButton.addEventListener('click', () => {
 });
 ui.creditsButton.addEventListener('click', () => ui.credits.showModal());
 ui.closeCredits.addEventListener('click', () => ui.credits.close());
+
+if (new URLSearchParams(window.location.search).has('qa')) {
+  window.__signalQa = {
+    completeStage,
+    takeArtifact: interact,
+    movePlayer: (x, z) => player.position.set(x, 0, z),
+    getState: () => ({ stage: state.stage, running: state.running, ended: state.ended, transitioning: state.transitioning, carrying: state.carrying, rings: state.ringCount, alerts: state.alerts })
+  };
+}
 
 createWorld();
 camera.position.set(0, 1.68, 18);
