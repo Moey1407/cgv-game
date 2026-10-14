@@ -2,12 +2,6 @@
 
 SIGNAL is a browser-based Three.js stealth game for COMS3006A / COMS3025A. Sound is both the player's map and their greatest risk: every footstep, decoy, guard pulse, and active sonar wave reveals the museum through a custom shader.
 
-## Play the hosted build
-
-https://signal-alpha-museum.freegrape4.chatgpt.site/
-
-The deployed build is public and requires no sign-in.
-
 ## Three-level mission
 
 1. **Galleries** - learn sonar, quiet movement and decoys; steal the keycard from the east security room, then press E at the north vault entrance to unlock it. The key carries into the Vault.

@@ -1,6 +1,6 @@
 # SIGNAL - Zidan's Beta Implementation Plan
 
-## Instructions for Codex in VS Code
+## Implementation instructions
 
 Read this entire plan before editing. Implement Zidan's gameplay and AI work in the order below. The beta is approximately five days away; aim to finish this work within three focused days so teammates have time for presentation, testing and the trailer.
 
