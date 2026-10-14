@@ -124,6 +124,18 @@ test('wrong choice produces a recoverable, rate-limited alert; only the matching
   assert.equal(mission.tryUnlock(correct, true), 'already-open');
 });
 
+test('a matching case can hand off to safecracking before the target is acquired', () => {
+  const { mission } = fixture();
+  const correct = mission.cases.find((exhibit) => exhibit.signature === mission.keySignature);
+  scan(mission, correct);
+  assert.equal(mission.inspect(correct, true), 'safe-ready');
+  assert.equal(mission.acquired, false);
+  assert.equal(correct.diamond.visible, true);
+  assert.equal(mission.acquire(correct), true);
+  assert.equal(mission.acquired, true);
+  assert.equal(correct.diamond.visible, false);
+});
+
 test('response persists for comparison, pause preserves it and retry clears all puzzle state', () => {
   const { mission } = fixture();
   const exhibit = mission.cases[0];

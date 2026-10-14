@@ -80,6 +80,16 @@ test('each barrier blocks player and guard routes until its door opens', () => {
   }
 });
 
+test('Echo sync plates can open the first barrier without override noise', () => {
+  const { mission, colliders } = fixture();
+  assert.equal(mission.openDoor(1), true);
+  assert.equal(mission.openDoor(1), false);
+  assert.equal(mission.doors[0].opened, true);
+  assert.equal(mission.doors[0].panel.visible, false);
+  assert.equal(mission.doors[0].collider.disabled, true);
+  assert.equal(createNavigator(colliders, 3).canTravel({ x: 0, z: 9 }, { x: 0, z: 7 }), true);
+});
+
 test('carrying the diamond stays silent while overrides still emit noise', () => {
   const { mission } = fixture();
   for (let second = 0; second < 60; second++) {

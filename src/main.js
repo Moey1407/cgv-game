@@ -16,6 +16,17 @@ import { createEscapeMission, ESCAPE_EXIT, OVERRIDE_SECONDS } from './escape.js'
 import { playerIlluminated, updateGuardAwareness, hearSound } from './visibility.js';
 import { STORY } from './story.js';
 import { createArchiveReel } from './reel.js';
+import { createEventBus } from './core/events.js';
+import { ALARM_RAISE, createAlarmSystem } from './gameplay/alarm.js';
+import { createCheckpointStore } from './gameplay/checkpoints.js';
+import { MOVEMENT, movementMode, movementProfile } from './gameplay/player.js';
+import { createPickpocketSystem, PICKPOCKET_SECONDS } from './gameplay/pickpocket.js';
+import { createEchoSystem } from './gameplay/echo.js';
+import { createStaminaSystem } from './gameplay/stamina.js';
+import { createPickupSystem } from './gameplay/pickups.js';
+import { createCctvSystem } from './gameplay/cctv.js';
+import { createSafecrackSystem } from './gameplay/safecrack.js';
+import { createPlateSystem } from './gameplay/plates.js';
 
 const ui = {
   start: document.querySelector('#start-screen'),
@@ -24,15 +35,25 @@ const ui = {
   restartButton: document.querySelector('#restart-button'),
   hud: document.querySelector('#hud'),
   reticle: document.querySelector('#reticle'),
+  cctvFilter: document.querySelector('#cctv-filter'),
+  cctvLabel: document.querySelector('#cctv-label'),
+  cctvLoop: document.querySelector('#cctv-loop'),
   minimap: document.querySelector('#minimap'),
   mapCanvas: document.querySelector('#map-canvas'),
   sonar: document.querySelector('#sonar-status'),
   decoy: document.querySelector('#decoy-status'),
   dampener: document.querySelector('#dampener-status'),
+  echo: document.querySelector('#echo-status'),
   veil: document.querySelector('#dampener-veil'),
   surface: document.querySelector('#surface-state'),
   objective: document.querySelector('#objective'),
   signature: document.querySelector('#vault-signature'),
+  safe: document.querySelector('#safecrack'),
+  safeDial: document.querySelector('#safe-dial'),
+  safeNumber: document.querySelector('#safe-number'),
+  safeSignal: document.querySelector('#safe-signal'),
+  safeProgress: document.querySelector('#safe-progress'),
+  safeHint: document.querySelector('#safe-hint'),
   override: document.querySelector('#door-override'),
   overrideText: document.querySelector('#override-text'),
   overrideFill: document.querySelector('#override-fill'),
@@ -116,6 +137,30 @@ const rings = [];
 const throwables = [];
 const keys = Object.create(null);
 const clock = new THREE.Clock();
+const events = createEventBus();
+const alarm = createAlarmSystem({ events });
+const checkpoints = createCheckpointStore({ events });
+const pickpocket = createPickpocketSystem({ events });
+const echo = createEchoSystem({ events });
+const sprintStamina = createStaminaSystem();
+const pickups = createPickupSystem([
+  { id: 'gala-watch', label: 'VINTAGE WATCH', type: 'loot', value: 250, stage: 1, x: -13.5, z: -5.1 },
+  { id: 'gala-clutch', label: 'GALA CLUTCH', type: 'loot', value: 400, stage: 1, x: 11.8, z: 10.8 },
+  { id: 'evidence-1', label: 'DEX AUDIO LOG 01', type: 'evidence', value: 0, stage: 1, x: 11.3, z: -20.2 },
+  { id: 'evidence-2', label: 'GUARD RADIO INTERCEPT', type: 'evidence', value: 0, stage: 2, x: -12.8, z: -18.5 },
+  { id: 'evidence-3', label: 'SECURITY CHIEF FILE', type: 'evidence', value: 0, stage: 3, x: 12.4, z: -14.2 }
+], { events });
+const cctv = createCctvSystem([
+  { id: 'CAM 01 / ATRIUM', x: 0, z: 20.5, yaw: Math.PI, range: 15, fov: Math.PI / 2.8 },
+  { id: 'CAM 02 / WEST WING', x: -15.5, z: 4, yaw: Math.PI / 2, range: 13, fov: Math.PI / 2.7 },
+  { id: 'CAM 03 / TRANSIT', x: 15.5, z: -3, yaw: -Math.PI / 2, range: 14, fov: Math.PI / 2.8 },
+  { id: 'CAM 04 / NORTH HALL', x: 0, z: -20.5, yaw: 0, range: 13, fov: Math.PI / 2.7 }
+], { events });
+const safecrack = createSafecrackSystem({ events });
+const echoPlates = createPlateSystem([
+  { id: 'SYNC A', x: -6, z: 13, halfX: 1.05, halfZ: 1.05 },
+  { id: 'SYNC B', x: 6, z: 13, halfX: 1.05, halfZ: 1.05 }
+], { events });
 
 const state = {
   running: false,
@@ -136,6 +181,10 @@ const state = {
   yaw: 0,
   pitch: 0,
   crouching: false,
+  crawling: false,
+  sprinting: false,
+  jumpOffset: 0,
+  verticalVelocity: 0,
   footstepTimer: 0,
   throwCooldown: 0,
   decoyCharges: 3,
@@ -147,7 +196,13 @@ const state = {
   hasDampener: true,
   pingCooldown: 0,
   mapReveal: 0,
-  toastTimer: 0
+  toastTimer: 0,
+  hazardCooldown: 0,
+  cctvActive: false,
+  cctvIndex: -1,
+  safeActive: false,
+  safeCase: null,
+  safeNoiseCooldown: 0
 };
 
 // A campaign is one honest run through all three levels in order. Practice
@@ -233,6 +288,12 @@ let stages;
 let playerLight;
 let throwPreview;
 let tutorial;
+let echoAvatar;
+let echoFrame = null;
+let echoPrevious = null;
+let echoStepTimer = 0;
+const pickupMeshes = new Map();
+const echoPlateMeshes = new Map();
 // Per-run tutorial progress and the measurements its steps are judged on.
 const tutorialRun = Object.assign(createTutorialRun(), {
   lookTravel: 0, walkDistance: 0, ranOnMarble: false, sonarUsed: 0,
@@ -427,6 +488,25 @@ function createWorld() {
 
   galleriesMission = createGalleriesMission({ gallery, addBox, materials, createLabelPanel });
 
+  for (const securityCamera of cctv.cameras) {
+    const housing = new THREE.Mesh(
+      new THREE.BoxGeometry(0.42, 0.28, 0.68),
+      new THREE.MeshStandardMaterial({ color: 0x1b2530, emissive: 0xff315a, emissiveIntensity: 0.35, metalness: 0.7, roughness: 0.32 })
+    );
+    housing.position.set(securityCamera.x, 3.35, securityCamera.z);
+    housing.rotation.y = securityCamera.yaw + Math.PI;
+    housing.userData.cameraId = securityCamera.id;
+    const lens = new THREE.Mesh(
+      new THREE.SphereGeometry(0.1, 10, 8),
+      new THREE.MeshBasicMaterial({ color: 0xff315a })
+    );
+    lens.position.set(0, 0, -0.36);
+    housing.add(lens);
+    gallery.add(housing);
+    securityCamera.mesh = housing;
+    securityCamera.lens = lens;
+  }
+
   tutorial = createTutorial({ level, materials, addBox, createLabelPanel });
   for (const zone of TUTORIAL_FLOOR) {
     const [minX, minZ, maxX, maxZ] = zone.rect;
@@ -546,9 +626,51 @@ function createWorld() {
   playerLight = new THREE.PointLight(0x7bddff, 1.15, 8, 2);
   scene.add(playerLight);
 
+  for (const item of pickups.items) {
+    const evidence = item.type === 'evidence';
+    const mesh = new THREE.Mesh(
+      evidence ? new THREE.BoxGeometry(0.42, 0.08, 0.55) : new THREE.OctahedronGeometry(0.22, 0),
+      new THREE.MeshStandardMaterial({
+        color: evidence ? 0xa989ff : 0xffd76a,
+        emissive: evidence ? 0x5835b5 : 0xa45b12,
+        emissiveIntensity: 1.1,
+        metalness: evidence ? 0.2 : 0.72,
+        roughness: 0.28
+      })
+    );
+    mesh.position.set(item.x, evidence ? 0.2 : 0.34, item.z);
+    mesh.rotation.x = evidence ? -0.08 : 0;
+    mesh.userData.pickupId = item.id;
+    level.add(mesh);
+    pickupMeshes.set(item.id, mesh);
+  }
+
+  for (const plate of echoPlates.plates) {
+    const group = new THREE.Group();
+    const base = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.05, 1.2, 0.12, 32),
+      new THREE.MeshStandardMaterial({ color: 0x12222b, metalness: 0.75, roughness: 0.32 })
+    );
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(0.7, 0.9, 48),
+      new THREE.MeshBasicMaterial({ color: 0xff315a, transparent: true, opacity: 0.72, side: THREE.DoubleSide })
+    );
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = 0.075;
+    group.position.set(plate.x, 0.06, plate.z);
+    group.add(base, ring);
+    const label = createLabelPanel(plate.id + ' // ECHO SYNC', 2.5);
+    label.position.set(plate.x, 0.18, plate.z - 1.35);
+    label.rotation.x = -Math.PI / 2;
+    level.add(group, label);
+    echoPlateMeshes.set(plate.id, { group, ring, label });
+  }
+
   throwPreview = createThrowPreview();
   guard = createGuard();
   guards.push(guard, createGuard());
+  echoAvatar = createEchoAvatar();
+  galleriesMission.setGuardCarriesKey(true);
   stages = createStageSystem({
     scene,
     level,
@@ -561,6 +683,32 @@ function createWorld() {
   });
   vaultMission = createVaultMission({ level, materials, colliders, createLabelPanel });
   escapeMission = createEscapeMission({ level, colliders, createLabelPanel });
+}
+
+function createEchoAvatar() {
+  const group = new THREE.Group();
+  const material = new THREE.MeshBasicMaterial({
+    color: 0x72efff,
+    transparent: true,
+    opacity: 0.3,
+    wireframe: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
+  });
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.36, 0.72, 4, 8), material);
+  body.position.y = 1.05;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.25, 10, 8), material.clone());
+  head.position.y = 1.72;
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(0.52, 0.025, 6, 30),
+    new THREE.MeshBasicMaterial({ color: 0xc7fbff, transparent: true, opacity: 0.48, depthWrite: false })
+  );
+  ring.rotation.x = Math.PI / 2;
+  ring.position.y = 0.06;
+  group.add(body, head, ring);
+  group.visible = false;
+  scene.add(group);
+  return group;
 }
 
 function createGuard() {
@@ -576,6 +724,12 @@ function createGuard() {
   vest.position.set(0, 1.24, 0.03);
   const belt = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.12, 0.43), red);
   belt.position.set(0, 0.92, 0.02);
+  const keycard = new THREE.Mesh(
+    new THREE.BoxGeometry(0.2, 0.28, 0.045),
+    new THREE.MeshStandardMaterial({ color: 0xffd76a, emissive: 0xffb329, emissiveIntensity: 1.1, metalness: 0.55, roughness: 0.3 })
+  );
+  keycard.position.set(0.42, 0.91, -0.02);
+  keycard.rotation.z = -0.18;
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.27, 12, 8), skin);
   head.position.set(0, 1.88, 0);
   const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.57), armour);
@@ -601,7 +755,7 @@ function createGuard() {
   flashlightBeam.rotation.x = -Math.PI / 2;
   flashlightBeam.position.set(0, 1.35, 1.85);
   [body, vest, belt, head, helmet, visor, capBrim, badge, leftArm, rightArm, leftLeg, rightLeg].forEach((part) => { part.castShadow = true; });
-  group.add(body, vest, belt, head, helmet, visor, capBrim, badge, leftArm, rightArm, leftLeg, rightLeg, flashlightBeam);
+  group.add(body, vest, belt, keycard, head, helmet, visor, capBrim, badge, leftArm, rightArm, leftLeg, rightLeg, flashlightBeam);
   group.position.set(10, 0, -10);
   scene.add(group);
   const light = new THREE.PointLight(0xff254e, 7, 5.5, 2);
@@ -611,6 +765,7 @@ function createGuard() {
   marker.position.set(10, 0.15, -10);
   minimapScene.add(marker);
   const createdGuard = {
+    id: 'okafor',
     marker,
     active: false,
     soundTimer: 0.65,
@@ -623,6 +778,7 @@ function createGuard() {
     waypoint: 0,
     target: new THREE.Vector3(),
     speed: 1.65,
+    keycard,
     limbs: { leftArm, rightArm, leftLeg, rightLeg },
     waypoints: [
       new THREE.Vector3(10, 0, -10),
@@ -684,16 +840,20 @@ function emitRing(position, colour, maxRadius, source, damped = false) {
   state.mapReveal = Math.max(state.mapReveal, revealStrength);
   while (rings.length > MAX_RINGS) disposeRing(rings.shift());
   state.ringCount += 1;
+  if (source !== 'guard' && source !== 'briefing') {
+    events.emit('player:noise', { position: position.clone(), radius: maxRadius, source, damped });
+  }
   ping(source);
   // A damped return still draws, so the player keeps their picture of the
   // room. It just never reaches another rig, so nobody comes looking.
-  if (!damped && ['player', 'decoy', 'sonar', 'override'].includes(source)) {
+  if (!damped && ['player', 'decoy', 'sonar', 'override', 'echo'].includes(source)) {
     let heard = false;
     for (const guard of guards) {
       if (hearSound(guard, position, maxRadius, source, colliders, state.stage)) heard = true;
     }
     if (heard) {
       state.alerts += 1;
+      alarm.raise(ALARM_RAISE[source] ?? ALARM_RAISE.footstep, source);
       showToast('GUARD HEARD ' + (source === 'decoy' ? 'THE DECOY' : source === 'override' ? 'THE OVERRIDE' : source === 'sonar' ? 'THE SONAR PULSE' : 'YOU'));
     }
   }
@@ -834,10 +994,14 @@ function isBlocked(position) {
 }
 
 function updatePlayer(dt) {
-  state.crouching = Boolean(keys.KeyC || keys.ControlLeft);
-  const walking = !state.crouching && Boolean(keys.ShiftLeft || keys.ShiftRight);
-  let speed = state.crouching ? 1.55 : walking ? 2.45 : 4.85;
-  if (state.carrying) speed *= 0.88;
+  const requestedMode = movementMode(keys);
+  const mode = requestedMode.id === 'sprint' && (state.stage !== 3 || !sprintStamina.snapshot().canSprint)
+    ? MOVEMENT.run
+    : requestedMode;
+  state.crawling = mode.id === 'crawl';
+  state.crouching = mode.id === 'crouch' || state.crawling;
+  const walking = mode.id === 'walk';
+  const speed = movementProfile(keys, { carrying: state.carrying, mode }).speed;
   const input = new THREE.Vector2(
     (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0),
     (keys.KeyS ? 1 : 0) - (keys.KeyW ? 1 : 0)
@@ -866,18 +1030,21 @@ function updatePlayer(dt) {
   if (!isBlocked(nextZ)) player.position.z = nextZ.z;
 
   const moving = input.lengthSq() > 0.05;
+  state.sprinting = mode.id === 'sprint' && moving;
+  const staminaState = sprintStamina.update(dt, state.sprinting);
   // The floor is part of the noise model in Level 1: the same run costs you
   // seven metres of echo on carpet and nearly seventeen on marble.
   const surfaced = state.stage === 1 || state.stage === TUTORIAL_STAGE;
   const surface = surfaced ? surfaceAt(player.position.x, player.position.z) : 'stone';
   const surfaceNoise = surfaced ? noiseScaleAt(player.position.x, player.position.z) : 1;
-  const noiseLevel = Math.min(1, (!moving ? 0.03 : state.crouching ? 0.1 : walking ? 0.22 : 0.78) *
-    (moving ? surfaceNoise : 1) * (state.cloakActive ? 0.25 : 1));
+  const profile = movementProfile(keys, { carrying: state.carrying, surfaceNoise, damped: state.cloakActive, mode });
+  const noiseLevel = moving ? profile.noise : 0.03;
   ui.noise.style.width = Math.round(noiseLevel * 100) + '%';
   ui.noise.style.background = state.cloakActive ? 'var(--cyan)' : noiseLevel > 0.7 ? 'var(--red)' : 'var(--cyan)';
-  ui.movement.textContent = state.crouching ? 'CROUCH' : walking ? 'WALKING' : 'RUNNING';
+  ui.movement.textContent = mode.label + (mode.id === 'sprint' ? ' ' + Math.round(staminaState.ratio * 100) + '%' : '');
   ui.movement.classList.toggle('walk', walking);
   ui.movement.classList.toggle('crouch', state.crouching);
+  ui.movement.classList.toggle('sprint', state.sprinting);
   if (ui.surface) {
     ui.surface.textContent = SURFACES[surface].label;
     ui.surface.classList.toggle('is-hidden', state.stage !== 1 && state.stage !== TUTORIAL_STAGE);
@@ -888,9 +1055,8 @@ function updatePlayer(dt) {
   if (moving) {
     state.footstepTimer -= dt;
     if (state.footstepTimer <= 0) {
-      const radius = (state.crouching ? 2.9 : walking ? 5.1 : 12.4) * surfaceNoise;
-      emitRing(new THREE.Vector3(player.position.x, 0.12, player.position.z), colours.player, radius, 'player', state.cloakActive);
-      state.footstepTimer = state.crouching ? 1.35 : walking ? 0.88 : 0.4;
+      emitRing(new THREE.Vector3(player.position.x, 0.12, player.position.z), colours.player, profile.radius, 'player', state.cloakActive);
+      state.footstepTimer = profile.step;
     }
   } else {
     state.footstepTimer = Math.min(state.footstepTimer, 0.1);
@@ -899,9 +1065,18 @@ function updatePlayer(dt) {
   updateDampener(dt, moving, walking);
   updateTutorial(dt, moving, walking, surface);
 
+  if (state.jumpOffset > 0 || state.verticalVelocity > 0) {
+    state.verticalVelocity -= 14 * dt;
+    state.jumpOffset += state.verticalVelocity * dt;
+    if (state.jumpOffset <= 0) {
+      state.jumpOffset = 0;
+      state.verticalVelocity = 0;
+    }
+  }
+
   const bobSpeed = state.crouching ? 5 : walking ? 7 : 11;
   const bobAmount = state.crouching ? 0.012 : walking ? 0.018 : 0.042;
-  const targetHeight = (state.crouching ? 1.08 : 1.68) + (moving ? Math.sin(state.playTime * bobSpeed) * bobAmount : 0);
+  const targetHeight = mode.height + state.jumpOffset + (moving && state.jumpOffset === 0 ? Math.sin(state.playTime * bobSpeed) * bobAmount : 0);
   camera.position.set(player.position.x, THREE.MathUtils.lerp(camera.position.y, targetHeight, 1 - Math.exp(-dt * 10)), player.position.z);
   camera.rotation.set(state.pitch, state.yaw, 0);
   playerMarker.position.set(player.position.x, 0.06, player.position.z);
@@ -928,7 +1103,7 @@ function updateGuard(guard, dt) {
   guard.soundTimer -= dt;
   if (guard.soundTimer <= 0) {
     emitRing(new THREE.Vector3(guard.group.position.x, 0.65, guard.group.position.z), guard.state === 'patrol' ? colours.guard : colours.alert, 9.5, 'guard');
-    guard.soundTimer = guard.state === 'patrol' ? 2.8 : 1.45;
+    guard.soundTimer = (guard.state === 'patrol' ? 2.8 : 1.45) * alarm.snapshot().pulseInterval;
   }
 
   // Guards resolve the player only when a live return lights them up, they are
@@ -938,7 +1113,10 @@ function updateGuard(guard, dt) {
     const wasPursuing = guard.state === 'pursue';
     updateGuardAwareness(guard, player.position, state.exposure > 0, colliders, dt, state.stage);
     // Count the moment a guard resolves the player, not every sound it heard.
-    if (!wasPursuing && guard.state === 'pursue') campaign.detections += 1;
+    if (!wasPursuing && guard.state === 'pursue') {
+      campaign.detections += 1;
+      alarm.raise(ALARM_RAISE.detected, 'detected');
+    }
   }
 
   let target;
@@ -971,7 +1149,7 @@ function updateGuard(guard, dt) {
     const point = guard.route[guard.routeIndex];
     if (point) {
       const dx = point.x - guard.group.position.x, dz = point.z - guard.group.position.z;
-      const pace = guard.state === 'pursue' ? 2.8 : guard.state !== 'patrol' ? 2.05 : guard.speed;
+      const pace = (guard.state === 'pursue' ? 2.8 : guard.state !== 'patrol' ? 2.05 : guard.speed) * alarm.snapshot().guardSpeed;
       const next = stepToward(guard.navigator, guard.group.position, point, pace * dt);
       if (next) {
         guard.group.position.x = next.x;
@@ -1004,7 +1182,7 @@ function updateGuard(guard, dt) {
       }
     } else {
       delta.normalize();
-      const pace = guard.state === 'investigate' ? (state.stage === 2 ? 2.05 : 1.9) : guard.speed;
+      const pace = (guard.state === 'investigate' ? (state.stage === 2 ? 2.05 : 1.9) : guard.speed) * alarm.snapshot().guardSpeed;
       guard.group.position.addScaledVector(delta, pace * dt);
       guard.group.rotation.y = Math.atan2(delta.x, delta.z);
     }
@@ -1022,6 +1200,17 @@ function updateGuard(guard, dt) {
   );
   guard.marker.position.set(guard.group.position.x, 0.15, guard.group.position.z);
   guard.marker.rotation.y = guard.group.rotation.y + Math.PI;
+  if (echoFrame && echo.snapshot().mode === 'replaying') {
+    const echoDistance = Math.hypot(guard.group.position.x - echoFrame.x, guard.group.position.z - echoFrame.z);
+    if (echoDistance < 1.05 && hasClearAccess(guard.group.position, echoFrame, colliders, state.stage, 1.05)) {
+      echo.shatter('guard');
+      echoAvatar.visible = false;
+      echoFrame = null;
+      ui.echo.textContent = 'ECHO DISRUPTED  Q';
+      alarm.raise(ALARM_RAISE.echoCaught, 'echo-caught');
+      showToast('ECHO SHATTERED // GUARD RESOLVED THE RECORDING');
+    }
+  }
   if (distance < 1.05 && hasClearAccess(player.position, guard.group.position, colliders, state.stage, 1.05)) finish(false, 'guard');
 }
 
@@ -1430,6 +1619,241 @@ function activePulse() {
   showToast(damped ? 'ACTIVE SONAR // DAMPED, CELL DRAINING' : 'ACTIVE SONAR // HOSTILES CAN TRACE IT');
 }
 
+function tryJump() {
+  if (!state.running || !state.locked || state.transitioning || state.ended) return false;
+  if (state.stage === 1 || state.stage === TUTORIAL_STAGE || state.jumpOffset > 0 || state.crawling || state.crouching) return false;
+  state.verticalVelocity = 5.4;
+  state.jumpOffset = 0.01;
+  events.emit('player:jump', { stage: state.stage, position: player.position.clone() });
+  return true;
+}
+
+function cycleCctvFeed() {
+  if (!state.running || state.stage !== 1 || state.transitioning || state.ended) return;
+  state.cctvActive = true;
+  state.cctvIndex = (state.cctvIndex + 1) % cctv.cameras.length;
+  const selected = cctv.cameras[state.cctvIndex];
+  ui.cctvFilter.classList.remove('is-hidden');
+  showToast(selected.id + ' // TAB NEXT // E LOOP // ESC EXIT', 4);
+}
+
+function exitCctvFeed() {
+  if (!state.cctvActive) return false;
+  state.cctvActive = false;
+  ui.cctvFilter.classList.add('is-hidden');
+  ui.interaction.classList.add('is-hidden');
+  showToast('CCTV FEED CLOSED');
+  return true;
+}
+
+function loopCctvFeed() {
+  if (!state.cctvActive) return false;
+  const selected = cctv.cameras[state.cctvIndex];
+  if (!cctv.loop(selected.id)) return false;
+  showToast(selected.id + ' // FEED LOOPED FOR 8 SECONDS');
+  return true;
+}
+
+function updateCctv(dt) {
+  if (state.stage !== 1) return;
+  const detections = dt > 0 ? cctv.update(dt, player.position, {
+    clear: (securityCamera) => hasClearAccess(securityCamera, player.position, colliders, 1, securityCamera.range)
+  }) : [];
+  for (const id of detections) {
+    alarm.raise(ALARM_RAISE.camera, 'camera');
+    showToast(id + ' SPOTTED MOVEMENT // ALARM RISING');
+  }
+  for (const securityCamera of cctv.cameras) {
+    if (securityCamera.lens) securityCamera.lens.material.color.setHex(securityCamera.loopRemaining > 0 ? 0x72efff : 0xff315a);
+  }
+  if (!state.cctvActive) return;
+  const selected = cctv.cameras[state.cctvIndex];
+  camera.position.set(selected.x, 3.35, selected.z);
+  camera.rotation.set(-0.18, selected.yaw + Math.PI, 0);
+  ui.cctvLabel.textContent = selected.id;
+  ui.cctvLoop.textContent = selected.loopRemaining > 0 ? 'LOOPED ' + selected.loopRemaining.toFixed(1) + 's' : 'LIVE FEED';
+  ui.cctvLoop.classList.toggle('looped', selected.loopRemaining > 0);
+  ui.interaction.textContent = '[ TAB ] NEXT FEED  //  [ E ] LOOP 8s  //  [ ESC ] EXIT';
+  ui.interaction.classList.remove('is-hidden');
+}
+
+function updateSafeUi(noise = 0) {
+  const snapshot = safecrack.snapshot();
+  const feedback = safecrack.feedback();
+  ui.safeNumber.textContent = Math.round(snapshot.dial).toString().padStart(2, '0');
+  ui.safeDial.style.transform = 'rotate(' + snapshot.dial * 3.6 + 'deg)';
+  ui.safeNumber.style.transform = 'rotate(' + snapshot.dial * -3.6 + 'deg)';
+  ui.safeSignal.style.opacity = String(0.22 + feedback.strength * 0.78);
+  ui.safeSignal.style.filter = 'drop-shadow(0 0 ' + (4 + feedback.strength * 20) + 'px #72efff)';
+  ui.safeProgress.textContent = 'TUMBLER ' + Math.min(snapshot.tumbler + 1, snapshot.total) + ' / ' + snapshot.total;
+  ui.safeHint.textContent = feedback.strength > 0.82
+    ? 'STRONG RESONANCE // PRESS E TO SET'
+    : 'MOVE MOUSE LEFT / RIGHT SLOWLY · PRESS E TO SET · ESC TO CANCEL';
+  ui.safe.classList.toggle('hot', noise > 0.35);
+}
+
+function beginSafecrack(exhibit) {
+  state.safeActive = true;
+  state.safeCase = exhibit;
+  state.safeNoiseCooldown = 0;
+  safecrack.reset();
+  ui.safe.classList.remove('is-hidden', 'set', 'hot');
+  ui.signature.classList.add('is-hidden');
+  ui.interaction.classList.add('is-hidden');
+  player.velocity.set(0, 0, 0);
+  updateSafeUi();
+  showToast('SIGNATURE MATCH // MECHANICAL LOCK ENGAGED', 3);
+}
+
+function cancelSafecrack(message = 'SAFECRACK CANCELLED') {
+  if (!state.safeActive) return false;
+  state.safeActive = false;
+  state.safeCase = null;
+  safecrack.reset();
+  ui.safe.classList.add('is-hidden');
+  ui.safe.classList.remove('set', 'hot');
+  ui.signature.classList.toggle('is-hidden', state.stage !== 2);
+  showToast(message);
+  return true;
+}
+
+function secureVaultTarget(exhibit) {
+  if (!vaultMission.acquire(exhibit)) return;
+  state.safeActive = false;
+  state.safeCase = null;
+  ui.safe.classList.add('is-hidden');
+  state.carrying = state.hasDiamond = true;
+  events.emit('item:picked', { id: STORY.targetShort, stage: state.stage });
+  artifact.position.copy(exhibit.position);
+  artifact.scale.setScalar(0.6);
+  artifact.visible = artifactGlow.visible = true;
+  ui.objective.textContent = STORY.stages[3].objective;
+  showToast(STORY.target + ' RECOVERED // CONTAINMENT ACTIVE');
+  emitRing(exhibit.position, colours.artefact, 20, 'player');
+  completeStage();
+}
+
+function setSafeTumbler() {
+  if (!state.safeActive) return false;
+  const result = safecrack.setTumbler();
+  if (!result.success) {
+    alarm.raise(4, 'safe-miss');
+    showToast('FALSE GATE // RESET YOUR POSITION');
+    return true;
+  }
+  ui.safe.classList.remove('set');
+  void ui.safe.offsetWidth;
+  ui.safe.classList.add('set');
+  updateSafeUi();
+  if (result.opened) secureVaultTarget(state.safeCase);
+  else showToast('TUMBLER ' + (result.tumbler + 1) + ' SET // WINDOW TIGHTENING');
+  return true;
+}
+
+function echoSnapshot() {
+  return {
+    x: player.position.x,
+    y: state.jumpOffset,
+    z: player.position.z,
+    yaw: state.yaw,
+    pitch: state.pitch,
+    crouching: state.crouching,
+    interacting: Boolean(keys.KeyE)
+  };
+}
+
+function beginEchoReplay(rewind) {
+  if (!rewind) return;
+  player.position.set(rewind.x, 0, rewind.z);
+  player.velocity.set(0, 0, 0);
+  state.yaw = rewind.yaw;
+  state.pitch = rewind.pitch;
+  state.jumpOffset = rewind.y ?? 0;
+  state.verticalVelocity = 0;
+  echoFrame = { ...rewind, done: false };
+  echoPrevious = { ...echoFrame };
+  echoStepTimer = 0;
+  // Player and Echo begin in exactly the same place. Keep the placeholder
+  // hidden until they separate so the first-person camera is never inside it.
+  echoAvatar.visible = false;
+  ui.echo.textContent = 'ECHO REPLAYING';
+  echoAvatar.position.set(echoFrame.x, echoFrame.y ?? 0, echoFrame.z);
+  echoAvatar.rotation.y = echoFrame.yaw;
+  showToast('ECHO REPLAYING // MOVE WITH YOUR RECORDING');
+}
+
+function toggleEcho() {
+  if (!state.running || state.stage !== 3 || state.transitioning || state.ended) return;
+  const snapshot = echo.snapshot();
+  if (snapshot.mode === 'recording') {
+    beginEchoReplay(echo.stop());
+    return;
+  }
+  echo.reset();
+  echoFrame = echoPrevious = null;
+  echoAvatar.visible = false;
+  echo.start(echoSnapshot());
+  ui.echo.textContent = 'ECHO RECORDING  Q';
+  showToast('ECHO RECORDING // Q TO REWIND AND REPLAY');
+}
+
+function updateEcho(dt) {
+  const before = echo.snapshot().mode;
+  if (before === 'recording') {
+    echo.record(dt, echoSnapshot());
+    if (echo.snapshot().mode === 'replaying') beginEchoReplay(echo.rewindFrame);
+  }
+  if (echo.snapshot().mode !== 'replaying') return;
+  const frame = echo.replay(dt);
+  if (!frame) return;
+  echoFrame = frame;
+  echoAvatar.position.set(frame.x, frame.y ?? 0, frame.z);
+  echoAvatar.rotation.y = frame.yaw;
+  echoAvatar.visible = Math.hypot(frame.x - player.position.x, frame.z - player.position.z) > 0.8;
+  echoAvatar.children.at(-1).rotation.z += dt * 2.2;
+  const moved = echoPrevious && Math.hypot(frame.x - echoPrevious.x, frame.z - echoPrevious.z) > 0.025;
+  echoStepTimer -= dt;
+  if (moved && echoStepTimer <= 0 && !frame.done) {
+    emitRing(new THREE.Vector3(frame.x, 0.12, frame.z), colours.player, frame.crouching ? 2.8 : 6.2, 'echo');
+    echoStepTimer = frame.crouching ? 1.2 : 0.58;
+  }
+  echoPrevious = { ...frame };
+  if (frame.done) {
+    echoAvatar.visible = false;
+    echoFrame = null;
+    ui.echo.textContent = 'ECHO READY  Q';
+    showToast('ECHO COMPLETE // RECORD AGAIN WITH Q');
+  }
+}
+
+function updateEchoPlates() {
+  if (state.stage !== 3) return;
+  const actors = [{ id: 'PLAYER', position: player.position }];
+  if (echoFrame && echo.snapshot().mode === 'replaying' && !echoFrame.done) {
+    actors.push({ id: 'ECHO', position: echoFrame });
+  }
+  echoPlates.update(actors);
+  for (const plate of echoPlates.plates) {
+    const visual = echoPlateMeshes.get(plate.id);
+    if (!visual) continue;
+    visual.ring.material.color.setHex(plate.active ? 0x76ffb2 : 0xff315a);
+    visual.ring.material.opacity = plate.active ? 0.95 : 0.55;
+    visual.ring.scale.setScalar(plate.active ? 1.08 : 1);
+  }
+  if (!echoPlates.allActive() || !escapeMission.openDoor(1)) return;
+  events.emit('door:opened', { id: 1, source: 'echo-plates' });
+  const navigator = createNavigator(colliders, 3);
+  for (const guard of guards) {
+    guard.navigator = navigator;
+    guard.goalKey = null;
+    guard.route = [];
+    guard.routeIndex = guard.replanIn = 0;
+  }
+  ui.objective.textContent = 'Sync complete — cross Door 01 and override Door 02';
+  showToast('ECHO SYNC CONFIRMED // DOOR 01 OPENED SILENTLY', 3.4);
+  emitRing(new THREE.Vector3(0, 0.12, 8), colours.player, 9, 'echo-sync');
+}
+
 function canInteractWith(target) {
   return state.running && state.locked && !state.ended && !state.transitioning &&
     hasClearAccess(player.position, target, colliders, state.stage);
@@ -1440,14 +1864,15 @@ function interactionPrompt() {
     if (!state.hasDampener && canInteractWith(DAMPENER_PICKUP)) return '[ E ] FIT THE DAMPENER';
     return '';
   }
+  const optional = pickups.nearby(player.position, state.stage);
+  if (optional) return '[ E ] ' + (optional.type === 'evidence' ? 'RECOVER ' : 'TAKE ') + optional.label;
   if (state.stage === 3) {
     const door = escapeMission.eligible(player.position, state.yaw, state.pitch);
     return door ? '[ HOLD E ] OVERRIDE DOOR 0' + door.id + ' — NOISE ATTRACTS GUARDS' : '';
   }
   if (state.stage === 1) {
-    if (!state.hasKey && canInteractWith(galleriesMission.keyPosition)) return '[ E ] TAKE SECURITY KEY';
     if (canInteractWith(galleriesMission.entrancePosition)) {
-      return state.hasKey ? '[ E ] UNLOCK VAULT' : '[ E ] VAULT LOCKED — FIND SECURITY KEY';
+      return state.hasKey ? '[ E ] UNLOCK VAULT' : '[ E ] VAULT LOCKED — PICKPOCKET THE PATROL GUARD';
     }
   } else if (state.stage === 2 && !state.carrying) {
     const exhibit = nearbyVaultCase();
@@ -1463,6 +1888,32 @@ function nearbyVaultCase() {
   return vaultMission.cases.find((exhibit) => canInteractWith(exhibit.access));
 }
 
+function updatePickpocket(dt) {
+  if (state.stage !== 1 || state.hasKey || !state.running || state.transitioning) return;
+  const target = guards.find((candidate) => candidate.active);
+  if (!target) return;
+  const clear = hasClearAccess(player.position, target.group.position, colliders, 1, 1.55);
+  const result = pickpocket.update({
+    dt,
+    holding: Boolean(keys.KeyE),
+    player: player.position,
+    guard: { id: target.id, position: target.group.position, yaw: target.group.rotation.y, state: target.state },
+    clear
+  });
+  if (result.eligible) {
+    const percent = Math.round(result.progress / PICKPOCKET_SECONDS * 100);
+    ui.interaction.textContent = keys.KeyE ? '[ HOLD E ] LIFT KEYCARD // ' + percent + '%' : '[ HOLD E ] LIFT KEYCARD';
+    ui.interaction.classList.remove('is-hidden');
+  }
+  if (!result.completed) return;
+  state.hasKey = true;
+  target.keycard.visible = false;
+  galleriesMission.setStage(1, true);
+  events.emit('item:picked', { id: 'security-key', stage: state.stage, from: target.id });
+  ui.objective.textContent = 'Use the stolen keycard at the north vault entrance';
+  showToast('KEYCARD LIFTED // STORED SIGNATURE: ' + SIGNATURES[vaultMission.keySignature].name);
+}
+
 function interact() {
   if (state.stage === TUTORIAL_STAGE) {
     if (!state.hasDampener && canInteractWith(DAMPENER_PICKUP)) {
@@ -1470,44 +1921,40 @@ function interact() {
       state.cloak = CLOAK_MAX;
       tutorial.setDampenerTaken(true);
       showToast('DAMPENER FITTED // PRESS F TO RUN IT');
+      events.emit('item:picked', { id: 'dampener', stage: state.stage });
       emitRing(DAMPENER_PICKUP.clone(), colours.player, 6, 'player');
     }
     return;
   }
+  const optional = pickups.nearby(player.position, state.stage);
+  if (optional) {
+    const collected = pickups.collect(optional.id);
+    pickupMeshes.get(optional.id).visible = false;
+    const summary = pickups.snapshot();
+    showToast(collected.type === 'evidence'
+      ? collected.label + ' // EVIDENCE ' + summary.evidence.length + ' OF 3'
+      : collected.label + ' // TAKE $' + summary.cash);
+    return;
+  }
   if (state.stage === 3) return;
   if (state.stage === 1) {
-    if (!state.hasKey && canInteractWith(galleriesMission.keyPosition)) {
-      state.hasKey = true;
-      galleriesMission.setStage(1, true);
-      ui.objective.textContent = 'Use the security key at the north vault entrance';
-      showToast('KEY ACQUIRED // STORED SIGNATURE: ' + SIGNATURES[vaultMission.keySignature].name);
-      emitRing(galleriesMission.keyPosition, colours.artefact, 7, 'player');
-    } else if (canInteractWith(galleriesMission.entrancePosition)) {
+    if (canInteractWith(galleriesMission.entrancePosition)) {
       if (state.hasKey) completeStage();
-      else showToast('VAULT LOCKED // KEY IS IN THE SECURITY ROOM TO THE EAST');
+      else showToast('VAULT LOCKED // LIFT THE KEYCARD FROM THE PATROL GUARD');
     }
     return;
   }
   if (state.stage === 2) {
     const exhibit = nearbyVaultCase();
     if (!exhibit) return;
-    const result = vaultMission.tryUnlock(exhibit, state.hasKey);
+    const result = vaultMission.inspect(exhibit, state.hasKey);
     if (result === 'scan-first') showToast('SCAN THIS CASE WITH SONAR BEFORE USING THE KEY');
     if (result === 'no-key') showToast('SECURITY KEY REQUIRED');
     if (result === 'wrong') {
       emitRing(exhibit.position, colours.alert, 12, 'decoy');
       showToast('SIGNATURE MISMATCH // LOCAL ALERT — TRY ANOTHER CASE');
     }
-    if (result === 'diamond') {
-      state.carrying = state.hasDiamond = true;
-      artifact.position.copy(exhibit.position);
-      artifact.scale.setScalar(0.6);
-      artifact.visible = artifactGlow.visible = true;
-      ui.objective.textContent = STORY.stages[3].objective;
-      showToast(STORY.target + ' RECOVERED // CONTAINMENT ACTIVE');
-      emitRing(exhibit.position, colours.artefact, 20, 'player');
-      completeStage();
-    }
+    if (result === 'safe-ready') beginSafecrack(exhibit);
     return;
   }
   if (!state.carrying && canInteractWith(artifact.position)) {
@@ -1537,6 +1984,29 @@ function setStagePreview(stage, announce = true) {
   state.hasDiamond = stage === 3;
   state.carrying = stage === 3;
   state.exposure = 0;
+  state.jumpOffset = 0;
+  state.verticalVelocity = 0;
+  alarm.reset(stage === 3 ? 55 : 0, 'stage-start');
+  if (stage === 3) alarm.setFloor(55, 'containment-floor');
+  const initialAlarm = alarm.snapshot();
+  ui.guard.textContent = initialAlarm.level.label + ' ' + Math.round(initialAlarm.value) + '%';
+  ui.guard.style.setProperty('--alarm-level', initialAlarm.value + '%');
+  ui.guard.classList.toggle('alert', initialAlarm.level.id === 'alert' || initialAlarm.level.id === 'lockdown');
+  pickpocket.reset(state.hasKey);
+  sprintStamina.reset();
+  cctv.reset();
+  state.cctvActive = false;
+  state.cctvIndex = -1;
+  ui.cctvFilter.classList.add('is-hidden');
+  state.safeActive = false;
+  state.safeCase = null;
+  state.safeNoiseCooldown = 0;
+  safecrack.reset();
+  ui.safe.classList.add('is-hidden');
+  echo.reset();
+  echoFrame = echoPrevious = null;
+  echoPlates.reset();
+  if (echoAvatar) echoAvatar.visible = false;
   // The dampener is always available in the real levels, so a marker who
   // skips training still has a complete game. Training is the only place you
   // have to earn it.
@@ -1562,13 +2032,21 @@ function setStagePreview(stage, announce = true) {
   escapeMission.reset(stage);
   ui.override.classList.add('is-hidden');
   ui.exposure.classList.toggle('is-hidden', stage !== 3);
+  ui.echo.classList.toggle('is-hidden', stage !== 3);
+  ui.echo.textContent = 'ECHO READY  Q';
   ui.signature.textContent = vaultMission.readout();
   ui.signature.classList.toggle('is-hidden', stage !== 2);
+  ui.sonar.textContent = 'SONAR READY  ' + (stage === 1 || stage === TUTORIAL_STAGE ? 'SPACE' : 'G');
   setAmbienceForStage(stage);
   const spawn = config.spawn ?? new THREE.Vector3(0, 0, 18);
   player.position.copy(spawn);
   player.velocity.set(0, 0, 0);
   camera.position.set(spawn.x, 1.68, spawn.z);
+  checkpoints.save('stage-' + stage + '-entry', {
+    stage,
+    player: { x: spawn.x, y: spawn.y, z: spawn.z },
+    inventory: { hasKey: state.hasKey, hasDiamond: state.hasDiamond, carrying: state.carrying }
+  });
   state.yaw = 0;
   state.pitch = 0;
   artifact.position.copy(config.artifact);
@@ -1577,6 +2055,17 @@ function setStagePreview(stage, announce = true) {
   artifactPlinth.visible = false;
   artifactCase.visible = false;
   artifactGlow.visible = stage === 3;
+  for (const item of pickups.items) {
+    const mesh = pickupMeshes.get(item.id);
+    if (mesh) mesh.visible = item.stage === stage && !item.collected;
+  }
+  for (const visual of echoPlateMeshes.values()) {
+    visual.group.visible = stage === 3;
+    visual.label.visible = stage === 3;
+    visual.ring.material.color.setHex(0xff315a);
+    visual.ring.material.opacity = 0.55;
+    visual.ring.scale.setScalar(1);
+  }
   extraction.visible = stage === 3;
   extractionPortal.visible = stage === 3;
   extractionMarker.visible = stage === 3;
@@ -1595,6 +2084,7 @@ function setStagePreview(stage, announce = true) {
     const settings = guardConfigs[index];
     guard.active = Boolean(settings);
     guard.group.visible = guard.marker.visible = guard.active;
+    guard.keycard.visible = stage === 1 && !state.hasKey && index === 0;
     guard.state = 'patrol';
     guard.waypoint = 0;
     guard.soundTimer = 0.65 + index * 1.2;
@@ -1618,7 +2108,9 @@ function setStagePreview(stage, announce = true) {
   rings.length = 0;
   clearThrowables();
   ui.stageLabel.textContent = config.act ? config.act + ' / ' + config.name : config.name;
-  ui.objective.textContent = config.objective;
+  ui.objective.textContent = stage === 3
+    ? 'Record Echo on one sync plate, stand on the other, then breach Door 02'
+    : config.objective;
   ui.progressSteps.forEach((step, index) => {
     step.classList.toggle('active', index === stage - 1);
     step.classList.toggle('complete', index < stage - 1);
@@ -1640,12 +2132,14 @@ function completeStage() {
   if (state.stage === 3) {
     if (!escapeMission.canEscape(player.position, state.hasDiamond)) return;
     if (campaign.stagesCleared === 2) campaign.stagesCleared = 3;
+    events.emit('level:complete', { stage: 3, nextStage: null, campaign: { ...campaign } });
     finish(true);
     return;
   }
 
   const completed = state.stage;
   const nextStage = completed + 1;
+  events.emit('level:complete', { stage: completed, nextStage, campaign: { ...campaign } });
   // Only an in-order clear advances the campaign.
   if (completed === campaign.stagesCleared + 1) campaign.stagesCleared = completed;
   const nextConfig = stages.configurations[nextStage];
@@ -1667,7 +2161,11 @@ function completeStage() {
 }
 
 function resetGame(startStage = 1, newHeist = false) {
-  if (newHeist) vaultMission.newHeist();
+  if (newHeist) {
+    vaultMission.newHeist();
+    checkpoints.clear();
+    pickups.reset();
+  }
   state.running = true;
   state.ended = false;
   state.won = false;
@@ -1686,6 +2184,9 @@ function resetGame(startStage = 1, newHeist = false) {
   setDampener(false);
   state.pingCooldown = 0;
   state.mapReveal = 0;
+  state.hazardCooldown = 0;
+  state.jumpOffset = 0;
+  state.verticalVelocity = 0;
   for (const key of Object.keys(keys)) keys[key] = false;
   setStagePreview(startStage, false);
   ui.result.classList.add('is-hidden');
@@ -1757,6 +2258,7 @@ function finish(won, reason = 'guard') {
   if (ambience && audioContext) ambience.master.gain.setTargetAtTime(0.0025, audioContext.currentTime, 0.7);
   ui.signature.classList.add('is-hidden');
   ui.exposure.classList.add('is-hidden');
+  ui.echo.classList.add('is-hidden');
   ui.override.classList.add('is-hidden');
   escapeMission.cancel();
   ui.interaction.classList.add('is-hidden');
@@ -1781,11 +2283,13 @@ function finish(won, reason = 'guard') {
     ? 'You can read a room by ear, throw a noise where you need it, and disappear from every rig in the building. Start the heist when you are ready.'
     : won
     ? STORY.outro
-    : reason === 'laser'
-      ? 'The moving laser grid crossed your body. Watch the emitters, wait for an opening, and crouch beneath high beams.'
-      : reason === 'trap'
-        ? 'A pressure plate armed beneath your feet. Read the floor markings and route around the glowing trap panels.'
-        : 'The guard followed the wavefront back to its source. Move quieter—or send the sound somewhere else.';
+    : reason === 'lockdown'
+      ? 'The alarm reached lockdown. Use cover to let suspicion fall before crossing another sensor.'
+      : reason === 'laser'
+        ? 'The moving laser grid crossed your body. Watch the emitters, wait for an opening, and crouch beneath high beams.'
+        : reason === 'trap'
+          ? 'A pressure plate armed beneath your feet. Read the floor markings and route around the glowing trap panels.'
+          : 'The guard followed the wavefront back to its source. Move quieter—or send the sound somewhere else.';
   // Campaign totals, not per-attempt: active play time, how often the player
   // gave their position away with an active pulse, and how many times a guard
   // actually resolved them.
@@ -1836,6 +2340,32 @@ function updateToast(dt) {
     state.toastTimer -= dt;
     if (state.toastTimer <= 0) ui.toast.classList.add('is-hidden');
   }
+}
+
+events.on('alarm:level', ({ level, previous }) => {
+  if (!state.running || level.id === previous.id) return;
+  showToast('ALARM // ' + level.label);
+});
+
+events.on('alarm:lockdown', () => {
+  if (state.running && !state.ended && !state.transitioning) finish(false, 'lockdown');
+});
+
+events.on('safe:noise', ({ noise }) => {
+  if (!state.safeActive || state.safeNoiseCooldown > 0) return;
+  state.safeNoiseCooldown = 0.45;
+  alarm.raise(2 + noise * 4, 'safe-noise');
+  if (state.safeCase) emitRing(state.safeCase.position, colours.alert, 5 + noise * 4, 'safe');
+});
+
+function handleHazardTrip(reason) {
+  if (state.hazardCooldown > 0 || state.ended || state.transitioning) return;
+  state.hazardCooldown = 1.25;
+  state.alerts += 1;
+  const amount = reason === 'laser' ? ALARM_RAISE.laser : ALARM_RAISE.trap;
+  alarm.raise(amount, reason);
+  events.emit('hazard:trip', { reason, stage: state.stage, position: player.position.clone() });
+  if (!state.ended) showToast((reason === 'laser' ? 'LASER TRIPPED' : 'PRESSURE PLATE TRIPPED') + ' // ALARM RISING');
 }
 
 function drawMapArrow(context, x, y, angle, colour, size = 14) {
@@ -2030,25 +2560,52 @@ function animate() {
     ring.material.opacity = (state.carrying ? 0.78 : 0.42) - index * 0.16;
   });
   for (const item of decor) item.mesh.rotation.y += dt * item.speed;
+  for (const item of pickups.items) {
+    const mesh = pickupMeshes.get(item.id);
+    if (mesh?.visible && item.type === 'loot') mesh.rotation.y += dt * 1.25;
+  }
   state.mapReveal = Math.max(0, state.mapReveal - dt * 0.3);
   ui.mapStatus.textContent = state.mapReveal > 0.08 ? 'ECHO' : state.stage === 3 ? 'JAMMED' : 'DORMANT';
   ui.minimap.classList.toggle('revealed', state.mapReveal > 0.08);
+  // Feed presentation remains live while pointer-lock is paused; camera
+  // detection itself only advances with a positive gameplay timestep.
+  updateCctv(dt);
 
   if (dt > 0) {
     state.elapsed += dt;
     state.throwCooldown = Math.max(0, state.throwCooldown - dt);
     state.pingCooldown = Math.max(0, state.pingCooldown - dt);
+    state.hazardCooldown = Math.max(0, state.hazardCooldown - dt);
+    state.safeNoiseCooldown = Math.max(0, state.safeNoiseCooldown - dt);
     updateDecoyCooldown(dt);
-    ui.sonar.textContent = state.pingCooldown > 0 ? 'SONAR RECHARGING ' + state.pingCooldown.toFixed(1) + 's' : 'SONAR READY  SPACE';
+    const sonarKey = state.stage === 1 || state.stage === TUTORIAL_STAGE ? 'SPACE' : 'G';
+    ui.sonar.textContent = state.pingCooldown > 0 ? 'SONAR RECHARGING ' + state.pingCooldown.toFixed(1) + 's' : 'SONAR READY  ' + sonarKey;
     ui.sonar.classList.toggle('cooldown', state.pingCooldown > 0);
-    updatePlayer(dt);
-    stages.update(state.stage, player.position, state.crouching, elapsed, (reason) => finish(false, reason));
+    if (!state.cctvActive && !state.safeActive) {
+      updatePlayer(dt);
+      updatePickpocket(dt);
+    }
+    updateEcho(dt);
+    updateEchoPlates();
+    stages.update(state.stage, player.position, state.crouching, elapsed, handleHazardTrip, {
+      crawling: state.crawling,
+      jumpOffset: state.jumpOffset
+    });
     if (state.running && !state.transitioning) updateThrowables(dt);
     updateThrowPreview();
   }
   if (state.stage === 3) {
-    const result = escapeMission.update({ dt, player: player.position, yaw: state.yaw, pitch: state.pitch,
-      holding: Boolean(keys.KeyE), active: dt > 0 && state.running && !state.transitioning, hasDiamond: state.hasDiamond });
+    const playerHolding = Boolean(keys.KeyE) && Boolean(escapeMission.eligible(player.position, state.yaw, state.pitch));
+    const echoHolding = echoFrame?.interacting && echo.snapshot().mode === 'replaying' &&
+      Boolean(escapeMission.eligible(echoFrame, echoFrame.yaw, echoFrame.pitch));
+    const overrideActor = playerHolding
+      ? { position: player.position, yaw: state.yaw, pitch: state.pitch }
+      : echoHolding
+        ? { position: echoFrame, yaw: echoFrame.yaw, pitch: echoFrame.pitch }
+        : { position: player.position, yaw: state.yaw, pitch: state.pitch };
+    const result = escapeMission.update({ dt, player: overrideActor.position, yaw: overrideActor.yaw, pitch: overrideActor.pitch,
+      holding: playerHolding || echoHolding, active: dt > 0 && state.running && !state.transitioning,
+      hasDiamond: state.hasDiamond, escapePlayer: player.position });
     for (const noise of result.noises) emitRing(noise.position, colours.alert, noise.radius, noise.source);
     if (result.opened.length) {
       const navigator = createNavigator(colliders, 3);
@@ -2083,11 +2640,15 @@ function animate() {
       ui.exposure.textContent = state.exposure > 0 ? 'REEL SECURED // EXPOSED BY ECHO' : 'REEL SECURED // LOW EXPOSURE';
       ui.exposure.classList.toggle('cooldown', state.exposure > 0);
     }
-    for (const guard of guards) if (guard.active && state.running) updateGuard(guard, soundDt);
     const active = guards.filter((guard) => guard.active);
+    const pursued = active.some((guard) => guard.state === 'pursue');
+    const alarmState = alarm.update(soundDt, { canDecay: !pursued && state.exposure === 0 });
+    for (const guard of active) if (state.running) updateGuard(guard, soundDt);
     const status = active.find((guard) => guard.state === 'pursue') ?? active.find((guard) => guard.suspicion > 0) ?? active.find((guard) => guard.state !== 'patrol');
-    ui.guard.textContent = status ? (status.suspicion > 0 && status.state !== 'pursue' ? 'SUSPICION ' + Math.round(status.suspicion * 100) + '%' : status.state.toUpperCase()) : state.cloakActive ? 'DAMPED' : state.exposure > 0 ? 'EXPOSED' : 'UNDETECTED';
-    ui.guard.classList.toggle('alert', Boolean(status) || state.exposure > 0);
+    const guardDetail = status ? ' // ' + (status.suspicion > 0 && status.state !== 'pursue' ? 'SEEN ' + Math.round(status.suspicion * 100) + '%' : status.state.toUpperCase()) : '';
+    ui.guard.textContent = alarmState.level.label + ' ' + Math.round(alarmState.value) + '%' + guardDetail;
+    ui.guard.style.setProperty('--alarm-level', alarmState.value + '%');
+    ui.guard.classList.toggle('alert', alarmState.level.id === 'alert' || alarmState.level.id === 'lockdown' || Boolean(status));
   }
   updateToast(dt);
   render();
@@ -2097,15 +2658,29 @@ const SCROLL_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
 
 document.addEventListener('keydown', (event) => {
   keys[event.code] = true;
+  if (state.safeActive) {
+    event.preventDefault();
+    if (event.code === 'Escape') cancelSafecrack();
+    if (event.code === 'KeyE' && !event.repeat) setSafeTumbler();
+    return;
+  }
   if (SCROLL_KEYS.includes(event.code) && state.running) event.preventDefault();
+  if (event.code === 'Tab' && state.running) {
+    event.preventDefault();
+    if (!event.repeat) cycleCctvFeed();
+  }
+  if (event.code === 'Escape' && state.cctvActive) exitCctvFeed();
   if (event.code === 'Enter' && !state.running && !state.ended && !ui.start.classList.contains('is-hidden')) startGame();
   if (event.code === 'KeyT' && !state.running && !state.ended && !ui.start.classList.contains('is-hidden')) startTraining();
-  if (event.code === 'KeyE' && !event.repeat) interact();
+  if (event.code === 'KeyE' && !event.repeat && !loopCctvFeed()) interact();
   if (event.code === 'KeyF' && !event.repeat) toggleDampener();
   if (event.code === 'Space' && !event.repeat) {
     event.preventDefault();
-    activePulse();
+    if (state.stage === 1 || state.stage === TUTORIAL_STAGE) activePulse();
+    else tryJump();
   }
+  if (event.code === 'KeyG' && !event.repeat) activePulse();
+  if (event.code === 'KeyQ' && !event.repeat) toggleEcho();
   if (state.running && !state.transitioning && ['Digit1','Digit2','Digit3'].includes(event.code)) practiceJump(Number(event.code.slice(-1)));
   if (event.code === 'KeyR' && state.ended) retryGame();
   if (event.code === 'KeyN' && state.ended) restartHeist();
@@ -2113,6 +2688,11 @@ document.addEventListener('keydown', (event) => {
 document.addEventListener('keyup', (event) => { keys[event.code] = false; });
 document.addEventListener('mousemove', (event) => {
   if (!state.locked || !state.running) return;
+  if (state.safeActive) {
+    const result = safecrack.turn(event.movementX * 0.12, 1 / 60);
+    updateSafeUi(result.noise);
+    return;
+  }
   state.yaw -= event.movementX * 0.0022;
   state.pitch -= event.movementY * 0.0019;
   state.pitch = THREE.MathUtils.clamp(state.pitch, -1.38, 1.38);
@@ -2157,19 +2737,36 @@ if (ui.newHeistButton) ui.newHeistButton.addEventListener('click', restartHeist)
 ui.creditsButton.addEventListener('click', () => ui.credits.showModal());
 ui.closeCredits.addEventListener('click', () => ui.credits.close());
 
-if (new URLSearchParams(window.location.search).has('qa')) {
+const qaParams = new URLSearchParams(window.location.search);
+if (qaParams.has('qa')) {
   window.__signalQa = {
     completeStage: () => { taintCampaign(); completeStage(); },
     takeArtifact: interact,
+    toggleEcho,
     movePlayer: (x, z) => { taintCampaign(); player.position.set(x, 0, z); },
     setView: (yaw, pitch = 0) => { state.yaw = yaw; state.pitch = pitch; },
+    openSafe: () => {
+      const correct = vaultMission.cases.find((exhibit) => exhibit.signature === vaultMission.keySignature);
+      correct.scanned = true;
+      beginSafecrack(correct);
+    },
+    turnSafe: (delta, dt) => { const result = safecrack.turn(delta, dt); updateSafeUi(result.noise); return result; },
+    setSafe: setSafeTumbler,
     isBlockedAt: (x, z) => isBlocked(new THREE.Vector3(x, 0, z)),
     finish: (won) => finish(Boolean(won)),
-    getState: () => ({ stage: state.stage, running: state.running, ended: state.ended, transitioning: state.transitioning, carrying: state.carrying, hasKey: state.hasKey, hasDiamond: state.hasDiamond, keySignature: vaultMission.keySignature, player: { x: player.position.x, z: player.position.z }, yaw: state.yaw, pitch: state.pitch, exposure: state.exposure, elapsed: state.elapsed, guards: guards.filter((guard) => guard.active).map((guard) => ({ x: guard.group.position.x, z: guard.group.position.z, state: guard.state, waypoint: guard.waypoint, suspicion: guard.suspicion })), doors: escapeMission.doors.map(({ id, opened, progress }) => ({ id, opened, progress })), vaultCases: vaultMission.cases.map(({ id, signature, scanned, unlocked }) => ({ id, signature, scanned, unlocked })), rings: state.ringCount, alerts: state.alerts, decoys: state.decoyCharges, mapReveal: state.mapReveal, campaign: { ...campaign } })
+    getState: () => ({ stage: state.stage, running: state.running, ended: state.ended, transitioning: state.transitioning, carrying: state.carrying, hasKey: state.hasKey, hasDiamond: state.hasDiamond, keySignature: vaultMission.keySignature, player: { x: player.position.x, z: player.position.z, jump: state.jumpOffset, stamina: sprintStamina.snapshot() }, yaw: state.yaw, pitch: state.pitch, exposure: state.exposure, elapsed: state.elapsed, guards: guards.filter((guard) => guard.active).map((guard) => ({ x: guard.group.position.x, z: guard.group.position.z, state: guard.state, waypoint: guard.waypoint, suspicion: guard.suspicion })), doors: escapeMission.doors.map(({ id, opened, progress }) => ({ id, opened, progress })), vaultCases: vaultMission.cases.map(({ id, signature, scanned, unlocked }) => ({ id, signature, scanned, unlocked })), rings: state.ringCount, alerts: state.alerts, alarm: alarm.snapshot(), checkpoint: checkpoints.latestId, echo: echo.snapshot(), plates: echoPlates.plates.map(({ id, active, occupants }) => ({ id, active, occupants: [...occupants] })), pickups: pickups.snapshot(), cctv: cctv.snapshot(), safe: safecrack.snapshot(), decoys: state.decoyCharges, mapReveal: state.mapReveal, campaign: { ...campaign } })
   };
 }
 
 createWorld();
 camera.position.set(0, 1.68, 18);
 camera.rotation.set(0, 0, 0);
+if (qaParams.get('qa') === 'safe') {
+  ui.start.classList.add('is-hidden');
+  resetGame(2, false);
+  const correct = vaultMission.cases.find((exhibit) => exhibit.signature === vaultMission.keySignature);
+  correct.scanned = true;
+  ui.signature.textContent = vaultMission.readout();
+  beginSafecrack(correct);
+}
 animate();

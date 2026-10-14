@@ -55,6 +55,7 @@ export function noiseScaleAt(x, z) {
 }
 
 export function createGalleriesMission({ gallery, addBox, materials, createLabelPanel }) {
+  let guardCarriesKey = false;
   const keyPosition = new THREE.Vector3(12.5, 1.55, -20.1);
   const entrancePosition = new THREE.Vector3(0, 0, -20.6);
   const label = (text, x, y, z, width) => {
@@ -169,8 +170,12 @@ export function createGalleriesMission({ gallery, addBox, materials, createLabel
     keyPosition,
     entrancePosition,
     setStage(stage, hasKey) {
-      keycard.visible = stage === 1 && !hasKey;
+      keycard.visible = stage === 1 && !hasKey && !guardCarriesKey;
       doorMaterial.color.setHex(hasKey ? 0x72efff : 0xffa43b);
+    },
+    setGuardCarriesKey(enabled = true) {
+      guardCarriesKey = enabled;
+      if (enabled) keycard.visible = false;
     },
     update(elapsed) {
       keycard.rotation.y = Math.sin(elapsed * 0.9) * 0.3;

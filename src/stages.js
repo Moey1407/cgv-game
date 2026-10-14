@@ -290,15 +290,17 @@ export function createStageSystem({ scene, level, minimapScene, materials, colli
     return config;
   }
 
-  function update(stage, player, crouching, elapsed, onHazardTrip) {
+  function update(stage, player, crouching, elapsed, onHazardTrip, locomotion = {}) {
     if (stage !== 2) return;
     for (let i = 0; i < lasers.length; i += 1) {
       const laser = lasers[i];
       laser.currentY = laser.baseY + Math.sin(elapsed * laser.speed + laser.phase) * laser.amplitude;
       laser.rig.position.y = laser.currentY;
       laser.beam.material.opacity = 0.58 + Math.sin(elapsed * 7 + i) * 0.22;
-      const playerHeight = crouching ? 0.96 : 1.72;
-      if (Math.abs(player.z - laser.z) < 0.2 && Math.abs(player.x - laser.x) < laser.length / 2 && laser.currentY < playerHeight) {
+      const playerBottom = locomotion.jumpOffset ?? 0;
+      const playerHeight = locomotion.crawling ? 0.58 : crouching ? 0.96 : 1.72;
+      const crossesBody = laser.currentY > playerBottom + 0.06 && laser.currentY < playerBottom + playerHeight;
+      if (Math.abs(player.z - laser.z) < 0.2 && Math.abs(player.x - laser.x) < laser.length / 2 && crossesBody) {
         onHazardTrip('laser');
         return;
       }
@@ -309,7 +311,7 @@ export function createStageSystem({ scene, level, minimapScene, materials, colli
       trap.plate.material.emissiveIntensity = 0.45 + pulse;
       trap.warning.material.opacity = 0.32 + pulse * 0.42;
       trap.warning.rotation.z = Math.PI / 4 + elapsed * 0.35;
-      if (Math.abs(player.x - trap.x) < trap.halfX && Math.abs(player.z - trap.z) < trap.halfZ) {
+      if ((locomotion.jumpOffset ?? 0) < 0.14 && Math.abs(player.x - trap.x) < trap.halfX && Math.abs(player.z - trap.z) < trap.halfZ) {
         onHazardTrip('trap');
         return;
       }

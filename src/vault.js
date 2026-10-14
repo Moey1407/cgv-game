@@ -95,7 +95,7 @@ export function createVaultMission({ level, materials, colliders, createLabelPan
       }
       return reached;
     },
-    tryUnlock(exhibit, hasKey) {
+    inspect(exhibit, hasKey) {
       if (!hasKey) return 'no-key';
       if (acquired || exhibit.unlocked) return 'already-open';
       if (!exhibit.scanned) return 'scan-first';
@@ -104,8 +104,18 @@ export function createVaultMission({ level, materials, colliders, createLabelPan
         wrongCooldown = 2;
         return 'wrong';
       }
+      return 'safe-ready';
+    },
+    acquire(exhibit) {
+      if (!exhibit || acquired || exhibit.unlocked || exhibit.signature !== keySignature) return false;
       acquired = exhibit.unlocked = true;
       exhibit.diamond.visible = exhibit.glass.visible = false;
+      return true;
+    },
+    tryUnlock(exhibit, hasKey) {
+      const result = this.inspect(exhibit, hasKey);
+      if (result !== 'safe-ready') return result;
+      this.acquire(exhibit);
       return 'diamond';
     },
     readout() {

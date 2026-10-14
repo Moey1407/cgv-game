@@ -60,8 +60,17 @@ export function createEscapeMission({ level, colliders, createLabelPanel }) {
     return hasDiamond && doors.every((door) => door.opened) &&
       hasClearAccess(player, ESCAPE_EXIT, colliders, 3, 1.8);
   }
+  function openDoor(id) {
+    const door = doors.find((candidate) => candidate.id === id);
+    if (!door || door.opened) return false;
+    door.opened = door.collider.disabled = true;
+    door.progress = door.noiseTimer = 0;
+    door.panel.visible = false;
+    door.reader.material.color.setHex(0x76ffb2);
+    return true;
+  }
   return {
-    doors, eligible, cancel, canEscape,
+    doors, eligible, cancel, canEscape, openDoor,
     reset(stage) {
       group.visible = stage === 3;
       finished = false;
@@ -72,7 +81,7 @@ export function createEscapeMission({ level, colliders, createLabelPanel }) {
         door.reader.material.color.setHex(0xffa43b);
       }
     },
-    update({ dt, player, yaw, pitch = 0, holding, active, hasDiamond }) {
+    update({ dt, player, yaw, pitch = 0, holding, active, hasDiamond, escapePlayer = player }) {
       const result = { noises: [], opened: [], finished: false };
       if (!active || finished) { cancel(); return result; }
       const focused = holding ? eligible(player, yaw, pitch) : null;
@@ -86,13 +95,10 @@ export function createEscapeMission({ level, colliders, createLabelPanel }) {
           result.noises.push({ position: new THREE.Vector3(player.x, 0.6, player.z), radius: 7, source: 'override' });
         }
         if (door.progress >= OVERRIDE_SECONDS) {
-          door.opened = door.collider.disabled = true;
-          door.panel.visible = false;
-          door.reader.material.color.setHex(0x76ffb2);
-          result.opened.push(door.id);
+          if (openDoor(door.id)) result.opened.push(door.id);
         }
       }
-      if (canEscape(player, hasDiamond)) {
+      if (canEscape(escapePlayer, hasDiamond)) {
         finished = result.finished = true;
       }
       return result;
