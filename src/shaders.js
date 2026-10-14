@@ -9,6 +9,11 @@ export function createSoundUniforms() {
   return {
     uTime: { value: 0 },
     uAmbient: { value: 0.2 },
+    uStageTint: { value: new THREE.Color(0x72efff) },
+    uStageTintStrength: { value: 0.35 },
+    uFogColour: { value: new THREE.Color(0x02050a) },
+    uFogNear: { value: 29 },
+    uFogFar: { value: 54 },
     uRings: { value: Array.from({ length: MAX_RINGS }, () => new THREE.Vector4(0, -100, 0, -100)) },
     uRingColors: { value: Array.from({ length: MAX_RINGS }, () => new THREE.Color(0x000000)) },
     uRingLife: { value: Array.from({ length: MAX_RINGS }, () => 0) }
@@ -30,6 +35,11 @@ const fragmentShader = [
   'precision highp float;',
   'uniform vec3 uBaseColor;',
   'uniform float uAmbient;',
+  'uniform vec3 uStageTint;',
+  'uniform float uStageTintStrength;',
+  'uniform vec3 uFogColour;',
+  'uniform float uFogNear;',
+  'uniform float uFogFar;',
   'uniform float uTime;',
   'uniform vec4 uRings[8];',
   'uniform vec3 uRingColors[8];',
@@ -44,6 +54,9 @@ const fragmentShader = [
   '  float edge = pow(1.0 - abs(dot(n, normalize(cameraPosition - vWorldPos))), 3.0);',
   '  float skyFill = 0.08 + max(n.y, 0.0) * 0.1;',
   '  vec3 colour = uBaseColor * (uAmbient + skyFill + diffuse * 0.52) + vec3(0.025,0.07,0.09) * edge;',
+  // The ambient wash gives each floor its own visual identity even before a
+  // sonar pulse arrives. It is intentionally weakest during containment.
+  '  colour += uStageTint * uStageTintStrength * (0.035 + uAmbient * 0.016);',
   '  for(int i=0;i<8;i++){',
   '    vec3 toRing = uRings[i].xyz - vWorldPos;',
   // The wave travels across the floor, so distance is measured on the ground
@@ -70,8 +83,8 @@ const fragmentShader = [
   '  }',
   '  float micro = (hash(floor(vWorldPos.xz * 4.0)) - 0.5) * 0.012;',
   '  colour += micro;',
-  '  float fog = smoothstep(29.0, 54.0, distance(cameraPosition, vWorldPos));',
-  '  colour = mix(colour, vec3(0.002,0.005,0.009), fog);',
+  '  float fog = smoothstep(uFogNear, uFogFar, distance(cameraPosition, vWorldPos));',
+  '  colour = mix(colour, uFogColour, fog);',
   '  gl_FragColor = vec4(colour, 1.0);',
   '}'
 ].join('\n');

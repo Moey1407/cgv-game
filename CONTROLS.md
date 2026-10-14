@@ -140,11 +140,11 @@ They are not blind and they are not all-seeing. They need a ring on you, line of
 
 ## The three levels
 
-**1 — Galleries.** Take the staff key from the security office, open the deep store door. Teaches noise, surfaces and distraction. One patrol.
+**1 — Upper Galleries.** Imani returns to her former workplace under low emergency light. Take the staff key from the security office and open the descent. Teaches noise, surfaces and distraction. One patrol.
 
-**2 — The Vault.** The cases are unlabelled; the archive catalogues by resonance. Scan with `Space` within 10 m and match the signature your key carries, then open it with `E`. Lasers, pressure plates, one patrol.
+**2 — Deep Store.** The cases are unlabelled; Halvard catalogues sealed material by resonance. Scan with `Space` within 10 m and match the signature your key carries, then recover H-1968-07 with `E`. Lasers, pressure plates, one patrol.
 
-**3 — Lockdown.** Carry the artefact out through two doors that each need `E` held for 3.5 seconds, and each override makes noise. Two guards, no reliable map, no lights.
+**3 — Containment.** Removing the reel cuts the licensed echo network and summons a sweep team. Carry H-1968-07 through two doors that each need `E` held for 3.5 seconds, then reach the emergency lift. Two guards, no reliable map, no lights.
 
 ---
 

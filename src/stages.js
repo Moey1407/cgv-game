@@ -1,6 +1,7 @@
 import * as THREE from 'three';
+import { STORY } from './story.js';
 
-export function createStageSystem({ scene, level, minimapScene, materials, colliders, lights, sharedUniforms }) {
+export function createStageSystem({ scene, level, minimapScene, materials, colliders, lights, sharedUniforms, renderer }) {
   const vault = new THREE.Group();
   const blackout = new THREE.Group();
   const vaultMap = new THREE.Group();
@@ -148,9 +149,7 @@ export function createStageSystem({ scene, level, minimapScene, materials, colli
 
   const configurations = {
     1: {
-      name: 'GALLERIES',
-      objective: 'Take the staff key from the security office, then open the deep store door',
-      intro: 'Watch the floor. Carpet hides you, marble carries. F damps your rig when you need to move.',
+      ...STORY.stages[1],
       artifact: new THREE.Vector3(0, 1.55, -19.2),
       guard: new THREE.Vector3(12.5, 0, -15),
       guardSpeed: 1.65,
@@ -167,14 +166,19 @@ export function createStageSystem({ scene, level, minimapScene, materials, colli
         new THREE.Vector3(11, 0, -10)
       ],
       accent: 0x72efff,
-      ambient: 0.3,
-      fog: 0x04101a,
-      fogDensity: 0.021
+      ambient: 3.8,
+      fog: 0x0a1822,
+      fogDensity: 0.013,
+      shaderFog: 0x07151e,
+      shaderTint: 0x69dff5,
+      shaderTintStrength: 0.58,
+      shaderFogNear: 42,
+      shaderFogFar: 70,
+      lightScale: 1,
+      exposure: 2
     },
     2: {
-      name: 'THE VAULT',
-      objective: 'Explore and sonar-scan the cases. Match the key’s signature, then unlock with E',
-      intro: 'Compare the key’s stored signature with the three exhibits. Lasers and pressure plates remain armed.',
+      ...STORY.stages[2],
       spawn: new THREE.Vector3(0, 0, 3),
       artifact: new THREE.Vector3(0, 1.55, -19),
       guard: new THREE.Vector3(-8, 0, 4),
@@ -196,14 +200,19 @@ export function createStageSystem({ scene, level, minimapScene, materials, colli
         new THREE.Vector3(12, 0, 4)
       ],
       accent: 0xff315a,
-      ambient: 0.17,
-      fog: 0x10040a,
-      fogDensity: 0.026
+      ambient: 1.4,
+      fog: 0x09070d,
+      fogDensity: 0.022,
+      shaderFog: 0x05070d,
+      shaderTint: 0xff9a5b,
+      shaderTintStrength: 0.72,
+      shaderFogNear: 31,
+      shaderFogFar: 53,
+      lightScale: 0.28,
+      exposure: 1.46
     },
     3: {
-      name: 'LOCKDOWN',
-      objective: 'Carry the diamond through two noisy overrides to the north emergency exit',
-      intro: 'Distract the patrols, hold E at each noisy door, then escape north with the diamond.',
+      ...STORY.stages[3],
       spawn: new THREE.Vector3(0, 0, 18),
       artifact: new THREE.Vector3(0, 1.55, 18),
       guard: new THREE.Vector3(-12, 0, 16),
@@ -219,9 +228,16 @@ export function createStageSystem({ scene, level, minimapScene, materials, colli
             new THREE.Vector3(-9, 0, 3), new THREE.Vector3(-13, 0, 3)] }
       ],
       accent: 0x72efff,
-      ambient: 0.035,
+      ambient: 0.018,
       fog: 0x00040a,
-      fogDensity: 0.032
+      fogDensity: 0.035,
+      shaderFog: 0x000207,
+      shaderTint: 0xff254d,
+      shaderTintStrength: 0.08,
+      shaderFogNear: 19,
+      shaderFogFar: 38,
+      lightScale: 0,
+      exposure: 1.08
     },
 
     // Training floor. Not a graded level and not part of the campaign - it
@@ -237,9 +253,16 @@ export function createStageSystem({ scene, level, minimapScene, materials, colli
       waypoints: [new THREE.Vector3(0, 0, -40)],
       guards: [],
       accent: 0x9f7bff,
-      ambient: 0.26,
+      ambient: 2.2,
       fog: 0x050d14,
-      fogDensity: 0.02
+      fogDensity: 0.018,
+      shaderFog: 0x040b12,
+      shaderTint: 0x9f7bff,
+      shaderTintStrength: 0.42,
+      shaderFogNear: 34,
+      shaderFogFar: 58,
+      lightScale: 0.7,
+      exposure: 1.5
     }
   };
 
@@ -249,11 +272,21 @@ export function createStageSystem({ scene, level, minimapScene, materials, colli
     vaultMap.visible = stage === 2;
     blackout.visible = stage === 3;
     blackoutMap.visible = stage === 3;
-    sharedUniforms.uAmbient.value = config.ambient;
+    if (sharedUniforms.uAmbient) sharedUniforms.uAmbient.value = config.ambient;
+    if (sharedUniforms.uFogColour) sharedUniforms.uFogColour.value.setHex(config.shaderFog);
+    if (sharedUniforms.uStageTint) sharedUniforms.uStageTint.value.setHex(config.shaderTint);
+    if (sharedUniforms.uStageTintStrength) sharedUniforms.uStageTintStrength.value = config.shaderTintStrength;
+    if (sharedUniforms.uFogNear) sharedUniforms.uFogNear.value = config.shaderFogNear;
+    if (sharedUniforms.uFogFar) sharedUniforms.uFogFar.value = config.shaderFogFar;
     scene.background.setHex(config.fog);
     scene.fog.color.setHex(config.fog);
     scene.fog.density = config.fogDensity;
-    for (const light of lights) light.visible = stage !== 3;
+    if (renderer) renderer.toneMappingExposure = config.exposure;
+    for (const light of lights) {
+      light.userData.baseIntensity ??= light.intensity;
+      light.visible = config.lightScale > 0;
+      light.intensity = light.userData.baseIntensity * config.lightScale;
+    }
     return config;
   }
 

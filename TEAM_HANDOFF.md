@@ -1,16 +1,20 @@
 # SIGNAL - Remaining 40% Team Handoff
 
-All three beta level mechanics are implemented: Level 1 security key/vault access, Level 2 randomized sonar identification, and Level 3 carried-diamond escape through two noisy override doors with two guards. Level 3 manual acceptance and difficulty tuning are pending; connected campaign/practice scoring and full-heist restart still need final integration.
+All three beta level mechanics are implemented as one story: former conservator Imani Sulé enters Halvard's Upper Galleries for a staff key, identifies the erased recording reel H-1968-07 in the Deep Store by resonance, then carries it through Containment and two noisy override doors while a sweep team closes in. Level 3 manual acceptance and difficulty tuning remain pending.
 
-Production build and 23 focused checks passed. Zidan confirmed Level 1 and Level 2's revised spawn/patrol/randomization in the browser. Level 3 still needs browser acceptance. Run `node tests/galleries.test.js`, `node tests/vault.test.js` and `node tests/escape.test.js`. For the latest production build, run `npm run build`, then `npm run preview -- --host 127.0.0.1 --port 4173 --strictPort` and open http://127.0.0.1:4173/.
+Production build and 59 focused checks pass across seven files, including the connected story and light-to-blackout visual arc. Zidan confirmed Level 1 and Level 2's revised spawn/patrol/randomization in the browser. Level 3 still needs human browser acceptance. Run every `tests/*.test.js` file, then `npm run build`. For the latest production build, run `npm run preview -- --host 127.0.0.1 --port 4173 --strictPort` and open http://127.0.0.1:4173/.
 
 Level 2: player spawn is (0, 3), guard spawn is (-8, 4). The guard uses a static grid with radius-inflated obstacles and swept movement checks to patrol the whole vault and investigate reachable sound positions. Space scans within 10 metres when the wave reaches a case. The key randomly requests single, double or triple echoes; cases contain a shuffled permutation of those patterns, giving exactly one solution. Fresh runs and practice selection reroll; retries preserve the puzzle. Case positions remain fixed. E tries a case's front reader. Wrong choices emit a local alert with a two-second repeat limit; the correct case alone triggers lockdown and Level 3. Response animations last 10 seconds and observations persist. Failure retries the current level, clearing input and puzzle state. Sonar wave aging and response timers freeze while paused.
 
-Level 3: start with the diamond at (0, 18); guards start at (-12, 16) and (-11, -4), patrolling the left sides of the entrance and middle sections. Cover beside Door 01 protects its reader. Override wave radius is 7 metres; the hearing query requires clear access, so a guard across a closed door is not summoned to the opposite threshold. Door 01 is at (0, 8), Door 02 at (9, -8), and the exit at (0, -20.5). Hold E from a door's south/front side while facing it for 3.5 seconds. Noise repeats once per second; cancel resets progress. Opening disables its collider and rebuilds shared static navigation while clearing each guard's independent route. Carrying the diamond is silent; automatic pulses were removed after difficulty feedback. The carrying footstep multiplier and Level 3 spawn wave were also removed; normal movement, guard and override echoes remain. The jammed minimap briefly reveals both guards during echoes. Player exposure follows shader wave bands with a 0.65-second grace period; suspicion accumulates for 0.5 seconds before pursuit, and cover leads to a four-second search at the last seen position. Guards briefly commit to decoys for 5 seconds unless they visually detect the player. Pause freezes gameplay and scored time; blur/unlock clears input and cancels overrides.
+Level 3: start with H-1968-07 at (0, 18); guards start at (-12, 16) and (-11, -4), patrolling the left sides of the entrance and middle sections. Cover beside Door 01 protects its reader. Override wave radius is 7 metres; the hearing query requires clear access, so a guard across a closed door is not summoned to the opposite threshold. Door 01 is at (0, 8), Door 02 at (9, -8), and the emergency lift is at (0, -20.5). Hold E from a door's south/front side while facing it for 3.5 seconds. Noise repeats once per second; cancel resets progress. Opening disables its collider and rebuilds shared static navigation while clearing each guard's independent route. Carrying the reel is silent; automatic pulses and the carrying footstep multiplier remain removed. Normal movement, guard and override echoes remain. The jammed minimap briefly reveals both guards during echoes. Player exposure follows shader wave bands with a 0.65-second grace period; suspicion accumulates for 0.5 seconds before pursuit, and cover leads to a four-second search at the last seen position. Guards briefly commit to decoys for 5 seconds unless they visually detect the player. Pause freezes gameplay and scored time; blur/unlock clears input and cancels overrides.
 
 Level 1 was rebuilt (see "Level 1 rebuild" below): it now has rooms, two routes, surface-dependent footstep noise, pathfound guard movement and the dampener ability.
 
-Known limitations: sound-only guard behaviour is still specific to Level 2. Decoys retain the original floor-impact physics and can pass through walls. Full campaign vs practice completion, full-heist restart controls and meaningful detection statistics need Change 8. Production subfolder hosting and final performance/duration acceptance need Change 9. Keep these separate from visual polish and record them in playtest results.
+Known limitations: sound-only guard behaviour is still specific to Level 2. Final performance/duration acceptance and Level 3 difficulty need human playtesting. Keep balance changes separate from visual polish and record them in playtest results.
+
+## Story and visual progression
+
+`src/story.js` is the single source for Imani, Halvard, H-1968-07, the three act names, objectives, transition copy and ending. `src/reel.js` builds the sealed recording reel procedurally, so there is no external model dependency. Upper Galleries uses a brighter blue emergency reconstruction, Deep Store is colder and narrower, and Containment cuts the light almost completely. The progression is guarded by `tests/story.test.js`.
 
 ## Level 1 rebuild
 
@@ -42,7 +46,7 @@ This affects all three levels. Levels 2 and 3 were fragile the same way, just wi
 
 ## Teammate A - Environment and audio polish
 
-- Add original or correctly licensed museum props without changing collision-critical routes.
+- Add original or correctly licensed archive props without changing collision-critical routes.
 - Add ambient room tone, laser hum, guard footsteps, pickup feedback, and transition stingers.
 - Balance lighting while preserving the cyan player / red threat visual language.
 - Record every external asset and licence in the final credits.
@@ -53,7 +57,7 @@ This affects all three levels. Levels 2 and 3 were fragile the same way, just wi
 
 - Play the complete Galleries -> Vault -> Blackout run with at least five testers.
 - Record completion time, failures, unclear controls, and repeated collision problems.
-- Tune guard speed, laser placement, sonar cooldown, and artefact positions from evidence.
+- Tune guard speed, laser placement, sonar cooldown, and objective positions from evidence.
 - Verify keyboard and mouse input in Chrome and Firefox at 1920x1080 and 1366x768.
 - Confirm the LAMP ZIP works when extracted and served from a subfolder.
 

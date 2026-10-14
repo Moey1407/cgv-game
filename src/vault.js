@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createArchiveReel } from './reel.js';
 
 export const SIGNATURES = {
   single: { name: 'SINGLE ECHO', glyph: '|', offsets: [0] },
@@ -23,9 +24,7 @@ export function createVaultMission({ level, materials, colliders, createLabelPan
     group.add(pedestal);
     colliders.push({ stage: 2, minX: config.x - 0.9, maxX: config.x + 0.9,
       minZ: config.z - 0.8, maxZ: config.z + 0.8 });
-    const diamond = new THREE.Mesh(new THREE.OctahedronGeometry(0.45),
-      new THREE.MeshPhysicalMaterial({ color: 0xffd568, emissive: 0xffa51f,
-        emissiveIntensity: 0.7, roughness: 0.12, metalness: 0.62, clearcoat: 1 }));
+    const diamond = createArchiveReel(0.92);
     diamond.position.copy(position);
     group.add(diamond);
     const glass = new THREE.Mesh(new THREE.BoxGeometry(1.65, 1.35, 1.45),

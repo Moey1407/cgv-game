@@ -14,6 +14,8 @@ import { createNavigator, stepToward, unstick } from './navigation.js';
 import { THROW, advanceThrow, simulateThrow, impactRadius } from './throwing.js';
 import { createEscapeMission, ESCAPE_EXIT, OVERRIDE_SECONDS } from './escape.js';
 import { playerIlluminated, updateGuardAwareness, hearSound } from './visibility.js';
+import { STORY } from './story.js';
+import { createArchiveReel } from './reel.js';
 
 const ui = {
   start: document.querySelector('#start-screen'),
@@ -495,18 +497,7 @@ function createWorld() {
     scene.add(lamp);
   }
 
-  artifact = new THREE.Mesh(
-    new THREE.OctahedronGeometry(0.74, 0),
-    new THREE.MeshPhysicalMaterial({
-      color: 0xffd568,
-      emissive: 0xffa51f,
-      emissiveIntensity: 1.25,
-      roughness: 0.12,
-      metalness: 0.62,
-      clearcoat: 1,
-      clearcoatRoughness: 0.08
-    })
-  );
+  artifact = createArchiveReel();
   artifact.position.set(0, 1.55, -19.2);
   artifact.scale.setScalar(1);
   artifact.castShadow = true;
@@ -565,7 +556,8 @@ function createWorld() {
     materials,
     colliders,
     lights: museumLights,
-    sharedUniforms
+    sharedUniforms,
+    renderer
   });
   vaultMission = createVaultMission({ level, materials, colliders, createLabelPanel });
   escapeMission = createEscapeMission({ level, colliders, createLabelPanel });
@@ -1462,7 +1454,7 @@ function interactionPrompt() {
     if (exhibit) return '[ E ] TRY CASE ' + exhibit.id + ' // ' +
       (exhibit.scanned ? SIGNATURES[exhibit.signature].glyph + ' ' + SIGNATURES[exhibit.signature].name : 'UNSCANNED — USE SONAR');
   } else if (!state.carrying && canInteractWith(artifact.position)) {
-    return '[ E ] TAKE THE ARTEFACT';
+    return '[ E ] TAKE H-1968-07';
   }
   return '';
 }
@@ -1511,7 +1503,8 @@ function interact() {
       artifact.position.copy(exhibit.position);
       artifact.scale.setScalar(0.6);
       artifact.visible = artifactGlow.visible = true;
-      ui.objective.textContent = 'Echo Diamond acquired — lockdown! Escape into the emergency route';
+      ui.objective.textContent = STORY.stages[3].objective;
+      showToast(STORY.target + ' RECOVERED // CONTAINMENT ACTIVE');
       emitRing(exhibit.position, colours.artefact, 20, 'player');
       completeStage();
     }
@@ -1520,7 +1513,7 @@ function interact() {
   if (!state.carrying && canInteractWith(artifact.position)) {
     state.carrying = true;
     ui.objective.textContent = 'Return to the extraction signal';
-    showToast('ARTEFACT ACQUIRED — YOUR SIGNAL IS AMPLIFIED');
+    showToast('H-1968-07 SECURED — CONTAINMENT TRIGGERED');
     emitRing(artifact.position, colours.artefact, 18, 'player');
   }
 }
@@ -1561,6 +1554,7 @@ function setStagePreview(stage, announce = true) {
   for (const key of Object.keys(keys)) keys[key] = false;
   state.ended = false;
   const config = stages.setStage(stage);
+  document.body.dataset.stage = String(stage);
   gallery.visible = stage === 1;
   galleriesMission.setStage(stage, state.hasKey);
   if (stage === 2 && announce) vaultMission.newHeist();
@@ -1623,7 +1617,7 @@ function setStagePreview(stage, announce = true) {
   rings.forEach(disposeRing);
   rings.length = 0;
   clearThrowables();
-  ui.stageLabel.textContent = config.name + ' / ALPHA 0' + stage;
+  ui.stageLabel.textContent = config.act ? config.act + ' / ' + config.name : config.name;
   ui.objective.textContent = config.objective;
   ui.progressSteps.forEach((step, index) => {
     step.classList.toggle('active', index === stage - 1);
@@ -1634,7 +1628,7 @@ function setStagePreview(stage, announce = true) {
   ui.mapStatus.textContent = stage === 3 ? 'JAMMED' : 'LIVE';
   ui.transition.classList.add('is-hidden');
   state.transitioning = false;
-  // Lockdown starts silently; the carried diamond does not emit a spawn wave.
+  // Lockdown starts silently; the carried reel does not emit a spawn wave.
   if (stage !== 3) emitRing(new THREE.Vector3(spawn.x, 0.12, spawn.z), colours.player, 11, 'briefing');
   if (announce) showToast('PRACTICE JUMP // LEVEL 0' + stage + ' // ' + config.name);
 }
@@ -1658,9 +1652,9 @@ function completeStage() {
   state.transitioning = true;
   player.velocity.set(0, 0, 0);
   ui.interaction.classList.add('is-hidden');
-  ui.transitionKicker.textContent = completed === 2 ? 'ECHO DIAMOND ACQUIRED // LOCKDOWN' : 'LEVEL 0' + completed + ' CLEARED';
+  ui.transitionKicker.textContent = stages.configurations[completed].clearKicker;
   ui.transitionTitle.textContent = nextConfig.name;
-  ui.transitionCopy.textContent = completed === 2 ? 'The real diamond is unlocked. Security has sealed the museum. Find the emergency exit.' : nextConfig.intro;
+  ui.transitionCopy.textContent = nextConfig.intro;
   ui.transition.classList.remove('is-hidden');
   playTransitionCue(nextStage);
   emitRing(completed === 1 ? galleriesMission.entrancePosition : artifact.position, colours.artefact, 20, 'player');
@@ -1720,6 +1714,7 @@ function retryGame() {
 function restartHeist() {
   resetCampaign();
   resetGame(1, true);
+  showToast(STORY.opening, 5.5);
   canvas.requestPointerLock();
 }
 
@@ -1785,7 +1780,7 @@ function finish(won, reason = 'guard') {
   ui.resultCopy.textContent = wasTraining
     ? 'You can read a room by ear, throw a noise where you need it, and disappear from every rig in the building. Start the heist when you are ready.'
     : won
-    ? 'The Echo Diamond is secure. You escaped the lockdown with its access key and left nothing behind but an echo.'
+    ? STORY.outro
     : reason === 'laser'
       ? 'The moving laser grid crossed your body. Watch the emitters, wait for an opening, and crouch beneath high beams.'
       : reason === 'trap'
@@ -1830,10 +1825,10 @@ function formatTime(seconds) {
   return mins + ':' + secs;
 }
 
-function showToast(message) {
+function showToast(message, duration = 2.2) {
   ui.toast.textContent = message;
   ui.toast.classList.remove('is-hidden');
-  state.toastTimer = 2.2;
+  state.toastTimer = duration;
 }
 
 function updateToast(dt) {
@@ -2064,7 +2059,7 @@ function animate() {
         guard.routeIndex = guard.replanIn = 0;
       }
       ui.objective.textContent = escapeMission.doors.every((door) => door.opened)
-        ? 'Both doors open — reach the north emergency exit with the diamond'
+        ? 'Both doors open — reach the emergency lift with H-1968-07'
         : 'Door 01 open — find Door 02 to the northeast';
       showToast('DOOR 0' + result.opened[0] + ' OPEN // SECURITY CAN FOLLOW');
     }
@@ -2085,7 +2080,7 @@ function animate() {
     if (state.stage !== 2) state.exposure = !state.cloakActive && playerIlluminated(rings, player.position)
       ? 0.65 : Math.max(0, state.exposure - soundDt);
     if (state.stage === 3) {
-      ui.exposure.textContent = state.exposure > 0 ? 'DIAMOND SECURED // EXPOSED BY ECHO' : 'DIAMOND SECURED // LOW EXPOSURE';
+      ui.exposure.textContent = state.exposure > 0 ? 'REEL SECURED // EXPOSED BY ECHO' : 'REEL SECURED // LOW EXPOSURE';
       ui.exposure.classList.toggle('cooldown', state.exposure > 0);
     }
     for (const guard of guards) if (guard.active && state.running) updateGuard(guard, soundDt);

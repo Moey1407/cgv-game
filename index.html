@@ -15,8 +15,8 @@
   <div id="dampener-veil" aria-hidden="true"></div>
 
   <header id="hud" class="is-hidden">
-    <div class="brand-lockup"><span class="signal-mark"></span><div><strong>SIGNAL</strong><span id="stage-label">GALLERIES / ALPHA 01</span></div><span id="practice-flag" class="practice-flag is-hidden">PRACTICE</span></div>
-    <div class="objective-block"><span class="eyebrow">CURRENT OBJECTIVE</span><strong id="objective">Steal the security key and unlock the vault</strong><div id="level-progress" class="level-progress"><i class="active">01</i><i>02</i><i>03</i></div></div>
+    <div class="brand-lockup"><span class="signal-mark"></span><div><strong>SIGNAL</strong><span id="stage-label">ACT I / UPPER GALLERIES</span></div><span id="practice-flag" class="practice-flag is-hidden">PRACTICE</span></div>
+    <div class="objective-block"><span class="eyebrow">CURRENT OBJECTIVE</span><strong id="objective">Recover a staff key, then descend to the deep store</strong><div id="level-progress" class="level-progress"><i class="active">01</i><i>02</i><i>03</i></div></div>
     <div class="status-cluster">
       <div id="movement-state" class="movement-state">RUNNING</div>
       <div class="noise-readout"><span>NOISE</span><div class="noise-track"><i id="noise-fill"></i></div></div>
@@ -39,18 +39,23 @@
     <div id="sonar-status" class="sonar-status is-hidden">SONAR READY <kbd>SPACE</kbd></div>
     <div id="decoy-status" class="decoy-status is-hidden">DECOY ×3 <kbd>CLICK</kbd></div>
     <div id="dampener-status" class="decoy-status is-hidden">DAMPENER READY <kbd>F</kbd></div>
-    <div id="exposure-state" class="sonar-status is-hidden">DIAMOND SECURED // LOW EXPOSURE</div>
+    <div id="exposure-state" class="sonar-status is-hidden">REEL SECURED // LOW EXPOSURE</div>
   </div>
   <aside id="minimap" class="minimap is-hidden" aria-label="Museum floor minimap"><canvas id="map-canvas" class="map-canvas" width="440" height="304"></canvas><span>TACTICAL MAP <b id="map-status">LIVE</b></span><div class="map-grid"></div><div class="map-legend"><i class="you"></i>YOU <i class="target"></i>TARGET <i class="hostile"></i>GUARD</div></aside>
 
   <section id="start-screen" class="screen start-screen">
     <div class="start-copy">
-      <div class="kicker"><span></span> ALPHA BUILD / MUSEUM 01</div>
+      <div class="kicker"><span></span> HALVARD ARCHIVE / 02:17</div>
       <h1>SIGNAL</h1>
       <p class="tagline">Sound is the only thing you can see.</p>
-      <p class="premise">Break into a museum after dark. Every footstep exposes the room—and you. Read the echoes, misdirect the guard, and steal the security key to unlock the vault.</p>
+      <p class="premise"><strong>Imani Sulé</strong> spent eight years preserving Halvard&rsquo;s collection. Eighteen months after they dismissed her, she returns for the recording reel they erased from the catalogue&mdash;before it is destroyed at dawn.</p>
+      <div class="story-brief" aria-label="Three act mission">
+        <div><b>01 / THE KEY</b><span>Cross the low-lit upper galleries and enter the security office.</span></div>
+        <div><b>02 / THE REEL</b><span>Find H-1968-07 by matching its acoustic signature.</span></div>
+        <div><b>03 / THE ESCAPE</b><span>Survive containment and reach the emergency lift.</span></div>
+      </div>
       <div class="start-actions">
-        <button id="start-button" class="primary-button"><span>BEGIN THREE-LEVEL RUN</span><b>ENTER</b></button>
+        <button id="start-button" class="primary-button"><span>ENTER THE ARCHIVE</span><b>ENTER</b></button>
         <button id="training-button" class="primary-button secondary"><span>TRAINING FLOOR</span><b>T</b></button>
       </div>
       <div class="controls-grid">
@@ -61,7 +66,7 @@
         <div><kbd>E</kbd><span>INTERACT</span></div><div><kbd>SPACE</kbd><span>SONAR PULSE</span></div>
         <div><kbd>1/2/3</kbd><span>PRACTICE SELECT</span></div><div><kbd>R</kbd><span>RETRY</span></div>
       </div>
-      <p class="premise surface-hint">Carpet muffles you, marble carries. Watch the floor readout &mdash; running on stone makes a wave twice the size.</p>
+      <p class="premise surface-hint">Your off-band echo rig draws the world in cyan. The guards&rsquo; licensed rigs answer in red. Every pulse helps you see&mdash;and helps them find you.</p>
     </div>
     <div class="start-visual" aria-hidden="true">
       <div class="orb orb-one"></div><div class="orb orb-two"></div><div class="orb-core"></div><div class="scan-line"></div>
@@ -71,15 +76,15 @@
   </section>
 
   <section id="stage-transition" class="stage-transition is-hidden" aria-live="polite">
-    <span id="transition-kicker" class="kicker">LEVEL CLEARED</span>
-    <h2 id="transition-title">THE VAULT</h2>
-    <p id="transition-copy">Security is awake. Stay below the laser grid.</p>
+    <span id="transition-kicker" class="kicker">STAFF KEY ACQUIRED // DESCENDING</span>
+    <h2 id="transition-title">DEEP STORE</h2>
+    <p id="transition-copy">The archive catalogues sealed material by resonance. Find the reel that answers like the key.</p>
   </section>
 
   <section id="result-screen" class="screen result-screen is-hidden">
     <div class="result-card">
       <span id="result-kicker" class="kicker">MISSION COMPLETE</span><h2 id="result-title">SIGNAL LOST.</h2>
-      <p id="result-copy">The artefact is secure. You left nothing behind but an echo.</p>
+      <p id="result-copy">H-1968-07 is safe. Halvard can erase an accession number, but not what the reel remembers.</p>
       <div class="result-stats">
         <div><span>ACTIVE TIME</span><strong id="stat-time">00:00</strong></div>
         <div><span>SONAR USED</span><strong id="stat-rings">0</strong></div>

@@ -1,14 +1,16 @@
 # SIGNAL - Alpha
 
-SIGNAL is a browser-based Three.js stealth game for COMS3006A / COMS3025A. Sound is both the player's map and their greatest risk: every footstep, decoy, guard pulse, and active sonar wave reveals the museum through a custom shader.
+SIGNAL is a browser-based Three.js stealth game for COMS3006A / COMS3025A. Sound is both the player's map and their greatest risk: every footstep, decoy, guard pulse, and active sonar wave reveals the Halvard Archive through a custom shader.
+
+You play Imani Sulé, a former Halvard Archive conservator. Eighteen months after the archive dismissed her, she returns to recover Accession H-1968-07, a sealed recording reel that was removed from the catalogue and scheduled for destruction. Her homemade echo rig is off-band, so her returns appear cyan while the guards' licensed rigs answer in red.
 
 ## Three-level mission
 
-1. **Galleries** - learn sonar, quiet movement and decoys; steal the keycard from the east security room, then press E at the north vault entrance to unlock it. The key carries into the Vault.
-2. **The Vault** - explore from a central spawn, scan three diamond cases using Space, compare their acoustic patterns with the key's signature, and press E at the matching case. The key and case signatures randomize on each new run; retry preserves the current puzzle. The guard patrols across the vault using wall-safe routes. Wrong guesses generate recoverable local alerts; laser grids and pressure plates remain armed. Vault sonar reaches 10 metres, so scanning requires leaving the spawn.
-3. **Lockdown** - carry the stolen diamond through an emergency route with two independent guards. Carrying the diamond is silent; automatic pulses were removed after difficulty feedback. The carrying footstep multiplier and Level 3 spawn wave were also removed; normal movement, guard and override echoes remain. Hold E for 3.5 seconds at each of two locked doors; the override generates revealing noise. Releasing E, moving away, looking away or pausing resets its progress. Override alerts are local and blocked by closed doors/cover; Door 01 has protective cover, and the patrols stay left of the main approach and exit routes. Open both doors and reach the north emergency exit.
+1. **Upper Galleries** - cross the archive's low-lit public floor, learn sonar, quiet movement and decoys, steal the staff key from the east security room, and descend to the deep store.
+2. **Deep Store** - scan three sealed cases, compare their acoustic patterns with the signature stored on the key, and recover H-1968-07 from the matching case. The signatures randomize on each new run; retry preserves the current puzzle. A patrol, moving laser grids and pressure plates keep the search dangerous.
+3. **Containment** - removing the reel cuts the licensed echo network and brings down a sweep team. Carry H-1968-07 through two noisy overrides with two independent guards, then reach the emergency lift. The reel itself is silent; footsteps, guards, sonar and overrides remain the sources of exposure.
 
-Unlocking the Galleries vault advances to Level 2. Unlocking the real Echo Diamond triggers lockdown and advances directly to Level 3 with the diamond already carried. Escaping Lockdown completes the current run. Number keys 1-3 remain available as practice jumps for demonstrations; later-level practice starts include the security key and Level 3 includes the diamond. Failure retries the current level with its starting inventory and closed doors.
+Opening the Galleries descent advances to Level 2. Recovering H-1968-07 triggers containment and advances directly to Level 3 with the reel already carried. Reaching the emergency lift completes the current run. Number keys 1-3 remain available as practice jumps for demonstrations; later-level practice starts include the correct inventory. Failure retries the current level with its starting inventory and closed doors.
 
 ## Controls
 
@@ -18,14 +20,14 @@ Unlocking the Galleries vault advances to Level 2. Unlocking the real Echo Diamo
 - **C** or **Ctrl** - crouch / quiet movement
 - **Space** - active sonar pulse; reveals a large area but can attract the guard
 - **Left click** - throw a sound decoy (3 charges; one charge returns every 6 seconds)
-- **E** - take the security key / unlock the vault in Level 1; try a scanned case in Level 2; hold to override doors in Level 3. Interactions require range, clear access and unpaused gameplay. Case readers and door overrides are accessed from their front faces; overrides also require facing the door.
+- **E** - take the staff key / open the descent in Level 1; try a scanned case in Level 2; hold to override doors in Level 3. Interactions require range, clear access and unpaused gameplay. Case readers and door overrides are accessed from their front faces; overrides also require facing the door.
 - **1 / 2 / 3** - practice-select a level
 - **R** - retry the current level after failure; restart the run after success
 - **Esc** - release the mouse and pause
 
 ## Technical evidence
 
-- Three.js realtime 3D scene with procedural museum geometry
+- Three.js realtime 3D scene with procedural archive geometry
 - Original GLSL vertex and fragment shader for expanding acoustic wavefronts
 - High-performance static Vite deployment with relative asset paths
 - Cacheable Three.js vendor chunk with a compact game entry (approximately 20 KB gzip)
@@ -50,11 +52,11 @@ The production output is in `dist/`. Upload the contents of `dist/` to the depar
 ## Main source files
 
 - `src/main.js` - renderer, controls, state, guard AI, interaction, progression, and audio
-- `src/stages.js` - Vault and Blackout geometry, hazards, objectives, patrol routes, and level settings
+- `src/stages.js` - Deep Store and Containment geometry, hazards, objectives, patrol routes, and level settings
 - `src/galleries.js` - Level 1 security room, keycard, vault entrance and fixed mission signs
 - `src/vault.js` - Level 2 cases, signature comparison, sonar arrival and puzzle/reset state
 - `src/navigation.js` - Levels 2–3 guard grid routing, obstacle clearance and swept movement checks
-- `src/escape.js` - carried-diamond escape, cancellable door overrides, collision updates and final exit
+- `src/escape.js` - carried-reel escape, cancellable door overrides, collision updates and final exit
 - `src/visibility.js` - acoustic exposure, independent hearing/decoy commitment and Level 3 visual detection
 - `src/interactions.js` - stage-filtered range and wall-access checks
 - `src/shaders.js` - custom acoustic wavefront shader

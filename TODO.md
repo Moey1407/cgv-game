@@ -8,7 +8,7 @@ This is the remaining-work checklist for the current local source. Use [README.m
 
 - Level 1: steal the east security-room key and unlock the north vault. Zidan confirmed the main path and corrected wall signs work in the browser.
 - Level 2: central spawn, whole-vault guard patrol, randomized key/case signatures and sonar identification. Zidan confirmed the revised level works in the browser.
-- Level 3: carry the diamond, override two doors and escape north; two independent guards, routed movement, exposure/suspicion/pursuit/search, and current-level retry are implemented.
+- Level 3: carry H-1968-07, override two doors and escape north; two independent guards, routed movement, exposure/suspicion/pursuit/search, and current-level retry are implemented.
 - Latest recorded verification: production build and all **23 focused checks passed**. This is automated evidence, not full browser acceptance.
 - **Level 3 remains unapproved after difficulty feedback.** The latest fix for guards sandwiching the player has not received browser confirmation.
 - Campaign integration and final acceptance (original Changes 8–9) remain unfinished.
@@ -16,7 +16,7 @@ This is the remaining-work checklist for the current local source. Use [README.m
 ## Decisions to preserve
 
 - Keep the Three.js/Vite architecture and sound-as-light shader.
-- **The diamond must not emit automatic pulses.** Its carrying footstep amplification and Level 3 spawn wave were also removed. Normal footsteps, guard echoes, sonar and override noise remain.
+- **The recording reel must not emit automatic pulses.** Its carrying footstep amplification and Level 3 spawn wave were also removed. Normal footsteps, guard echoes, sonar and override noise remain.
 - Do not restore the floating control signs at the entrance. Mission signs use fixed panels positioned on their surfaces.
 - Case A/B/C locations stay fixed; the key target and case echo assignments shuffle for a new run or practice selection. Each puzzle has exactly one matching case. Retry preserves its solution and clears observations.
 - Door overrides require holding E for 3.5 seconds with range, facing and clear front access. Release, movement away, looking away and pause reset progress.
@@ -37,7 +37,7 @@ Suggested owner: gameplay developer, with a separate tester confirming browser r
 - [ ] **Validate the latest Level 3 balance first.** Start with practice key 3; quietly approach Door 01 using Shift/C, override behind its new cover, cross, then repeat at Door 02. Confirm both guards do not automatically converge on opposite sides of a closed door.
 - [ ] Verify decoy distraction creates enough time to complete an override and pass through. Test a nearby guard with clear access still reacts; the fix must not make guards universally deaf.
 - [ ] Confirm a complete escape is achievable without visual detection using observation, quiet movement and distraction. Record any unavoidable detection/capture situation and tune from that evidence.
-- [ ] Test release/movement/facing/pause cancellation, then restart after capture. Expect two closed doors, the carried diamond, two reset guards and no stale input/progress.
+- [ ] Test release/movement/facing/pause cancellation, then restart after capture. Expect two closed doors, the carried reel, two reset guards and no stale input/progress.
 - [ ] Check guards respect closed doors, use opened doors and cannot capture through separating geometry.
 - [x] Fix **Level 1 direct guard movement**: it still bypasses navigation and can investigate through walls. Reuse the existing navigation module, validate all targets and test a complete patrol plus wall-separated sound investigations.
 - [x] Fix **decoy wall/prop collision**: current throwables only handle floor impact and can pass through walls. Use height-aware bounds/sweeps so low props can be thrown over. Emit one impact sound and avoid inaccessible off-map destinations.
@@ -50,10 +50,11 @@ Current Level 3 layout: player (0, 18), guards (-12, 16) and (-11, -4), Door 01 
 
 Suggested owner: gameplay/UI developer.
 
-- [ ] Add the complete opening briefing: security key → compare acoustic signatures → steal the real Echo Diamond → escape lockdown.
-- [ ] Review objective text, transitions and ending for the actual three-level story; remove remaining generic artefact/extraction instructions.
+- [x] Add the complete opening briefing: Imani Sulé returns to Halvard → steal the staff key → identify Accession H-1968-07 by resonance → escape containment with the recording reel.
+- [x] Review objective text, transitions and ending for the connected three-act story; replace generic artefact/extraction language in the live UI.
+- [x] Give the acts a visible progression: readable emergency-lit galleries, colder deep storage and true containment blackout.
 - [x] Keep current-level retry and add a separate **restart full heist** action, including from Level 3/failure. Make each action clearly labelled.
-- [x] Verify retry inventories: Level 1 has no key, Level 2 has the key, Level 3 has the diamond. Full restart clears progression and generates a new puzzle. *(`setStagePreview` sets inventory from the stage; `restartHeist` calls `vaultMission.newHeist()`. Confirmed by automated browser checks, not yet by a human playthrough.)*
+- [x] Verify retry inventories: Level 1 has no key, Level 2 has the key, Level 3 has H-1968-07. Full restart clears progression and generates a new puzzle. *(`setStagePreview` sets inventory from the stage; `restartHeist` calls `vaultMission.newHeist()`. Confirmed by automated browser checks, not yet by a human playthrough.)*
 - [x] Make practice status persistent and visible. Practice/debug jumps must not qualify as completed campaigns; normal campaign completion must require all three levels in order.
 - [x] Review QA hooks behind `?qa`; keep useful test access without allowing skipped runs to receive campaign completion credit.
 - [x] Replace current statistics with **player sonar uses**, **visual detection incidents** and **active play time**. `ringCount` currently counts all sound sources; `alerts` counts heard events, not actual detections.
