@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 
 export const MAX_RINGS = 8;
+export const WAVE_BAND = 0.58;
+export const ECHO_OFFSET = 1.15;
+export const ECHO_BAND = 0.22;
 
 export function createSoundUniforms() {
   return {
@@ -43,13 +46,27 @@ const fragmentShader = [
   '  vec3 colour = uBaseColor * (uAmbient + skyFill + diffuse * 0.52) + vec3(0.025,0.07,0.09) * edge;',
   '  for(int i=0;i<8;i++){',
   '    vec3 toRing = uRings[i].xyz - vWorldPos;',
-  '    float d = length(toRing);',
+  // The wave travels across the floor, so distance is measured on the ground
+  // plane only. A spherical wave climbed up walls as it expanded; a ground
+  // wave sweeps past them, which is what a sound spreading through a room
+  // actually looks like from inside it.
+  '    float d = length(toRing.xz);',
   '    float band = abs(d - uRings[i].w);',
-  '    float shell = 1.0 - smoothstep(0.06, 0.58, band);',
-  '    float echoBand = abs(d - max(0.0, uRings[i].w - 1.15));',
-  '    float echo = 1.0 - smoothstep(0.03, 0.22, echoBand);',
-  '    float facing = 0.42 + 0.58 * abs(dot(n, normalize(toRing + vec3(0.0001))));',
-  '    colour += uRingColors[i] * (shell + echo * 0.22) * uRingLife[i] * facing * 2.4;',
+  `    float shell = 1.0 - smoothstep(0.06, ${WAVE_BAND}, band);`,
+  `    float echoBand = abs(d - max(0.0, uRings[i].w - ${ECHO_OFFSET}));`,
+  `    float echo = 1.0 - smoothstep(0.03, ${ECHO_BAND}, echoBand);`,
+  // Floors and the tops of objects carry the ripple. Walls only catch a dim
+  // vertical slice as it passes, which still reveals their shape without the
+  // band appearing to crawl up them.
+  // Floors and the tops of objects carry the ripple. A wall catches only the
+  // spill where it meets the floor, fading out within about a metre, so the
+  // wave reads as something travelling along the ground rather than a band
+  // painted up the walls. Enough light survives at skirting height to still
+  // read the shape of a room in the dark levels.
+  '    float ground = abs(n.y);',
+  '    float spill = exp(-max(vWorldPos.y, 0.0) * 1.9) * 0.22;',
+  '    float response = ground + (1.0 - ground) * spill;',
+  '    colour += uRingColors[i] * (shell + echo * 0.22) * uRingLife[i] * response * 2.6;',
   '  }',
   '  float micro = (hash(floor(vWorldPos.xz * 4.0)) - 0.5) * 0.012;',
   '  colour += micro;',

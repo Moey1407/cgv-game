@@ -25,7 +25,8 @@ export function createStageSystem({ scene, level, minimapScene, materials, colli
         minX: position.x - size.x / 2,
         maxX: position.x + size.x / 2,
         minZ: position.z - size.z / 2,
-        maxZ: position.z + size.z / 2
+        maxZ: position.z + size.z / 2,
+        top: position.y + size.y / 2
       });
       const map = new THREE.Mesh(new THREE.BoxGeometry(size.x, 0.14, size.z), mapMaterial);
       map.position.set(position.x, 0.02, position.z);
@@ -123,13 +124,16 @@ export function createStageSystem({ scene, level, minimapScene, materials, colli
 
   // Level 3: a reshaped blackout maze. Geometry reads only when wavefronts cross it.
   const blackoutWalls = [
-    [new THREE.Vector3(8, 4.4, 0.5), new THREE.Vector3(-9, 2.2, 13)],
-    [new THREE.Vector3(8, 4.4, 0.5), new THREE.Vector3(9, 2.2, 13)],
-    [new THREE.Vector3(0.5, 4.4, 8), new THREE.Vector3(-11, 2.2, 5)],
-    [new THREE.Vector3(0.5, 4.4, 8), new THREE.Vector3(11, 2.2, 5)],
-    [new THREE.Vector3(11, 4.4, 0.5), new THREE.Vector3(-8.5, 2.2, -7)],
-    [new THREE.Vector3(11, 4.4, 0.5), new THREE.Vector3(8.5, 2.2, -7)],
-    [new THREE.Vector3(0.5, 4.4, 7), new THREE.Vector3(0, 2.2, -16)]
+    // Full-width lockdown barriers; each gap is filled by an override door.
+    [new THREE.Vector3(15.4, 4.4, 0.45), new THREE.Vector3(-9.3, 2.2, 8)],
+    [new THREE.Vector3(15.4, 4.4, 0.45), new THREE.Vector3(9.3, 2.2, 8)],
+    [new THREE.Vector3(24.4, 4.4, 0.45), new THREE.Vector3(-4.8, 2.2, -8)],
+    [new THREE.Vector3(6.4, 4.4, 0.45), new THREE.Vector3(13.8, 2.2, -8)],
+    // Cover beside the first reader protects an override from the left patrol.
+    [new THREE.Vector3(0.45, 3, 3.8), new THREE.Vector3(-2.4, 1.5, 10.6)],
+    [new THREE.Vector3(0.5, 4.4, 10), new THREE.Vector3(-5, 2.2, -1)],
+    [new THREE.Vector3(0.5, 4.4, 8), new THREE.Vector3(5, 2.2, -2)],
+    [new THREE.Vector3(8, 4.4, 0.45), new THREE.Vector3(-9, 2.2, -15)]
   ];
   for (const [size, position] of blackoutWalls) {
     addStageBox(blackout, blackoutMap, 3, size, position, materials.dark, mapBlackout);
@@ -145,17 +149,22 @@ export function createStageSystem({ scene, level, minimapScene, materials, colli
   const configurations = {
     1: {
       name: 'GALLERIES',
-      objective: 'Locate the gallery artefact',
-      intro: 'Read the echoes. Misdirect the guard. Reach the display chamber.',
+      objective: 'Take the staff key from the security office, then open the deep store door',
+      intro: 'Watch the floor. Carpet hides you, marble carries. F damps your rig when you need to move.',
       artifact: new THREE.Vector3(0, 1.55, -19.2),
-      guard: new THREE.Vector3(10, 0, -10),
+      guard: new THREE.Vector3(12.5, 0, -15),
       guardSpeed: 1.65,
+      // The loop crosses both routes and both ends of the north hall, so
+      // neither the transit corridor nor the conservation wing is ever free.
       waypoints: [
-        new THREE.Vector3(10, 0, -10),
-        new THREE.Vector3(10, 0, 5),
-        new THREE.Vector3(-10, 0, 5),
-        new THREE.Vector3(-10, 0, -10),
-        new THREE.Vector3(0, 0, -16)
+        new THREE.Vector3(12.5, 0, -15),
+        new THREE.Vector3(-1.5, 0, -13),
+        new THREE.Vector3(-11, 0, -14.5),
+        new THREE.Vector3(-7.6, 0, 5),
+        new THREE.Vector3(-14.5, 0, 12.5),
+        new THREE.Vector3(0, 0, 10.5),
+        new THREE.Vector3(10.5, 0, 6),
+        new THREE.Vector3(11, 0, -10)
       ],
       accent: 0x72efff,
       ambient: 0.3,
@@ -164,20 +173,27 @@ export function createStageSystem({ scene, level, minimapScene, materials, colli
     },
     2: {
       name: 'THE VAULT',
-      objective: 'Cross the moving grid and avoid floor traps',
-      intro: 'New floorplan // Weave through moving lasers and armed pressure plates.',
+      objective: 'Explore and sonar-scan the cases. Match the key’s signature, then unlock with E',
+      intro: 'Compare the key’s stored signature with the three exhibits. Lasers and pressure plates remain armed.',
+      spawn: new THREE.Vector3(0, 0, 3),
       artifact: new THREE.Vector3(0, 1.55, -19),
-      guard: new THREE.Vector3(-10, 0, 12),
+      guard: new THREE.Vector3(-8, 0, 4),
       guardSpeed: 1.85,
       waypoints: [
-        new THREE.Vector3(-10, 0, 12),
-        new THREE.Vector3(-10, 0, 4),
-        new THREE.Vector3(10, 0, 4),
-        new THREE.Vector3(10, 0, -4),
-        new THREE.Vector3(-10, 0, -4),
-        new THREE.Vector3(-10, 0, -12),
+        new THREE.Vector3(-12, 0, 12),
+        new THREE.Vector3(5, 0, 18),
+        new THREE.Vector3(14, 0, 4),
+        new THREE.Vector3(12, 0, -4),
+        new THREE.Vector3(-12, 0, -4),
+        new THREE.Vector3(-12, 0, -12),
         new THREE.Vector3(10, 0, -12),
-        new THREE.Vector3(8, 0, -18)
+        new THREE.Vector3(12, 0, -20),
+        new THREE.Vector3(-10, 0, -20),
+        new THREE.Vector3(12, 0, -12),
+        new THREE.Vector3(-12, 0, -12),
+        new THREE.Vector3(-12, 0, -4),
+        new THREE.Vector3(12, 0, -4),
+        new THREE.Vector3(12, 0, 4)
       ],
       accent: 0xff315a,
       ambient: 0.17,
@@ -185,24 +201,45 @@ export function createStageSystem({ scene, level, minimapScene, materials, colli
       fogDensity: 0.026
     },
     3: {
-      name: 'BLACKOUT',
-      objective: 'Navigate by sound alone',
-      intro: 'Power failure // A separate maze. The map feed is jammed; sonar reveals the walls.',
-      artifact: new THREE.Vector3(12, 1.55, -16),
-      guard: new THREE.Vector3(-12, 0, -14),
-      guardSpeed: 2.05,
-      waypoints: [
-        new THREE.Vector3(-12, 0, -14),
-        new THREE.Vector3(-12, 0, 8),
-        new THREE.Vector3(0, 0, 12),
-        new THREE.Vector3(12, 0, 8),
-        new THREE.Vector3(12, 0, -14),
-        new THREE.Vector3(0, 0, -5)
+      name: 'LOCKDOWN',
+      objective: 'Carry the diamond through two noisy overrides to the north emergency exit',
+      intro: 'Distract the patrols, hold E at each noisy door, then escape north with the diamond.',
+      spawn: new THREE.Vector3(0, 0, 18),
+      artifact: new THREE.Vector3(0, 1.55, 18),
+      guard: new THREE.Vector3(-12, 0, 16),
+      guardSpeed: 1.8,
+      waypoints: [new THREE.Vector3(-12, 0, 16), new THREE.Vector3(-8, 0, 12),
+        new THREE.Vector3(-12, 0, 10), new THREE.Vector3(-14, 0, 18)],
+      guards: [
+        { position: new THREE.Vector3(-12, 0, 16), speed: 1.8,
+          waypoints: [new THREE.Vector3(-12, 0, 16), new THREE.Vector3(-8, 0, 12),
+            new THREE.Vector3(-12, 0, 10), new THREE.Vector3(-14, 0, 18)] },
+        { position: new THREE.Vector3(-11, 0, -4), speed: 1.9,
+          waypoints: [new THREE.Vector3(-13, 0, -5), new THREE.Vector3(-9, 0, -5),
+            new THREE.Vector3(-9, 0, 3), new THREE.Vector3(-13, 0, 3)] }
       ],
       accent: 0x72efff,
       ambient: 0.035,
       fog: 0x00040a,
       fogDensity: 0.032
+    },
+
+    // Training floor. Not a graded level and not part of the campaign - it
+    // exists so the player meets each control once before Level 1.
+    4: {
+      name: 'TRAINING',
+      objective: 'Follow the prompts. Each gate opens when its lesson is done',
+      intro: 'A disused service corridor. Nothing in here can catch you.',
+      spawn: new THREE.Vector3(0, 0, 18),
+      artifact: new THREE.Vector3(0, 1.55, -40),
+      guard: new THREE.Vector3(0, 0, -40),
+      guardSpeed: 1.5,
+      waypoints: [new THREE.Vector3(0, 0, -40)],
+      guards: [],
+      accent: 0x9f7bff,
+      ambient: 0.26,
+      fog: 0x050d14,
+      fogDensity: 0.02
     }
   };
 

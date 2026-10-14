@@ -145,3 +145,193 @@ body.sonar-flash::after {
   .minimap { width: 9rem; height: 6rem; }
   .ability-stack { left: 1rem; bottom: 1rem; }
 }
+.vault-signature {
+  position: fixed;
+  top: 7rem;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100vw - 2rem);
+  width: max-content;
+  padding: .65rem 1rem;
+  border: 1px solid rgba(114, 239, 255, .4);
+  background: rgba(2, 12, 18, .9);
+  color: #dffcff;
+  font: 600 .8rem/1.5 Consolas, monospace;
+  text-align: center;
+  pointer-events: none;
+  z-index: 5;
+}
+.door-override {
+  position: fixed;
+  left: 50%;
+  bottom: 8rem;
+  transform: translateX(-50%);
+  width: min(22rem, 85vw);
+  padding: .8rem;
+  border: 1px solid var(--amber);
+  background: rgba(2, 12, 18, .9);
+  color: var(--amber);
+  font: 600 .8rem Consolas, monospace;
+  text-align: center;
+  pointer-events: none;
+  z-index: 9;
+}
+.override-track { height: .35rem; margin-top: .65rem; background: #243038; }
+.override-track i { display: block; height: 100%; width: 0; background: var(--amber); }
+
+/* --- Level 1: surface readout -------------------------------------------- */
+.surface-state {
+  min-width: 4.5rem;
+  padding: .44rem .55rem;
+  border-left: 2px solid #8398a2;
+  background: rgba(3, 13, 20, .6);
+  color: #a8bac1;
+  font: 600 .5rem Consolas, monospace;
+  letter-spacing: .11em;
+  text-align: center;
+}
+
+.surface-state.quiet { border-color: #76ffb2; color: #76ffb2; }
+.surface-state.loud { border-color: var(--red); color: #ff8ea3; }
+
+/* --- Dampener ------------------------------------------------------------ */
+.decoy-status.active {
+  border-color: rgba(159, 123, 255, .75);
+  border-left-color: #9f7bff;
+  color: #c6b0ff;
+  box-shadow: 0 0 26px rgba(159, 123, 255, .22);
+}
+
+#dampener-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .28s ease;
+  box-shadow: inset 0 0 18vmin rgba(129, 92, 255, .32);
+  background:
+    radial-gradient(130% 100% at 50% 50%, transparent 52%, rgba(94, 58, 196, .26) 100%);
+}
+
+#dampener-veil.is-active { opacity: 1; }
+
+.surface-hint {
+  margin-top: .9rem;
+  opacity: .72;
+  font-size: .78rem;
+}
+
+
+/* --- Campaign status ------------------------------------------------------ */
+.practice-flag {
+  align-self: center;
+  margin-left: .6rem;
+  padding: .22rem .42rem;
+  border: 1px solid rgba(255, 174, 69, .5);
+  color: var(--amber);
+  font: 700 .46rem Consolas, monospace;
+  letter-spacing: .14em;
+}
+
+.result-campaign {
+  margin: .9rem 0 0 0;
+  font: 600 .62rem Consolas, monospace;
+  letter-spacing: .1em;
+  color: #8fa6b4;
+}
+
+.result-campaign.clean { color: #76ffb2; }
+.result-campaign.tainted { color: var(--amber); }
+
+.result-actions {
+  display: flex;
+  gap: .7rem;
+  flex-wrap: wrap;
+  margin-top: 1.1rem;
+}
+
+/* The buttons share a row so the card stays short, and the screen scrolls
+   rather than pushing the second action off the bottom of a short viewport -
+   it was unreachable at 540px tall. */
+.result-actions .primary-button {
+  flex: 1 1 11rem;
+  width: auto;
+}
+
+.result-screen {
+  overflow-y: auto;
+  align-content: center;
+  padding: 2rem 0;
+}
+
+@media (max-height: 760px) {
+  .result-card { padding: 1.7rem; }
+  .result-card h2 { margin: .4rem 0 .7rem; font-size: clamp(2rem, 5vh, 3.2rem); }
+  .result-stats { margin: 1.1rem 0; }
+  .result-stats div { padding: .75rem; }
+}
+
+.primary-button.secondary {
+  background: transparent;
+  border: 1px solid rgba(114, 239, 255, .36);
+  color: var(--cyan);
+}
+
+
+/* --- Training lesson card ------------------------------------------------- */
+.lesson {
+  position: fixed;
+  z-index: 9;
+  left: 50%;
+  bottom: 5.5rem;
+  transform: translateX(-50%);
+  display: grid;
+  gap: .3rem;
+  justify-items: center;
+  min-width: min(90vw, 30rem);
+  padding: .85rem 1.4rem;
+  border: 1px solid rgba(159, 123, 255, .45);
+  border-top: 2px solid #9f7bff;
+  background: rgba(6, 4, 14, .82);
+  text-align: center;
+  pointer-events: none;
+  box-shadow: 0 0 30px rgba(123, 92, 255, .14);
+}
+
+.lesson-step {
+  color: #9f7bff;
+  font: 700 .5rem Consolas, monospace;
+  letter-spacing: .2em;
+}
+
+.lesson strong {
+  color: #e9fdff;
+  font: 700 .82rem Consolas, monospace;
+  letter-spacing: .1em;
+}
+
+.lesson span:last-child {
+  color: #9db2c0;
+  font: 500 .62rem/1.5 Consolas, monospace;
+  letter-spacing: .06em;
+}
+
+.start-actions {
+  display: flex;
+  gap: .7rem;
+  flex-wrap: wrap;
+  width: min(100%, 37rem);
+}
+
+.start-actions .primary-button { flex: 1 1 13rem; width: auto; }
+
+/* A lesson the player has spoiled and needs to retry. */
+.lesson.needs-retry {
+  border-color: rgba(255, 174, 69, .6);
+  border-top-color: var(--amber);
+  box-shadow: 0 0 30px rgba(255, 174, 69, .16);
+}
+
+.lesson.needs-retry .lesson-step { color: var(--amber); }
+.lesson.needs-retry span:last-child { color: #ffcf8e; }
