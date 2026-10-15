@@ -31,7 +31,11 @@ Free microphone recorder: https://online-voice-recorder.com/ (checked 15 October
 
 ## Verification
 
-All 125 automated tests pass, covering projection fit, floor separation, edge objective clamping, story explanation, quality target format, action-led learning, guest movement and single-draw character budgets alongside existing gameplay tests. Production build succeeds. Browser review checked local/full/roof scans, repeated Low/High changes through the actual Options menu, guidance display, character close-ups and guest position changes. Both real passage functions open the completion conversations, whose final buttons load the next briefing. Review presets are not a substitute for a complete manual campaign or laptop/lab-PC performance testing.
+All 126 automated tests pass after the audio-and-music merge, covering projection fit, floor separation, edge objective clamping, story explanation, quality target format, action-led learning, guest movement, single-draw character budgets and urgent laser response alongside existing gameplay tests. Production build succeeds. Browser review before that follow-up checked local/full/roof scans, repeated Low/High changes through the actual Options menu, guidance display, character close-ups and guest position changes. Both real passage functions open the completion conversations, whose final buttons load the next briefing. Review presets are not a substitute for a complete manual campaign or laptop/lab-PC performance testing.
+
+## Audio-and-music follow-up
+
+Merged `audio-and-music` through `871dad4`. Player footstep rings now stay suppressed while gala guest cover holds (the local rig and explicit sonar explanation still apply). Laser contact knocks Wren back and briefly stuns her; alarm escalation is rate-limited and guards urgently investigate the trip. Live guards receive the navigation pathfinder. Checkpoints preserve already-sedated guards without refunding the dose. The voice-render script supports a `PYTHON` executable override and chooses python3 off Windows. This commit does not add new voice recordings or music tracks.
 
 ## Chapter presentation
 

@@ -2,7 +2,7 @@
 
 ## Completed on 15 October 2026
 
-- `npm test`: 125 passed, 0 failed (latest integration and presentation pass).
+- `npm test`: 126 passed, 0 failed after merging `audio-and-music` through `871dad4`, including its urgent laser-response regression test.
 - `npm run build`: successful. Vite reports the existing large Three.js chunk warning; it is not a build failure.
 - Development review scenarios exercised the gala objective chain, the vault chain including explicit Star collection, and the escape interlocks, evidence upload and zipline finish.
 - Visual checks covered coloured guests, uniformed guards, laser housings, a physical duct interior and the zipline rig/skyline. The title-menu voice test completed successfully.
@@ -16,6 +16,8 @@ Development presets freeze patrols for repeatable scenario checks. They do not e
 Muhammed tried the current game but did not reach level 3. The cause has not yet been established. Do not mark the campaign as manually passed. Teammates should complete a fresh run without review tools, record where they fail and how long each level takes, and check checkpoint retries and both endings.
 
 Test in a normal Chrome or Edge tab, starting at `http://127.0.0.1:5173/` without a QA query. Verify pointer lock, audio, console/network errors, laptop and lab-PC frame rate, cold loading and memory over repeated runs. Embedded-browser automation could not reliably acquire pointer lock; a normal-browser manual check is still required.
+
+The audio-and-music follow-up merged cleanly with the presentation work. Automated tests, production build and conflict-marker/whitespace checks passed. Its laser knock-back, real-time guard detours and sleeping-guard checkpoint restoration still need live playtesting together; no new full campaign run is claimed for this merge.
 
 The embedded development review sometimes captured a black WebGL surface after time-stepping, despite a diagnostic framebuffer read returning valid colour with no GL error or context loss. The temporary diagnostics were removed. Treat embedded capture/playback as unverified, and explicitly check live movement and rendering in normal Chrome/Edge before merging or shipping.
 

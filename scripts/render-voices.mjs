@@ -26,7 +26,9 @@ function render(job) {
   const actor = performance[job.who];
   const target = resolve(output, `${job.id}.candidate.mp3`);
   return new Promise((done, fail) => {
-    const child = spawn('python', [
+    // Windows ships `python`; macOS and Linux usually only have `python3`. Override with PYTHON=...
+    const python = process.env.PYTHON ?? (process.platform === 'win32' ? 'python' : 'python3');
+    const child = spawn(python, [
       '-m', 'edge_tts', '--voice', actor.voice, `--rate=${actor.rate}`, `--pitch=${actor.pitch}`,
       '--text', job.text, '--write-media', target,
     ], { cwd: root, env: { ...process.env, PYTHONPATH: tools }, windowsHide: true });

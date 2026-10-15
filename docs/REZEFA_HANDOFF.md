@@ -1,6 +1,6 @@
 # Continue from feature/seamless-heist-flow
 
-Read `docs/HEIST_FLOW.md` and the newer `docs/MAP_AND_RECORDING_UPDATE.md` before changing story or objectives. This branch includes `rendering-layer` through `f5476f5`, preserving its security office, stairs, passages, controls and sedative fixes. Review the branch before merging; main has not been changed by this task.
+Read `docs/HEIST_FLOW.md` and the newer `docs/MAP_AND_RECORDING_UPDATE.md` before changing story or objectives. This branch includes `rendering-layer` through `f5476f5` and `audio-and-music` through `871dad4`, preserving their security office, stairs, passages, controls and gameplay fixes. Review the branch before merging; main has not been changed by this task.
 
 ## What is implemented
 
@@ -25,7 +25,7 @@ Read `docs/HEIST_FLOW.md` and the newer `docs/MAP_AND_RECORDING_UPDATE.md` befor
 
 ## Validation and integration
 
-Latest status: 125 automated tests pass and the production build succeeds. Both passage-to-conversation-to-next-briefing handoffs were checked. The cast now has shaped human silhouettes, varied formalwear and eased strolls (18/11/7 guests on High/Medium/Low). The recording booklet is 18 pages / 135 clips. Muhammed previously did not reach level 3; a complete manual campaign run is still required. See `docs/VALIDATION.md` for checked scenarios and limitations.
+Latest status: 126 automated tests pass and the production build succeeds after merging audio-and-music. That merge suppresses public-floor player footstep rings while guest cover holds; adds laser knock-back/stun and urgent guard response; passes navigation into live guard updates; restores sleeping guards from checkpoint snapshots; and makes the voice-render script's Python executable configurable. Both passage-to-conversation-to-next-briefing handoffs were checked before the merge. The cast retains shaped human silhouettes, varied formalwear and eased strolls (18/11/7 guests on High/Medium/Low). The recording booklet is 18 pages / 135 clips. Muhammed previously did not reach level 3; a complete manual campaign run is still required. See `docs/VALIDATION.md` for checked scenarios and limitations.
 
 - `npm test` — movement, mission gates, level reachability, guard logic, witnesses, lasers, Echo, safe, checkpoints and traversal tests.
 - `npm run build` — portable static build; deploy the contents of `dist/` only when the team is ready.

@@ -112,6 +112,9 @@ function cameraFromData(c) {
   };
 }
 
+const CHECKPOINT_MIN_SLEEP = 10; // seconds a sedated guard stays down after a respawn
+const LASER_TRIP_ALARM = 20; // ALARM_RAISE.laser is 34; with knock-back, trips are retries
+
 function laserFromData(l) {
   const rise = l.pattern === 'rise_fall';
   return {
@@ -252,7 +255,7 @@ async function start() {
   const decoyMaterial = new THREE.MeshStandardMaterial({ color: 0xc18b43, metalness: 0.7, roughness: 0.35 });
   const state = {
     mode: 'gala', dampen: false, cell: 6, pip: false, map: true, quality: 'medium', auto: !qa,
-    damage: 0, locked: false, sonarCooldown: 0, mapReveal: 0, laserCooldown: 0, exposure: 0,
+    damage: 0, locked: false, sonarCooldown: 0, mapReveal: 0, laserCooldown: 0, exposure: 0, stun: 0, shake: 0, lastClear: new THREE.Vector3(),
     hasKeycard: false, hasStar: false, inSafe: false, ended: null, detections: 0, time: 0,
     echoStep: 0, echoLast: new THREE.Vector3(), fadeEcho: 0, lastDt: 1 / 60, safeGlow: 0, safeNoise: 0,
     zip: null, vent: null, searchCooldown: 0, attract: 0,
@@ -263,11 +266,14 @@ async function start() {
 
   function emitNoise(position, colour, radius, { source, damped = false, speed, strength = 0.85, cause } = {}) {
     if (cause === 'sonar') state.mapReveal = 2.4;
+    // Level 1 guest cover: on the public floor Wren's footsteps blend into the party, so
+    // they make no ring and no guard hears them. Rings appear once the cover is gone
+    // (past the velvet rope, sprinting, crouching), which is exactly when sound matters.
+    if (cur?.n === 1 && source === 'player' && cause === 'footstep' && !damped
+      && galaCover({ x: player.position.x, z: player.position.z, movement: player.profile.id, gadgetHeat: state.socialHeat, compromised: cur.flags.coverBlown }).safe) return;
     const y = position.y ?? 0;
     field.emit(tmp.next.set(position.x, y + 0.02, position.z), colour, radius, { speed: speed ?? Math.max(5, radius * 0.9), strength, source });
     if (damped || !cur) return;
-    if (cur.n === 1 && source === 'player' && cause === 'footstep'
-      && galaCover({ x: player.position.x, z: player.position.z, movement: player.profile.id, gadgetHeat: state.socialHeat, compromised: cur.flags.coverBlown }).safe) return;
     const reach = radius * (HEARING[state.mode] ?? 1);
     let heard = false;
     for (const g of cur.guards) {
@@ -593,7 +599,10 @@ async function start() {
       flags: { ...cur.flags },
       collected: pickups.items.filter((i) => i.collected).map((i) => i.id),
       alarm: Math.min(alarm.snapshot().value, 50),
-      timeLeft: cur.timeLeft ?? 0
+      timeLeft: cur.timeLeft ?? 0,
+      // Guards already put to sleep stay asleep where they fell: a respawn returns you to
+      // the situation you had earned, and the dose spent on them is not refunded.
+      sleeping: cur.guards.filter((g) => g.sleep > 0).map((g) => ({ id: g.id, x: g.position.x, z: g.position.z, yaw: g.actor?.root.rotation.y ?? 0, sleep: g.sleep }))
     };
   }
 
@@ -606,6 +615,8 @@ async function start() {
   }
 
   function placePlayer(x, y, z, yaw) {
+    state.lastClear.set(x, y, z);
+    state.stun = 0; state.laserCooldown = 0;
     player.position.set(x, y, z);
     player.base = y;
     player.yaw = yaw;
@@ -640,6 +651,14 @@ async function start() {
     cur.plates.reset();
     cur.cctvSystem.reset();
     for (const g of cur.guards) g.reset();
+    for (const s of payload.sleeping ?? []) {
+      const g = cur.guards.find((guard) => guard.id === s.id);
+      if (!g) continue;
+      g.position.set(s.x, g.position.y, s.z);
+      if (g.actor?.root) { g.actor.root.rotation.y = s.yaw; g.actor.root.rotation.z = 1.45; }
+      // At least a few seconds, so a checkpoint saved just before he woke is still usable.
+      g.sedate(Math.max(s.sleep, CHECKPOINT_MIN_SLEEP));
+    }
     alarm.reset(payload.alarm, 'checkpoint');
     resetEcho();
     stamina.reset();
@@ -1174,6 +1193,7 @@ async function start() {
     if (state.vent) { updateVent(dt, time); return; }
     if (state.climb) { updateClimb(dt, time); return; }
     if (state.inSafe || state.ended || cur.cctv.active >= 0) return;
+    state.stun = Math.max(0, (state.stun ?? 0) - dt);
     const stam = stamina.snapshot();
     let profile = movementProfile(keys, { damped: state.dampen });
     if (profile.id === 'sprint' && !stam.canSprint) profile = movementProfile(keys, { damped: state.dampen, mode: MOVEMENT.run });
@@ -1182,7 +1202,7 @@ async function start() {
     const s = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
     player.yaw += ((keys.ArrowLeft ? 1 : 0) - (keys.ArrowRight ? 1 : 0)) * 2.1 * dt;
     player.pitch = THREE.MathUtils.clamp(player.pitch + ((keys.ArrowUp ? 1 : 0) - (keys.ArrowDown ? 1 : 0)) * 1.5 * dt, -1.3, 1.3);
-    player.moving = f !== 0 || s !== 0;
+    player.moving = (f !== 0 || s !== 0) && state.stun <= 0;
     stamina.update(dt, player.moving && profile.id === 'sprint');
     if (player.moving) {
       tmp.dir.set(s, 0, -f).normalize().applyAxisAngle(tmp.up, player.yaw).multiplyScalar(profile.speed * dt);
@@ -1205,6 +1225,11 @@ async function start() {
     player.height += (profile.height - player.height) * Math.min(1, dt * 10);
     const bob = player.moving && player.y === 0 ? Math.sin(time * (profile.id === 'run' || profile.id === 'sprint' ? 12 : 8.5)) * 0.025 : 0;
     camera.position.set(player.position.x, player.base + player.y + player.height + bob, player.position.z);
+    if (state.shake > 0) {
+      state.shake = Math.max(0, state.shake - dt);
+      camera.position.x += (Math.random() - 0.5) * state.shake * 0.2;
+      camera.position.y += (Math.random() - 0.5) * state.shake * 0.2;
+    }
     camera.rotation.set(player.pitch, player.yaw, 0);
     applyView(dt);
     playerMarker.position.copy(player.position);
@@ -1212,15 +1237,63 @@ async function start() {
 
     if (!cur.lasers) return;
     state.laserCooldown = Math.max(0, state.laserCooldown - dt);
-    const hit = cur.lasers.hitsBody(player.position, { height: player.height, jump: player.y, base: player.base });
-    if (hit && state.laserCooldown <= 0) {
-      state.laserCooldown = 1.5;
-      state.damage = 1;
-      alarm.raise(ALARM_RAISE.laser, 'laser');
-      events.emit('hazard:trip', { kind: 'laser' });
-      emitNoise(player.position, RING_COLOURS.alert, 10, { source: 'laser', strength: 1 });
-      hud.toast('LASER TRIPPED');
+    // Crouching or crawling counts from the moment the key goes down, so pressing Z right
+    // at the beam works (the camera still eases down over a few frames).
+    const bodyHeight = Math.min(player.height, player.profile.height + 0.15);
+    const hit = cur.lasers.hitsBody(player.position, { height: bodyHeight, jump: player.y, base: player.base });
+    if (!hit) { state.lastClear.set(player.position.x, player.base, player.position.z); return; }
+    // A beam is a barrier as well as an alarm: Wren is thrown back off it, stunned for a
+    // moment, and has to crawl, jump or time it properly to get past.
+    knockBack();
+    // Bumping the same beam again while learning it only knocks Wren back; the alarm
+    // rises once per 4 seconds of contact, not on every bump.
+    if (state.laserCooldown > 0) return;
+    state.laserCooldown = 4;
+    state.damage = 1;
+    state.shake = 0.45;
+    // Less than the full laser raise: Wren can now fail a beam and retry, so a few
+    // learning mistakes should not hand straight over to lockdown.
+    alarm.raise(LASER_TRIP_ALARM, 'laser');
+    events.emit('hazard:trip', { kind: 'laser' });
+    emitNoise(player.position, RING_COLOURS.alert, 10, { source: 'laser', strength: 1 });
+    // The trip reports a location: every guard on the floor comes to check it.
+    // Urgent: they hurry over and look around longer than for a footstep.
+    for (const g of cur.guards) g.hear(player.position, 1, { urgent: true });
+    hud.toast(cur.guards.length ? 'LASER TRIPPED · SECURITY IS COMING TO CHECK' : 'LASER TRIPPED');
+  }
+
+  function knockBack() {
+    // Throw Wren off the nearest beam, to the side she is already on. A rising or
+    // blinking beam can come down on her after she has crossed it; she lands past it
+    // then, never back through it.
+    const px = player.position.x, pz = player.position.z;
+    let best = null;
+    for (const l of cur.lasers.lasers) {
+      if (!l.active) continue;
+      const ex = l.b.x - l.a.x, ez = l.b.z - l.a.z;
+      const t = THREE.MathUtils.clamp(((px - l.a.x) * ex + (pz - l.a.z) * ez) / Math.max(ex * ex + ez * ez, 1e-6), 0, 1);
+      const cx = l.a.x + ex * t, cz = l.a.z + ez * t;
+      const d = Math.hypot(px - cx, pz - cz);
+      if (!best || d < best.d) best = { cx, cz, d, nx: -ez, nz: ex };
     }
+    let dx, dz, cx = px, cz = pz;
+    if (best) {
+      cx = best.cx; cz = best.cz;
+      const n = Math.hypot(best.nx, best.nz) || 1;
+      dx = best.nx / n; dz = best.nz / n;
+      // Pick the normal pointing to Wren's side (or back where she came from if she is dead on it).
+      const side = best.d > 0.02 ? (px - cx) * dx + (pz - cz) * dz : (state.lastClear.x - cx) * dx + (state.lastClear.z - cz) * dz || 1;
+      if (side < 0) { dx = -dx; dz = -dz; }
+    } else { dx = Math.sin(player.yaw); dz = Math.cos(player.yaw); }
+    let x = px, z = pz;
+    for (let push = 0.9; push > 0.25; push -= 0.15) {
+      if (canStand(cx + dx * push, cz + dz * push)) { x = cx + dx * push; z = cz + dz * push; break; }
+    }
+    player.position.x = x;
+    player.position.z = z;
+    player.y = 0;
+    player.vy = 0;
+    state.stun = 0.5;
   }
 
   function updateExposure(dt) {
@@ -1735,6 +1808,7 @@ async function start() {
       time: elapsed,
       alarm: alarmSnap,
       canStand: (x, z) => canStand(x, z, 0.4, 0),
+      findPath: cur.navigation.findPath,
       clearView: cur.collision.clearView,
       player: { position: player.position, crouching: stance(), blending: cover.safe || state.ended || Boolean(state.vent || state.climb || state.transit) || player.base > 10 || state.spawnGrace > 0, visible: state.exposure > 0 && !state.ended && !state.transit && player.base < 10 && !cover.safe },
       onPulse: (g) => field.emit(tmp.next.set(g.position.x, 0.02, g.position.z), RING_COLOURS.guard, 6, { speed: 4.5, strength: 0.9, source: 'guard' })
