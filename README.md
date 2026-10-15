@@ -18,8 +18,11 @@ Opening the Galleries descent advances to Level 2. Recovering H-1968-07 triggers
 - **Mouse** - look
 - **Shift** - hold to walk quietly (Valorant-style); normal movement runs
 - **C** or **Ctrl** - crouch / quiet movement
-- **Space** - active sonar pulse; reveals a large area but can attract the guard
+- **Z / X** - crawl / sprint (sprint is used in Level 3)
+- **Space / G** - Level 1 sonar; Levels 2–3 jump / sonar respectively
 - **Left click** - throw a sound decoy (3 charges; one charge returns every 6 seconds)
+- **Tab** - open/close the Level 1 four-feed CCTV console; `1–4` selects a feed and `E` loops it
+- **Q** - record, rewind and replay Echo in Level 3
 - **E** - take the staff key / open the descent in Level 1; try a scanned case in Level 2; hold to override doors in Level 3. Interactions require range, clear access and unpaused gameplay. Case readers and door overrides are accessed from their front faces; overrides also require facing the door.
 - **1 / 2 / 3** - practice-select a level
 - **R** - retry the current level after failure; restart the run after success
@@ -36,7 +39,7 @@ Opening the Galleries descent advances to Level 2. Recovering H-1968-07 triggers
 - Independent guard routes and hearing targets; Level 3 adds exposure/FOV/line-of-sight suspicion, pursuit and bounded last-seen search
 - Speed-driven player noise, three-charge throwable decoys, sonar cooldown, moving lasers, floor traps, extraction, and scoring
 - Level-specific procedural Web Audio ambience and transition cues with no external sound files
-- Dedicated 2D tactical map that illuminates during sound pulses; Lockdown jams the feed between pulses and briefly reveals both guards with each echo
+- Dedicated 2D tactical map showing only nearby geometry until active sonar temporarily resolves the complete floor
 - Responsive cinematic UI, level transitions, progress indicators, success, failure, and restart screens
 - No external runtime assets, database, or backend services
 

@@ -22,3 +22,7 @@ export function movementProfile(keys, { carrying = false, surfaceNoise = 1, damp
     radius: mode.radius * surfaceNoise
   };
 }
+
+export function canUseDecoy({ running, locked, transitioning, ended, throwCooldown, cctvActive, safeActive }) {
+  return Boolean(running && locked && !transitioning && !ended && throwCooldown <= 0 && !cctvActive && !safeActive);
+}

@@ -15,7 +15,7 @@
   <div id="dampener-veil" aria-hidden="true"></div>
 
   <header id="hud" class="is-hidden">
-    <div class="brand-lockup"><span class="signal-mark"></span><div><strong>SIGNAL</strong><span id="stage-label">ACT I / UPPER GALLERIES</span></div><span id="practice-flag" class="practice-flag is-hidden">PRACTICE</span></div>
+    <div class="stage-lockup"><span>LOCATION</span><strong id="stage-label">ACT I / UPPER GALLERIES</strong><i id="practice-flag" class="practice-flag is-hidden">PRACTICE</i></div>
     <div class="objective-block"><span class="eyebrow">CURRENT OBJECTIVE</span><strong id="objective">Recover a staff key, then descend to the deep store</strong><div id="level-progress" class="level-progress"><i class="active">01</i><i>02</i><i>03</i></div></div>
     <div class="status-cluster">
       <div id="movement-state" class="movement-state">RUNNING</div>
@@ -26,7 +26,15 @@
   </header>
 
   <div id="reticle" class="is-hidden" aria-hidden="true"><i></i></div>
-  <div id="cctv-filter" class="cctv-filter is-hidden" aria-hidden="true"><span id="cctv-label">CAM 01 / ATRIUM</span><b id="cctv-loop">LIVE FEED</b><i></i></div>
+  <section id="cctv-filter" class="cctv-filter is-hidden" aria-label="Security camera console">
+    <div class="cctv-grid">
+      <div class="cctv-cell selected" data-cctv-index="0"><span>1 · ATRIUM</span><b>LIVE</b></div>
+      <div class="cctv-cell" data-cctv-index="1"><span>2 · WEST WING</span><b>LIVE</b></div>
+      <div class="cctv-cell" data-cctv-index="2"><span>3 · TRANSIT</span><b>LIVE</b></div>
+      <div class="cctv-cell" data-cctv-index="3"><span>4 · NORTH HALL</span><b>LIVE</b></div>
+    </div>
+    <div class="cctv-console"><strong>SECURITY</strong><span><kbd>1–4</kbd> SELECT CAMERA</span><span><kbd>E</kbd> LOOP SELECTED FEED</span><span><kbd>TAB</kbd> CLOSE</span></div>
+  </section>
   <div id="vault-signature" class="vault-signature is-hidden" aria-label="Acoustic signature comparison"></div>
   <section id="safecrack" class="safecrack is-hidden" aria-label="Vault safe dial">
     <span class="safe-kicker">MECHANICAL OVERRIDE // CASE LOCK</span>
@@ -49,7 +57,12 @@
     <div id="sonar-status" class="sonar-status is-hidden">SONAR READY <kbd>SPACE</kbd></div>
     <div id="decoy-status" class="decoy-status is-hidden">DECOY ×3 <kbd>CLICK</kbd></div>
     <div id="dampener-status" class="decoy-status is-hidden">DAMPENER READY <kbd>F</kbd></div>
-    <div id="echo-status" class="decoy-status is-hidden">ECHO READY <kbd>Q</kbd></div>
+    <aside id="echo-status" class="echo-panel is-hidden">
+      <div class="echo-heading"><span id="echo-step">ECHO · READY</span><b id="echo-time">20.0s MAX</b></div>
+      <strong id="echo-action"><kbd>Q</kbd> START RECORDING</strong>
+      <span id="echo-help">Record a path you want Echo to repeat.</span>
+      <div class="echo-track"><i id="echo-fill"></i></div>
+    </aside>
     <div id="exposure-state" class="sonar-status is-hidden">REEL SECURED // LOW EXPOSURE</div>
   </div>
   <aside id="minimap" class="minimap is-hidden" aria-label="Museum floor minimap"><canvas id="map-canvas" class="map-canvas" width="440" height="304"></canvas><span>TACTICAL MAP <b id="map-status">LIVE</b></span><div class="map-grid"></div><div class="map-legend"><i class="you"></i>YOU <i class="target"></i>TARGET <i class="hostile"></i>GUARD</div></aside>

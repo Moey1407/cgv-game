@@ -13,11 +13,16 @@ Everything the game does, and how to use it. The short version is on the start s
 | `←` `↑` `↓` `→` | Look, without the mouse. Works alongside it |
 | `Shift` | Walk — slower, much quieter |
 | `C` or `Ctrl` | Crouch — slowest, almost silent, lowers the camera |
+| `Z` | Crawl — lowest profile for floor-level hazards |
+| `X` | Sprint in Level 3 — drains stamina |
 | `F` | Dampener on / off |
 | Left click | Throw a decoy |
 | Right click (hold) | Aim — shows the throw arc and where it lands |
-| `Space` | Active sonar pulse |
+| `Space` | Sonar in Level 1/training; jump in Levels 2–3 |
+| `G` | Sonar in Levels 2–3 |
 | `E` | Interact — pick up, open, hold to override |
+| `Q` | Start Echo recording; press again to rewind and replay in Level 3 |
+| `Tab` | Open/close the four-feed CCTV console in Level 1 |
 | `1` `2` `3` | Jump straight to a level (practice) |
 | `R` | Retry the level you lost, on the results screen |
 | `N` | Restart the whole heist, on the results screen |
@@ -102,9 +107,9 @@ A second, fainter ring shows where it finally stops rolling, when that is somewh
 
 ---
 
-## Active sonar — `Space`
+## Active sonar — `Space` / `G`
 
-A single large pulse: 16 m in Level 1, 10 m in Level 2, 22 m in Level 3. Lights a whole room at once.
+A single large pulse: `Space` in Level 1 and training, `G` in Levels 2–3. It lights the room and temporarily reveals the complete tactical map. Between pulses, the map shows only the immediate area around the player.
 
 It is the loudest thing you can do, and guards trace it straight back to you — unless the dampener is running, which is the only safe way to use it. 2.6 second cooldown.
 
@@ -134,17 +139,21 @@ They are not blind and they are not all-seeing. They need a ring on you, line of
 | Sonar | Ready, or seconds remaining |
 | Decoy | Charges left and time to the next one |
 | Dampener | Cell percentage, `ACTIVE`, `CHARGING` or `VENTING` |
-| Minimap | Live in Levels 1 and 2; jammed in Level 3, where it only flickers during echoes |
+| Minimap | Local area while moving; complete floor only while an active sonar return persists |
 
 ---
 
 ## The three levels
 
-**1 — Upper Galleries.** Imani returns to her former workplace under low emergency light. Take the staff key from the security office and open the descent. Teaches noise, surfaces and distraction. One patrol.
+**1 — Upper Galleries.** Pickpocket the staff key, use the four-camera security console, loop a selected feed for eight seconds, and open the descent. CCTV shows every feed at once; `1–4` selects one, `E` loops it, and no movement, sonar or decoy throwing is allowed at the console.
 
-**2 — Deep Store.** The cases are unlabelled; Halvard catalogues sealed material by resonance. Scan with `Space` within 10 m and match the signature your key carries, then recover H-1968-07 with `E`. Lasers, pressure plates, one patrol.
+**2 — Deep Store.** Scan with `G`, match the signature your key carries, then use the mouse-driven three-tumbler safe. Turn slowly; fast movement makes noise. `E` sets each tumbler. Lasers, pressure plates, one patrol.
 
-**3 — Containment.** Removing the reel cuts the licensed echo network and summons a sweep team. Carry H-1968-07 through two doors that each need `E` held for 3.5 seconds, then reach the emergency lift. Two guards, no reliable map, no lights.
+**3 — Containment.** Press `Q` to record a route to one sync plate, then press `Q` again to rewind. Echo repeats the route while the player moves to the other plate, opening Door 01 silently. Door 02 still needs a noisy held-`E` override.
+
+## Reserved zipline controls
+
+The zipline engine is ready for a future layout but has no anchors in the temporary map. When Teammate 3 adds anchors: `E` mounts, `A/D` leans and `Space` performs an emergency drop.
 
 ---
 

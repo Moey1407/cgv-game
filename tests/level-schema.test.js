@@ -10,7 +10,8 @@ test('shared level contract accepts gameplay hooks owned by all three teammates'
     walls: [], guards: [], lasers: [], echoRooms: [],
     cameras: [{ id: 'c1', x: 3, z: 4, yaw: 0 }],
     pickups: [{ id: 'evidence-1', type: 'evidence', x: 5, z: 6 }],
-    checkpoints: [{ id: 'entry', x: 0, z: 18 }]
+    checkpoints: [{ id: 'entry', x: 0, z: 18 }],
+    ziplines: [{ id: 'service-line', start: { x: 0, z: 2 }, end: { x: 8, z: -4 } }]
   };
   assert.equal(assertLevelData(level), level);
   assert.deepEqual(validateLevelData(level), []);

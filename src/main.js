@@ -19,7 +19,7 @@ import { createArchiveReel } from './reel.js';
 import { createEventBus } from './core/events.js';
 import { ALARM_RAISE, createAlarmSystem } from './gameplay/alarm.js';
 import { createCheckpointStore } from './gameplay/checkpoints.js';
-import { MOVEMENT, movementMode, movementProfile } from './gameplay/player.js';
+import { MOVEMENT, canUseDecoy, movementMode, movementProfile } from './gameplay/player.js';
 import { createPickpocketSystem, PICKPOCKET_SECONDS } from './gameplay/pickpocket.js';
 import { createEchoSystem } from './gameplay/echo.js';
 import { createStaminaSystem } from './gameplay/stamina.js';
@@ -36,14 +36,18 @@ const ui = {
   hud: document.querySelector('#hud'),
   reticle: document.querySelector('#reticle'),
   cctvFilter: document.querySelector('#cctv-filter'),
-  cctvLabel: document.querySelector('#cctv-label'),
-  cctvLoop: document.querySelector('#cctv-loop'),
+  cctvCells: document.querySelectorAll('.cctv-cell'),
   minimap: document.querySelector('#minimap'),
   mapCanvas: document.querySelector('#map-canvas'),
   sonar: document.querySelector('#sonar-status'),
   decoy: document.querySelector('#decoy-status'),
   dampener: document.querySelector('#dampener-status'),
   echo: document.querySelector('#echo-status'),
+  echoStep: document.querySelector('#echo-step'),
+  echoTime: document.querySelector('#echo-time'),
+  echoAction: document.querySelector('#echo-action'),
+  echoHelp: document.querySelector('#echo-help'),
+  echoFill: document.querySelector('#echo-fill'),
   veil: document.querySelector('#dampener-veil'),
   surface: document.querySelector('#surface-state'),
   objective: document.querySelector('#objective'),
@@ -107,6 +111,8 @@ scene.fog = new THREE.FogExp2(0x02050a, 0.026);
 
 const camera = new THREE.PerspectiveCamera(68, window.innerWidth / window.innerHeight, 0.08, 90);
 camera.rotation.order = 'YXZ';
+const cctvCamera = new THREE.PerspectiveCamera(62, 1, 0.08, 90);
+cctvCamera.rotation.order = 'YXZ';
 const minimapCamera = new THREE.OrthographicCamera(-18, 18, 23, -23, 0.1, 80);
 minimapCamera.position.set(0, 45, 0);
 minimapCamera.up.set(0, 0, -1);
@@ -836,8 +842,9 @@ function emitRing(position, colour, maxRadius, source, damped = false) {
     damped,
     visuals: createPulseVisual(position, colour, source)
   });
-  const revealStrength = source === 'sonar' ? 1 : source === 'decoy' ? 0.72 : source === 'guard' ? 0.38 : 0.48;
-  state.mapReveal = Math.max(state.mapReveal, revealStrength);
+  // The map is local by default. Only an intentional sonar pulse resolves
+  // the whole floor; footsteps, guards and decoys never grant free intel.
+  if (source === 'sonar') state.mapReveal = 1;
   while (rings.length > MAX_RINGS) disposeRing(rings.shift());
   state.ringCount += 1;
   if (source !== 'guard' && source !== 'briefing') {
@@ -1206,7 +1213,7 @@ function updateGuard(guard, dt) {
       echo.shatter('guard');
       echoAvatar.visible = false;
       echoFrame = null;
-      ui.echo.textContent = 'ECHO DISRUPTED  Q';
+      updateEchoUi();
       alarm.raise(ALARM_RAISE.echoCaught, 'echo-caught');
       showToast('ECHO SHATTERED // GUARD RESOLVED THE RECORDING');
     }
@@ -1215,7 +1222,7 @@ function updateGuard(guard, dt) {
 }
 
 function throwDecoy() {
-  if (!state.running || !state.locked || state.transitioning || state.ended || state.throwCooldown > 0) return;
+  if (!canUseDecoy(state)) return;
   if (state.decoyCharges <= 0) {
     showToast('DECOYS RECHARGING // HOLD POSITION');
     return;
@@ -1248,7 +1255,7 @@ function throwDecoy() {
 }
 
 function toggleDampener() {
-  if (!state.running || !state.locked || state.transitioning || state.ended) return;
+  if (!state.running || !state.locked || state.transitioning || state.ended || state.cctvActive) return;
   if (state.cloakActive) {
     setDampener(false, 'DAMPENER OFF // RETURNS RESOLVING');
     return;
@@ -1493,7 +1500,8 @@ function updateThrowPreview() {
   // Only while actually aiming. The arc is a tool for lining up a throw, not
   // permanent furniture in the middle of a dark room.
   const aiming = state.aiming && state.running && state.locked &&
-    !state.transitioning && !state.ended && state.decoyCharges > 0 && throwables.length < 3;
+    !state.transitioning && !state.ended && !state.cctvActive && !state.safeActive &&
+    state.decoyCharges > 0 && throwables.length < 3;
   if (!aiming) { hideThrowPreview(); return; }
 
   const { position, velocity } = throwOrigin();
@@ -1598,7 +1606,7 @@ function updateThrowables(dt) {
 }
 
 function activePulse() {
-  if (!state.running || !state.locked || state.transitioning || state.pingCooldown > 0) return;
+  if (!state.running || !state.locked || state.transitioning || state.pingCooldown > 0 || state.cctvActive) return;
   state.pingCooldown = 2.6;
   campaign.sonarUses += 1;
   tutorialRun.sonarUsed += 1;
@@ -1620,7 +1628,7 @@ function activePulse() {
 }
 
 function tryJump() {
-  if (!state.running || !state.locked || state.transitioning || state.ended) return false;
+  if (!state.running || !state.locked || state.transitioning || state.ended || state.cctvActive) return false;
   if (state.stage === 1 || state.stage === TUTORIAL_STAGE || state.jumpOffset > 0 || state.crawling || state.crouching) return false;
   state.verticalVelocity = 5.4;
   state.jumpOffset = 0.01;
@@ -1630,19 +1638,33 @@ function tryJump() {
 
 function cycleCctvFeed() {
   if (!state.running || state.stage !== 1 || state.transitioning || state.ended) return;
+  if (state.cctvActive) {
+    exitCctvFeed();
+    return;
+  }
   state.cctvActive = true;
-  state.cctvIndex = (state.cctvIndex + 1) % cctv.cameras.length;
-  const selected = cctv.cameras[state.cctvIndex];
+  state.cctvIndex = 0;
+  state.aiming = false;
+  hideThrowPreview();
+  document.body.classList.add('cctv-mode');
   ui.cctvFilter.classList.remove('is-hidden');
-  showToast(selected.id + ' // TAB NEXT // E LOOP // ESC EXIT', 4);
+  ui.minimap.classList.add('is-hidden');
 }
 
 function exitCctvFeed() {
   if (!state.cctvActive) return false;
   state.cctvActive = false;
+  document.body.classList.remove('cctv-mode');
   ui.cctvFilter.classList.add('is-hidden');
+  ui.minimap.classList.remove('is-hidden');
   ui.interaction.classList.add('is-hidden');
-  showToast('CCTV FEED CLOSED');
+  showToast('SECURITY CONSOLE CLOSED');
+  return true;
+}
+
+function selectCctvFeed(index) {
+  if (!state.cctvActive || index < 0 || index >= cctv.cameras.length) return false;
+  state.cctvIndex = index;
   return true;
 }
 
@@ -1667,14 +1689,16 @@ function updateCctv(dt) {
     if (securityCamera.lens) securityCamera.lens.material.color.setHex(securityCamera.loopRemaining > 0 ? 0x72efff : 0xff315a);
   }
   if (!state.cctvActive) return;
-  const selected = cctv.cameras[state.cctvIndex];
-  camera.position.set(selected.x, 3.35, selected.z);
-  camera.rotation.set(-0.18, selected.yaw + Math.PI, 0);
-  ui.cctvLabel.textContent = selected.id;
-  ui.cctvLoop.textContent = selected.loopRemaining > 0 ? 'LOOPED ' + selected.loopRemaining.toFixed(1) + 's' : 'LIVE FEED';
-  ui.cctvLoop.classList.toggle('looped', selected.loopRemaining > 0);
-  ui.interaction.textContent = '[ TAB ] NEXT FEED  //  [ E ] LOOP 8s  //  [ ESC ] EXIT';
-  ui.interaction.classList.remove('is-hidden');
+  ui.cctvCells.forEach((cell, index) => {
+    const securityCamera = cctv.cameras[index];
+    cell.classList.toggle('selected', index === state.cctvIndex);
+    cell.classList.toggle('looped', securityCamera.loopRemaining > 0);
+    const status = cell.querySelector('b');
+    status.textContent = securityCamera.loopRemaining > 0
+      ? 'LOOP ' + securityCamera.loopRemaining.toFixed(1) + 's'
+      : 'LIVE';
+  });
+  ui.interaction.classList.add('is-hidden');
 }
 
 function updateSafeUi(noise = 0) {
@@ -1776,10 +1800,48 @@ function beginEchoReplay(rewind) {
   // Player and Echo begin in exactly the same place. Keep the placeholder
   // hidden until they separate so the first-person camera is never inside it.
   echoAvatar.visible = false;
-  ui.echo.textContent = 'ECHO REPLAYING';
   echoAvatar.position.set(echoFrame.x, echoFrame.y ?? 0, echoFrame.z);
   echoAvatar.rotation.y = echoFrame.yaw;
-  showToast('ECHO REPLAYING // MOVE WITH YOUR RECORDING');
+  updateEchoUi();
+  showToast('REWOUND TO START // ECHO IS NOW REPEATING YOUR PATH', 3.6);
+}
+
+function updateEchoUi() {
+  if (!ui.echo) return;
+  const snapshot = echo.snapshot();
+  ui.echo.classList.toggle('recording', snapshot.mode === 'recording');
+  ui.echo.classList.toggle('replaying', snapshot.mode === 'replaying');
+  let progress = 0;
+  if (snapshot.mode === 'recording') {
+    progress = snapshot.elapsed / 20;
+    ui.echoStep.textContent = 'STEP 1 · RECORDING PATH';
+    ui.echoTime.textContent = snapshot.elapsed.toFixed(1) + ' / 20.0s';
+    ui.echoAction.textContent = 'Q · FINISH & REWIND';
+    ui.echoHelp.textContent = 'Finish on the first plate. You will return to your starting point.';
+  } else if (snapshot.mode === 'replaying') {
+    progress = snapshot.duration > 0 ? snapshot.playbackTime / snapshot.duration : 0;
+    ui.echoStep.textContent = 'STEP 2 · ECHO REPLAYING';
+    ui.echoTime.textContent = snapshot.playbackTime.toFixed(1) + ' / ' + snapshot.duration.toFixed(1) + 's';
+    ui.echoAction.textContent = 'MOVE TO THE OTHER PLATE';
+    ui.echoHelp.textContent = 'Echo repeats the recorded path while you move independently.';
+  } else if (snapshot.mode === 'shattered') {
+    ui.echoStep.textContent = 'ECHO · DISRUPTED';
+    ui.echoTime.textContent = 'GUARD CONTACT';
+    ui.echoAction.textContent = 'Q · RECORD AGAIN';
+    ui.echoHelp.textContent = 'Keep the replay away from guards or use a shorter route.';
+  } else if (snapshot.mode === 'complete') {
+    progress = 1;
+    ui.echoStep.textContent = 'ECHO · PATH COMPLETE';
+    ui.echoTime.textContent = snapshot.duration.toFixed(1) + 's';
+    ui.echoAction.textContent = 'Q · RECORD AGAIN';
+    ui.echoHelp.textContent = 'The replay finished. Record another route if the plates are not active.';
+  } else {
+    ui.echoStep.textContent = 'ECHO · READY';
+    ui.echoTime.textContent = '20.0s MAX';
+    ui.echoAction.textContent = 'Q · START RECORDING';
+    ui.echoHelp.textContent = 'Record a path to one plate. Press Q again to rewind and replay it.';
+  }
+  ui.echoFill.style.width = Math.max(0, Math.min(100, progress * 100)) + '%';
 }
 
 function toggleEcho() {
@@ -1793,8 +1855,8 @@ function toggleEcho() {
   echoFrame = echoPrevious = null;
   echoAvatar.visible = false;
   echo.start(echoSnapshot());
-  ui.echo.textContent = 'ECHO RECORDING  Q';
-  showToast('ECHO RECORDING // Q TO REWIND AND REPLAY');
+  updateEchoUi();
+  showToast('RECORDING STARTED // WALK TO A SYNC PLATE, THEN PRESS Q', 3.6);
 }
 
 function updateEcho(dt) {
@@ -1821,8 +1883,8 @@ function updateEcho(dt) {
   if (frame.done) {
     echoAvatar.visible = false;
     echoFrame = null;
-    ui.echo.textContent = 'ECHO READY  Q';
-    showToast('ECHO COMPLETE // RECORD AGAIN WITH Q');
+    updateEchoUi();
+    showToast('ECHO PATH COMPLETE // PRESS Q TO RECORD ANOTHER');
   }
 }
 
@@ -1997,6 +2059,7 @@ function setStagePreview(stage, announce = true) {
   cctv.reset();
   state.cctvActive = false;
   state.cctvIndex = -1;
+  document.body.classList.remove('cctv-mode');
   ui.cctvFilter.classList.add('is-hidden');
   state.safeActive = false;
   state.safeCase = null;
@@ -2033,7 +2096,7 @@ function setStagePreview(stage, announce = true) {
   ui.override.classList.add('is-hidden');
   ui.exposure.classList.toggle('is-hidden', stage !== 3);
   ui.echo.classList.toggle('is-hidden', stage !== 3);
-  ui.echo.textContent = 'ECHO READY  Q';
+  updateEchoUi();
   ui.signature.textContent = vaultMission.readout();
   ui.signature.classList.toggle('is-hidden', stage !== 2);
   ui.sonar.textContent = 'SONAR READY  ' + (stage === 1 || stage === TUTORIAL_STAGE ? 'SPACE' : 'G');
@@ -2116,8 +2179,8 @@ function setStagePreview(stage, announce = true) {
     step.classList.toggle('complete', index < stage - 1);
   });
   ui.minimap.classList.remove('is-hidden');
-  ui.minimap.classList.toggle('is-jammed', stage === 3);
-  ui.mapStatus.textContent = stage === 3 ? 'JAMMED' : 'LIVE';
+  ui.minimap.classList.remove('is-jammed');
+  ui.mapStatus.textContent = 'LOCAL';
   ui.transition.classList.add('is-hidden');
   state.transitioning = false;
   // Lockdown starts silently; the carried reel does not emit a spawn wave.
@@ -2193,7 +2256,7 @@ function resetGame(startStage = 1, newHeist = false) {
   ui.hud.classList.remove('is-hidden');
   ui.reticle.classList.remove('is-hidden');
   ui.minimap.classList.remove('is-hidden');
-  ui.minimap.classList.toggle('is-jammed', state.stage === 3);
+  ui.minimap.classList.remove('is-jammed');
   ui.sonar.classList.remove('is-hidden');
   ui.decoy.classList.remove('is-hidden');
   if (ui.dampener) ui.dampener.classList.remove('is-hidden');
@@ -2254,6 +2317,7 @@ function finish(won, reason = 'guard') {
   state.won = won;
   state.transitioning = false;
   state.running = false;
+  document.body.classList.remove('cctv-mode');
   ui.transition.classList.add('is-hidden');
   if (ambience && audioContext) ambience.master.gain.setTargetAtTime(0.0025, audioContext.currentTime, 0.7);
   ui.signature.classList.add('is-hidden');
@@ -2394,26 +2458,17 @@ function drawMinimap() {
   context.clearRect(0, 0, width, height);
   context.fillStyle = 'rgba(2, 10, 15, .92)';
   context.fillRect(0, 0, width, height);
-
-  if (state.stage === 3 && state.mapReveal <= 0.08) {
-    context.fillStyle = 'rgba(255, 49, 90, .12)';
-    for (let line = 0; line < 11; line += 1) {
-      const y = 38 + line * 22 + Math.sin(state.playTime * 3 + line) * 5;
-      context.fillRect(28, y, width - 56, line % 3 === 0 ? 3 : 1);
-    }
-    context.textAlign = 'center';
-    context.fillStyle = '#ff5571';
-    context.font = '700 28px Consolas, monospace';
-    context.fillText('SIGNAL JAMMED', width / 2, height / 2 - 5);
-    context.fillStyle = '#7f99a4';
-    context.font = '500 17px Consolas, monospace';
-    context.fillText('USE SONAR TO NAVIGATE', width / 2, height / 2 + 28);
-    return;
-  }
-
   const reveal = THREE.MathUtils.clamp(state.mapReveal, 0, 1);
+  const fullMap = reveal > 0.08;
+  const playerX = mapX(player.position.x);
+  const playerY = mapY(player.position.z);
   context.save();
-  context.globalAlpha = 0.045 + reveal * 0.955;
+  if (!fullMap) {
+    context.beginPath();
+    context.arc(playerX, playerY, 62, 0, Math.PI * 2);
+    context.clip();
+  }
+  context.globalAlpha = fullMap ? 0.35 + reveal * 0.65 : 0.86;
 
   for (const box of colliders) {
     if (box.stage && box.stage !== state.stage) continue;
@@ -2515,9 +2570,14 @@ function drawMinimap() {
   }
   context.restore();
 
-  const playerX = mapX(player.position.x);
-  const playerY = mapY(player.position.z);
   const playerAngle = Math.atan2(-Math.cos(state.yaw), -Math.sin(state.yaw));
+  if (!fullMap) {
+    context.beginPath();
+    context.arc(playerX, playerY, 62, 0, Math.PI * 2);
+    context.strokeStyle = 'rgba(114, 239, 255, .28)';
+    context.lineWidth = 2;
+    context.stroke();
+  }
   drawMapArrow(context, playerX, playerY, playerAngle, '#72efff', 14);
   if (reveal > 0.05) {
     const radius = 18 + reveal * 62;
@@ -2533,9 +2593,38 @@ function drawMinimap() {
 }
 
 function render() {
-  renderer.setViewport(0, 0, renderer.domElement.width, renderer.domElement.height);
-  renderer.setScissorTest(false);
+  const width = renderer.domElement.width;
+  const height = renderer.domElement.height;
+  renderer.setViewport(0, 0, width, height);
+  renderer.setScissor(0, 0, width, height);
   renderer.clear();
+  if (state.cctvActive) {
+    const feedWidth = Math.floor(width / 2);
+    const feedHeight = Math.floor(height / 2);
+    renderer.setScissorTest(true);
+    cctv.cameras.forEach((securityCamera, index) => {
+      const column = index % 2;
+      const rowFromTop = Math.floor(index / 2);
+      const x = column * feedWidth;
+      const y = rowFromTop === 0 ? feedHeight : 0;
+      const viewportWidth = column === 0 ? feedWidth : width - feedWidth;
+      const viewportHeight = rowFromTop === 0 ? height - feedHeight : feedHeight;
+      cctvCamera.position.set(
+        securityCamera.x + Math.sin(securityCamera.yaw) * 0.58,
+        3.25,
+        securityCamera.z + Math.cos(securityCamera.yaw) * 0.58
+      );
+      cctvCamera.rotation.set(-0.18, securityCamera.yaw + Math.PI, 0);
+      cctvCamera.aspect = viewportWidth / viewportHeight;
+      cctvCamera.updateProjectionMatrix();
+      renderer.setViewport(x, y, viewportWidth, viewportHeight);
+      renderer.setScissor(x, y, viewportWidth, viewportHeight);
+      renderer.render(scene, cctvCamera);
+    });
+    renderer.setScissorTest(false);
+    return;
+  }
+  renderer.setScissorTest(false);
   renderer.render(scene, camera);
   drawMinimap();
 }
@@ -2565,7 +2654,7 @@ function animate() {
     if (mesh?.visible && item.type === 'loot') mesh.rotation.y += dt * 1.25;
   }
   state.mapReveal = Math.max(0, state.mapReveal - dt * 0.3);
-  ui.mapStatus.textContent = state.mapReveal > 0.08 ? 'ECHO' : state.stage === 3 ? 'JAMMED' : 'DORMANT';
+  ui.mapStatus.textContent = state.mapReveal > 0.08 ? 'FULL / SONAR' : 'LOCAL';
   ui.minimap.classList.toggle('revealed', state.mapReveal > 0.08);
   // Feed presentation remains live while pointer-lock is paused; camera
   // detection itself only advances with a positive gameplay timestep.
@@ -2586,6 +2675,7 @@ function animate() {
       updatePickpocket(dt);
     }
     updateEcho(dt);
+    if (state.stage === 3) updateEchoUi();
     updateEchoPlates();
     stages.update(state.stage, player.position, state.crouching, elapsed, handleHazardTrip, {
       crawling: state.crawling,
@@ -2664,6 +2754,11 @@ document.addEventListener('keydown', (event) => {
     if (event.code === 'KeyE' && !event.repeat) setSafeTumbler();
     return;
   }
+  if (state.cctvActive && ['Digit1', 'Digit2', 'Digit3', 'Digit4'].includes(event.code)) {
+    event.preventDefault();
+    selectCctvFeed(Number(event.code.slice(-1)) - 1);
+    return;
+  }
   if (SCROLL_KEYS.includes(event.code) && state.running) event.preventDefault();
   if (event.code === 'Tab' && state.running) {
     event.preventDefault();
@@ -2688,6 +2783,7 @@ document.addEventListener('keydown', (event) => {
 document.addEventListener('keyup', (event) => { keys[event.code] = false; });
 document.addEventListener('mousemove', (event) => {
   if (!state.locked || !state.running) return;
+  if (state.cctvActive) return;
   if (state.safeActive) {
     const result = safecrack.turn(event.movementX * 0.12, 1 / 60);
     updateSafeUi(result.noise);
@@ -2716,6 +2812,10 @@ window.addEventListener('blur', () => {
   if (document.pointerLockElement) document.exitPointerLock();
 });
 canvas.addEventListener('mousedown', (event) => {
+  if (state.cctvActive || state.safeActive) {
+    event.preventDefault();
+    return;
+  }
   if (event.button === 0) throwDecoy();
   // Right mouse sharpens the arc. The faint version is always on, so the
   // throw is never a guess even if the player never finds this.

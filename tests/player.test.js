@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { movementMode, movementProfile } from '../src/gameplay/player.js';
+import { canUseDecoy, movementMode, movementProfile } from '../src/gameplay/player.js';
 
 test('movement preserves the existing Valorant-style shift-to-walk controls', () => {
   assert.equal(movementMode({}).id, 'run');
@@ -15,4 +15,12 @@ test('surface, carrying and dampener modifiers compose predictably', () => {
   assert.equal(profile.speed, 4.85 * 0.88);
   assert.equal(profile.radius, 12.4 * 1.4);
   assert.ok(profile.noise < 0.3);
+});
+
+test('decoys cannot be thrown from CCTV or safe interfaces', () => {
+  const playable = { running: true, locked: true, transitioning: false, ended: false, throwCooldown: 0,
+    cctvActive: false, safeActive: false };
+  assert.equal(canUseDecoy(playable), true);
+  assert.equal(canUseDecoy({ ...playable, cctvActive: true }), false);
+  assert.equal(canUseDecoy({ ...playable, safeActive: true }), false);
 });
