@@ -8,19 +8,7 @@ One MP3 per line, using the exact filename below. Dry voice only: no music, radi
 
 Context: level:start · level 1.
 
-Your name is on the guest list. Okafor sees a donor. Stay upright and keep the rig out of sight.
-
-## dex-1-level-start-2.mp3
-
-Context: level:start · level 1.
-
-Loop the hall camera. Okafor stops along the west wall. Copy his badge from behind; leave the original on him.
-
-## dex-1-level-start-3.mp3
-
-Context: level:start · level 1.
-
-Use the copy at the rear staff reader to book our night entry. Then leave through the lobby.
+Your name is on the guest list. Okafor sees a donor. Link the camera tap at the east security desk first.
 
 ## dex-1-pickpocket-complete-1.mp3
 
@@ -39,12 +27,6 @@ Wren? You've gone quiet. Keep moving.
 Context: level:start · level 2.
 
 One-thirty. Same night. The badge got you inside; your donor cover is finished.
-
-## dex-2-level-start-2.mp3
-
-Context: level:start · level 2.
-
-Cross the security corridor. Isolate the safe’s tamper circuit at the west service panel before touching the dial.
 
 ## dex-2-door-tamper-circuit-1.mp3
 
@@ -124,11 +106,59 @@ Context: diamond:taken · level 2.
 
 Right. The service door. Keep moving.
 
-## dex-3-level-start-1.mp3
+## dex-any-hint-rig-1.mp3
 
-Context: level:start · level 3.
+Context: hint:rig · level any.
 
-Insurance pays better with a culprit. Sorry, Wren. Same as Marlowe.
+East wall, past the shipwreck painting. Staff door. Wait for the officer to leave the passage, then get to the desk.
+
+## dex-any-hint-badge-1.mp3
+
+Context: hint:badge · level any.
+
+Okafor stops on the west wall. Loop camera two, wait for his stop, come up behind him and hold E.
+
+## dex-any-hint-reader-1.mp3
+
+Context: hint:reader · level any.
+
+The reader is at the end of the vault corridor. Through the gap in the rope at the back of the hall.
+
+## dex-any-hint-lobby-1.mp3
+
+Context: hint:lobby · level any.
+
+You are done here. Back to the lobby doors you came in through.
+
+## dex-any-hint-circuit-1.mp3
+
+Context: hint:circuit · level any.
+
+Through the lasers, then the panel on the west wall of the vault room. Hold E on it.
+
+## dex-any-hint-safe-1.mp3
+
+Context: hint:safe · level any.
+
+Turn the dial slowly and press E when the signal peaks. Watch the timer for Briggs.
+
+## dex-any-hint-star-1.mp3
+
+Context: hint:star · level any.
+
+The safe is open. Walk up and take the Star.
+
+## dex-any-hint-service-exit-1.mp3
+
+Context: hint:service-exit · level any.
+
+The fire door is in the narrow corridor between the lasers and the vault. Go.
+
+## dex-any-door-security-desk-1.mp3
+
+Context: door:security-desk · level any.
+
+Camera tap linked. Your lens still reads sound; now Tab gives you their camera feeds too. Find Okafor.
 
 ## dex-any-camera-loop-1.mp3
 
@@ -267,6 +297,22 @@ Context: cinematic:opening.
 Direction: Low radio voice. Controlled, specific, almost too calm.
 
 You are a donor tonight. Copy the badge. Authorise the night entry. Then walk out.
+
+## cinematic-after1-2.mp3
+
+Context: cinematic:after1.
+
+Direction: Dex explains the plan quietly and precisely. Persuasive, not a tutorial announcer.
+
+The Star goes into the safe after closing. Come back at one-thirty. The staff entrance will accept your copy.
+
+## cinematic-after2-2.mp3
+
+Context: cinematic:after2.
+
+Direction: Cold reveal. No villain laughter. The apology is empty; Marlowe confirms the pattern.
+
+The policy pays more if they catch a thief. Sorry, Wren. Same as Marlowe.
 
 ## voice-test.mp3
 

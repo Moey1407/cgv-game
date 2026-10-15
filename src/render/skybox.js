@@ -75,21 +75,41 @@ export function createSkybox({ radius = 400 } = {}) {
   mesh.frustumCulled = false;
   mesh.renderOrder = -1;
   const city = new THREE.Group(); city.name = 'service-yard-skyline'; city.visible = false;
-  const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 256;
-  const ctx = canvas.getContext('2d'); ctx.fillStyle = '#27313b'; ctx.fillRect(0, 0, 128, 256);
-  for (let y = 8; y < 250; y += 16) for (let x = 6; x < 126; x += 16) {
-    const lit = ((x * 7 + y * 13) % 43) < 9;
-    ctx.fillStyle = lit ? '#8b8062' : '#151d29'; ctx.fillRect(x, y, 7, 9);
+  const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 512;
+  const glow = document.createElement('canvas'); glow.width = 256; glow.height = 512;
+  const ctx = canvas.getContext('2d'), lights = glow.getContext('2d');
+  ctx.fillStyle = '#77766d'; ctx.fillRect(0, 0, 256, 512);
+  lights.fillStyle = '#000'; lights.fillRect(0, 0, 256, 512);
+  for (let y = 0; y < 512; y += 64) {
+    ctx.fillStyle = '#525a60'; ctx.fillRect(0, y, 256, 4);
+    ctx.fillStyle = '#a4a498'; ctx.fillRect(0, y + 4, 256, 2);
+    for (let x = 0; x < 256; x += 32) {
+      ctx.strokeStyle = '#525a6050'; ctx.strokeRect(x + (y % 128 ? 16 : 0), y + 5, 32, 58);
+    }
   }
+  for (let y = 22; y < 490; y += 64) for (let x = 14; x < 246; x += 46) {
+    const lit = ((x * 7 + y * 13) % 43) < 13;
+    ctx.fillStyle = '#1e2b34'; ctx.fillRect(x - 3, y - 3, 28, 37);
+    ctx.fillStyle = lit ? '#b4a578' : '#354858'; ctx.fillRect(x, y, 22, 30);
+    ctx.fillStyle = '#101b23'; ctx.fillRect(x + 10, y, 2, 30); ctx.fillRect(x, y + 14, 22, 2);
+    ctx.fillStyle = '#a2a398'; ctx.fillRect(x - 5, y + 31, 32, 3);
+    if (lit) { lights.fillStyle = '#a99b70'; lights.fillRect(x, y, 22, 30); }
+  }
+  ctx.fillStyle = '#3c474e'; ctx.fillRect(0, 0, 256, 12); ctx.fillRect(0, 500, 256, 12);
+  // A little ambient facade bounce keeps unlit buildings readable without
+  // another dynamic light or extra draw call. Windows remain the bright part.
+  lights.globalAlpha = .18; lights.drawImage(canvas, 0, 0); lights.globalAlpha = 1;
   const map = new THREE.CanvasTexture(canvas); map.colorSpace = THREE.SRGBColorSpace;
+  const emissiveMap = new THREE.CanvasTexture(glow); emissiveMap.colorSpace = THREE.SRGBColorSpace;
   const buildings = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({
-    map, emissiveMap: map, emissive: 0x8d8d8d, emissiveIntensity: 0.35, color: 0x8793a0, roughness: 0.9,
+    map, emissiveMap, emissive: 0xffffff, emissiveIntensity: 0.5, color: 0xadb5bf, roughness: 0.82,
   }), 24);
   const dummy = new THREE.Object3D();
   for (let i = 0; i < 24; i++) {
     const side = i % 2 ? -1 : 1, row = Math.floor(i / 2), height = 9 + (i * 13 % 24);
     dummy.position.set(side * (22 + i * 7 % 47), height / 2 - 4, -30 - row * 15);
     dummy.scale.set(9 + i % 5 * 2, height, 9 + i % 4 * 3); dummy.updateMatrix(); buildings.setMatrixAt(i, dummy.matrix);
+    buildings.setColorAt(i, new THREE.Color([0xc7c4b8, 0x9ea9b5, 0x8796a5, 0xb3a18e][i % 4]));
   }
   city.add(buildings);
   function setMode(mode) {

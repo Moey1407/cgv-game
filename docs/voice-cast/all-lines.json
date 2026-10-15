@@ -2,31 +2,7 @@
   {
     "id": "dex-1-level-start-1",
     "who": "DEX",
-    "text": "Your name is on the guest list. Okafor sees a donor. Stay upright and keep the rig out of sight.",
-    "level": "1",
-    "key": "level:start",
-    "direction": ""
-  },
-  {
-    "id": "dex-1-level-start-2",
-    "who": "DEX",
-    "text": "Loop the hall camera. Okafor stops along the west wall. Copy his badge from behind; leave the original on him.",
-    "level": "1",
-    "key": "level:start",
-    "direction": ""
-  },
-  {
-    "id": "dex-1-level-start-3",
-    "who": "DEX",
-    "text": "Use the copy at the rear staff reader to book our night entry. Then leave through the lobby.",
-    "level": "1",
-    "key": "level:start",
-    "direction": ""
-  },
-  {
-    "id": "wren-1-level-start-4",
-    "who": "WREN",
-    "text": "And I choose the way out this time. There is a line waiting on the roof.",
+    "text": "Your name is on the guest list. Okafor sees a donor. Link the camera tap at the east security desk first.",
     "level": "1",
     "key": "level:start",
     "direction": ""
@@ -59,14 +35,6 @@
     "id": "dex-2-level-start-1",
     "who": "DEX",
     "text": "One-thirty. Same night. The badge got you inside; your donor cover is finished.",
-    "level": "2",
-    "key": "level:start",
-    "direction": ""
-  },
-  {
-    "id": "dex-2-level-start-2",
-    "who": "DEX",
-    "text": "Cross the security corridor. Isolate the safe’s tamper circuit at the west service panel before touching the dial.",
     "level": "2",
     "key": "level:start",
     "direction": ""
@@ -192,15 +160,39 @@
     "direction": ""
   },
   {
-    "id": "dex-3-level-start-1",
-    "who": "DEX",
-    "text": "Insurance pays better with a culprit. Sorry, Wren. Same as Marlowe.",
+    "id": "wren-3-hint-shutter-1",
+    "who": "WREN",
+    "text": "Stand at the override. R to record, hold E a few seconds, R again. Then walk while my Echo holds it.",
     "level": "3",
-    "key": "level:start",
+    "key": "hint:shutter",
     "direction": ""
   },
   {
-    "id": "wren-3-level-start-3",
+    "id": "wren-3-hint-sensors-1",
+    "who": "WREN",
+    "text": "Stairs in the north-east corner. Up top, record myself on one plate, rewind, take the other.",
+    "level": "3",
+    "key": "hint:sensors",
+    "direction": ""
+  },
+  {
+    "id": "wren-3-hint-hatch-1",
+    "who": "WREN",
+    "text": "Both plates are locked. Hold the override by the hatch.",
+    "level": "3",
+    "key": "hint:hatch",
+    "direction": ""
+  },
+  {
+    "id": "wren-3-hint-zipline-1",
+    "who": "WREN",
+    "text": "The line is at the far edge of the roof. Clip on.",
+    "level": "3",
+    "key": "hint:zipline",
+    "direction": ""
+  },
+  {
+    "id": "wren-3-level-start-2",
     "who": "WREN",
     "text": "Two-person interlock. My rig can replay the second operator’s signal. I can still reach my roof line.",
     "level": "3",
@@ -277,6 +269,86 @@
     "text": "Three files. Names, orders, payment. Sending it all. Your turn to wait for the police, Dex.",
     "level": "3",
     "key": "evidence:uploaded",
+    "direction": ""
+  },
+  {
+    "id": "dex-any-hint-rig-1",
+    "who": "DEX",
+    "text": "East wall, past the shipwreck painting. Staff door. Wait for the officer to leave the passage, then get to the desk.",
+    "level": "any",
+    "key": "hint:rig",
+    "direction": ""
+  },
+  {
+    "id": "dex-any-hint-badge-1",
+    "who": "DEX",
+    "text": "Okafor stops on the west wall. Loop camera two, wait for his stop, come up behind him and hold E.",
+    "level": "any",
+    "key": "hint:badge",
+    "direction": ""
+  },
+  {
+    "id": "dex-any-hint-reader-1",
+    "who": "DEX",
+    "text": "The reader is at the end of the vault corridor. Through the gap in the rope at the back of the hall.",
+    "level": "any",
+    "key": "hint:reader",
+    "direction": ""
+  },
+  {
+    "id": "dex-any-hint-lobby-1",
+    "who": "DEX",
+    "text": "You are done here. Back to the lobby doors you came in through.",
+    "level": "any",
+    "key": "hint:lobby",
+    "direction": ""
+  },
+  {
+    "id": "dex-any-hint-circuit-1",
+    "who": "DEX",
+    "text": "Through the lasers, then the panel on the west wall of the vault room. Hold E on it.",
+    "level": "any",
+    "key": "hint:circuit",
+    "direction": ""
+  },
+  {
+    "id": "dex-any-hint-safe-1",
+    "who": "DEX",
+    "text": "Turn the dial slowly and press E when the signal peaks. Watch the timer for Briggs.",
+    "level": "any",
+    "key": "hint:safe",
+    "direction": ""
+  },
+  {
+    "id": "dex-any-hint-star-1",
+    "who": "DEX",
+    "text": "The safe is open. Walk up and take the Star.",
+    "level": "any",
+    "key": "hint:star",
+    "direction": ""
+  },
+  {
+    "id": "dex-any-hint-service-exit-1",
+    "who": "DEX",
+    "text": "The fire door is in the narrow corridor between the lasers and the vault. Go.",
+    "level": "any",
+    "key": "hint:service-exit",
+    "direction": ""
+  },
+  {
+    "id": "dex-any-door-security-desk-1",
+    "who": "DEX",
+    "text": "Camera tap linked. Your lens still reads sound; now Tab gives you their camera feeds too. Find Okafor.",
+    "level": "any",
+    "key": "door:security-desk",
+    "direction": ""
+  },
+  {
+    "id": "wren-any-door-security-desk-2",
+    "who": "WREN",
+    "text": "And I choose the way out this time. There is a line waiting on the roof.",
+    "level": "any",
+    "key": "door:security-desk",
     "direction": ""
   },
   {
@@ -490,6 +562,55 @@
     "text": "You are a donor tonight. Copy the badge. Authorise the night entry. Then walk out.",
     "key": "cinematic:opening",
     "direction": "Low radio voice. Controlled, specific, almost too calm."
+  },
+  {
+    "id": "cinematic-opening-5",
+    "who": "WREN",
+    "text": "Lens is live. The rings are mine, not lights in the room. A pulse maps the floor, but they can hear the ping.",
+    "key": "cinematic:opening",
+    "direction": "Wren checking her own equipment. Matter-of-fact and quietly confident, not a tutorial announcer."
+  },
+  {
+    "id": "cinematic-after1-1",
+    "who": "WREN",
+    "text": "Access is authorised. I am outside. Tell me why we are waiting.",
+    "key": "cinematic:after1",
+    "direction": "Relieved, outside the gala. Wren wants a straight answer; no breathless chase."
+  },
+  {
+    "id": "cinematic-after1-2",
+    "who": "DEX",
+    "text": "The Star goes into the safe after closing. Come back at one-thirty. The staff entrance will accept your copy.",
+    "key": "cinematic:after1",
+    "direction": "Dex explains the plan quietly and precisely. Persuasive, not a tutorial announcer."
+  },
+  {
+    "id": "cinematic-after1-3",
+    "who": "WREN",
+    "text": "You handle the cameras. I handle the safe. Then I take my own way out.",
+    "key": "cinematic:after1",
+    "direction": "Professional agreement with an edge of distrust. Emphasise her own way out."
+  },
+  {
+    "id": "cinematic-after2-1",
+    "who": "WREN",
+    "text": "Star secured. I am at the service door. Open the exit, Dex.",
+    "key": "cinematic:after2",
+    "direction": "Controlled urgency. The exit is not opening, but Wren still expects Dex to help."
+  },
+  {
+    "id": "cinematic-after2-2",
+    "who": "DEX",
+    "text": "The policy pays more if they catch a thief. Sorry, Wren. Same as Marlowe.",
+    "key": "cinematic:after2",
+    "direction": "Cold reveal. No villain laughter. The apology is empty; Marlowe confirms the pattern."
+  },
+  {
+    "id": "cinematic-after2-3",
+    "who": "WREN",
+    "text": "You left me in there on purpose. Radio is dead. The rig is local. I can make my own second operator.",
+    "key": "cinematic:after2",
+    "direction": "The betrayal lands, then Wren regains control. A short pause after purpose and dead."
   },
   {
     "id": "okafor-warning-1",

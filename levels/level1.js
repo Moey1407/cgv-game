@@ -29,7 +29,7 @@ export default {
   name: 'The Gala',
   objective: 'Copy a staff badge, authorise the night entry, and leave through the lobby',
   objectives: [
-    { id: 'rig', text: 'Slip into the staff wing and plant the rig at the security desk', marker: [24.1, 1, -19.5] },
+    { id: 'rig', text: 'Slip into the staff wing and link the camera tap at the security desk', marker: [24.1, 1, -19.5] },
     { id: 'cctv', text: "Hack a camera and watch Okafor's patrol" },
     { id: 'keycard', text: 'Copy Okafor’s badge during an inspection stop', follow: 'Okafor' },
     { id: 'vault_door', text: 'Register the copied badge at the staff reader', marker: [0, 2, -61.7] },

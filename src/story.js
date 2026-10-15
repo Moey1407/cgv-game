@@ -48,7 +48,7 @@ export const SCRIPT = {
     'hint:safe': { cooldown: 45, say: [[DEX, 'Turn the dial slowly and press E when the signal peaks. Watch the timer for Briggs.']] },
     'hint:star': { cooldown: 45, say: [[DEX, 'The safe is open. Walk up and take the Star.']] },
     'hint:service-exit': { cooldown: 45, say: [[DEX, 'The fire door is in the narrow corridor between the lasers and the vault. Go.']] },
-    'door:security-desk': { say: [[DEX, 'We are in their system. Tab gives you every camera in the building. Now find Okafor.']] },
+    'door:security-desk': { say: [[DEX, 'Camera tap linked. Your lens still reads sound; now Tab gives you their camera feeds too. Find Okafor.'], [WREN, 'And I choose the way out this time. There is a line waiting on the roof.']] },
     'camera:loop': { say: [[DEX, "That feed's on a loop for eight seconds. Security is watching a very boring rerun."]] },
     'camera:detected': { cooldown: 12, urgent: true, variants: [[DEX, "Camera's got you. Loop it or get out of its view."], [DEX, "You're on camera, Wren. Smile, then move."]] },
     'player:detected': { cooldown: 10, urgent: true, variants: [[DEX, "He's seen you. Break line of sight!"], [DEX, 'Spotted! Get behind something solid.']] },
@@ -75,10 +75,7 @@ export const SCRIPT = {
   1: {
     'level:start': {
       say: [
-        [DEX, 'Your name is on the guest list. Okafor sees a donor. Stay upright and keep the rig out of sight.'],
-        [DEX, 'Loop the hall camera. Okafor stops along the west wall. Copy his badge from behind; leave the original on him.'],
-        [DEX, 'Use the copy at the rear staff reader to book our night entry. Then leave through the lobby.'],
-        [WREN, 'And I choose the way out this time. There is a line waiting on the roof.'],
+        [DEX, 'Your name is on the guest list. Okafor sees a donor. Link the camera tap at the east security desk first.'],
       ],
     },
     'pickpocket:complete': { say: [[DEX, 'Smooth. Original stays on his belt. Get the copy authorised at the rear staff reader.']] },
@@ -87,7 +84,7 @@ export const SCRIPT = {
 
   // Level 2, The Vault: Dex is impatient.
   2: {
-    'level:start': { say: [[DEX, 'One-thirty. Same night. The badge got you inside; your donor cover is finished.'], [DEX, 'Cross the security corridor. Isolate the safe’s tamper circuit at the west service panel before touching the dial.']] },
+    'level:start': { say: [[DEX, 'One-thirty. Same night. The badge got you inside; your donor cover is finished.']] },
     'door:tamper-circuit': { say: [[DEX, 'Tamper circuit isolated. Now the dial. Briggs is still making rounds.'], [DEX, 'He checks the safe once a lap. Need longer? Bounce a decoy into the archive.']] },
     'hazard:trip': { cooldown: 8, variants: [[DEX, 'Are you trying to set them off? Watch the pattern!'], [DEX, "Again? Crawl, jump or wait. It's not complicated."]] },
     'player:detected': { cooldown: 10, urgent: true, variants: [[DEX, 'Briggs has you! Move!'], [DEX, 'Seen. Of course. Hide, then hurry.']] },
@@ -108,7 +105,6 @@ export const SCRIPT = {
     'hint:zipline': { cooldown: 45, say: [[WREN, 'The line is at the far edge of the roof. Clip on.']] },
     'level:start': {
       say: [
-        [DEX, 'Insurance pays better with a culprit. Sorry, Wren. Same as Marlowe.'],
         CUT,
         [WREN, 'Two-person interlock. My rig can replay the second operator’s signal. I can still reach my roof line.'],
         [SYSTEM, 'R records your movement and E input. R again rewinds you; the Echo repeats the recording.'],
@@ -212,21 +208,48 @@ export const CINEMATICS = Object.freeze({
       visual: 'diamond',
       duration: 5.2,
     },
+    {
+      scene: 'WREN’S ACOUSTIC LENS · PASSIVE MODE',
+      title: 'Sound, made visible.',
+      text: 'Wren’s wrist rig feeds a private lens display. The rings visualise footsteps and noise, even in the lit gala. Nobody else sees them. The desk tap unlocks CCTV, not her hearing.',
+      speaker: WREN,
+      dialogue: 'Lens is live. The rings are mine, not lights in the room. A pulse maps the floor, but they can hear the ping.',
+      visual: 'signal',
+      duration: 6.8,
+    },
   ],
   after1: [
     {
       scene: 'VARGA MUSEUM · 20:16',
-      title: 'The first lock opens.',
-      text: 'Wren leaves through the lobby. At 01:30 the authorised staff entrance opens again. The Star is now in the safe.',
-      visual: 'keycard',
+      title: 'Access secured.', text: 'Wren leaves the gala with an authorised copy, not a stolen badge.', visual: 'keycard',
+      speaker: WREN, dialogue: 'Access is authorised. I am outside. Tell me why we are waiting.',
+    },
+    {
+      scene: 'DEX · SECURE LINE', title: 'After closing.', visual: 'keycard',
+      text: 'The gala closes. The Star moves from its guarded display to the vault safe.',
+      speaker: DEX, dialogue: 'The Star goes into the safe after closing. Come back at one-thirty. The staff entrance will accept your copy.',
+    },
+    {
+      scene: 'STAFF ENTRANCE · 01:30', title: 'One safecracker. One way in.', visual: 'vault',
+      text: 'Guest cover ends at the door. Wren returns for the theft.',
+      speaker: WREN, dialogue: 'You handle the cameras. I handle the safe. Then I take my own way out.',
     },
   ],
   after2: [
     {
       scene: 'VAULT LEVEL · 01:57',
-      title: '“Same as Marlowe.”',
-      text: 'Dex cuts the signal. Four minutes remain. Wren’s Echo is her only partner.',
-      visual: 'signal',
+      title: 'Star secured.', text: 'The service door locks behind Wren. Dex has not opened the exit.', visual: 'diamond',
+      speaker: WREN, dialogue: 'Star secured. I am at the service door. Open the exit, Dex.',
+    },
+    {
+      scene: 'DEX · SECURE LINE', title: 'Same as Marlowe.', visual: 'signal',
+      text: 'Dex is working for the insurance payout. Wren is his culprit.',
+      speaker: DEX, dialogue: 'The policy pays more if they catch a thief. Sorry, Wren. Same as Marlowe.',
+    },
+    {
+      scene: 'SERVICE WING · RADIO DISCONNECTED', title: 'Not this time.', visual: 'signal',
+      text: 'Six minutes remain. The local rig keeps working; Wren’s Echo is her only partner.',
+      speaker: WREN, dialogue: 'You left me in there on purpose. Radio is dead. The rig is local. I can make my own second operator.',
     },
   ],
 });

@@ -66,7 +66,7 @@ void main() {
 export const QUALITY = {
   low: { pixelRatio: 0.65, bloom: false, direct: true, samples: 0, shadows: false, reflection: 0, feedRate: 4, feedWidth: 256, feedHeight: 144, mapRate: 3, crowdRate: 8, crowdLimit: 7 },
   medium: { pixelRatio: 1, bloom: true, direct: false, samples: 0, shadows: true, reflection: 0.5, feedRate: 8, feedWidth: 384, feedHeight: 216, mapRate: 6, crowdRate: 15, crowdLimit: 11 },
-  high: { pixelRatio: 1.25, bloom: true, direct: false, samples: 4, shadows: true, reflection: 1, feedRate: 16, feedWidth: 480, feedHeight: 270, mapRate: 12, crowdRate: 30, crowdLimit: Infinity }
+  high: { pixelRatio: 1.25, bloom: true, direct: false, samples: 0, shadows: true, reflection: 0.75, feedRate: 16, feedWidth: 480, feedHeight: 270, mapRate: 12, crowdRate: 30, crowdLimit: Infinity }
 };
 
 export function createPostFX(renderer, scene, camera, { quality = 'medium' } = {}) {
@@ -74,7 +74,7 @@ export function createPostFX(renderer, scene, camera, { quality = 'medium' } = {
   const size = new THREE.Vector2();
   renderer.getSize(size);
   const target = () => new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, samples: settings.samples });
-  let composer = new EffectComposer(renderer, target());
+  const composer = new EffectComposer(renderer, target());
   const renderPass = new RenderPass(scene, camera);
   const bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.32, 0.5, 0.9);
   const output = new OutputPass();
@@ -82,25 +82,24 @@ export function createPostFX(renderer, scene, camera, { quality = 'medium' } = {
   const state = { alarm: 0, glitch: 0, dampen: 0, damage: 0 };
   const shown = { alarm: 0, glitch: 0, dampen: 0, damage: 0 };
 
-  function build() {
-    composer.dispose();
-    composer = new EffectComposer(renderer, target());
-    composer.addPass(renderPass);
-    if (settings.bloom) composer.addPass(bloom);
-    composer.addPass(output);
-    composer.addPass(grade);
-    composer.setPixelRatio(Math.min(window.devicePixelRatio || 1, settings.pixelRatio));
-    composer.setSize(size.x, size.y);
-  }
+  // Keep passes and GPU targets alive. Rebuilding them on every menu input
+  // caused avoidable allocation/compilation stalls, especially at High.
+  composer.addPass(renderPass);
+  composer.addPass(bloom);
+  composer.addPass(output);
+  composer.addPass(grade);
 
   function setQuality(name) {
+    if (!QUALITY[name]) return;
+    if (settings === QUALITY[name] && renderer.getPixelRatio() === Math.min(window.devicePixelRatio || 1, settings.pixelRatio)) return;
     settings = QUALITY[name];
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, settings.pixelRatio));
     renderer.setSize(size.x, size.y, false);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.autoUpdate = settings.shadows;
     renderer.shadowMap.needsUpdate = true;
-    build();
+    bloom.enabled = settings.bloom;
+    composer.setPixelRatio(Math.min(window.devicePixelRatio || 1, settings.pixelRatio));
   }
 
   function set(values) {
@@ -140,6 +139,7 @@ export function createPostFX(renderer, scene, camera, { quality = 'medium' } = {
   }
 
   grade.uniforms.uResolution.value.copy(size);
-  build();
+  bloom.enabled = settings.bloom;
+  composer.setPixelRatio(Math.min(window.devicePixelRatio || 1, settings.pixelRatio));
   return { set, setQuality, setBloom, setSize, render, dispose, grade, bloom, get quality() { return settings; } };
 }

@@ -6,6 +6,7 @@
 <title>SIGNAL</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="./src/styles.css">
+<link rel="stylesheet" href="./src/mission-ui.css">
 </head>
 <body class="in-menu">
 <canvas id="view"></canvas>
@@ -73,26 +74,28 @@
 </section>
 <section id="home" class="page home is-hidden" aria-label="Title">
   <div class="home-panel">
-    <span class="kicker">THE VARGA MUSEUM · CLOSING NIGHT</span>
+    <span class="kicker">WREN SHOULD NEVER HAVE ANSWERED THE PHONE.</span>
     <b class="logo home-logo">SIGNAL</b>
-    <p class="home-tag">You hear the building. It hears you back. One safecracker, one rig that turns sound into light, and three chances to get out with the Kestrel Star.</p>
+    <span class="home-subtitle">THE KESTREL JOB</span>
+    <p class="home-tag">“One more job,” Dex said.<br>Wren brought her own exit.</p>
     <div class="buttons column home-buttons">
-      <button type="button" class="primary" data-action="play">PLAY</button>
+      <button type="button" class="primary" data-action="play">BEGIN THE HEIST <span aria-hidden="true">→</span></button>
       <button type="button" data-action="options">OPTIONS</button>
       <button type="button" data-action="credits">CREDITS</button>
     </div>
-    <small class="home-foot">Best with headphones. The mouse locks when you enter. Q opens the menu.</small>
+    <small class="home-foot">Headphones recommended · Learn as you play · Q opens the menu</small>
   </div>
+  <div class="home-invitation" aria-hidden="true"><small>VARGA MUSEUM</small><b>CLOSING<br>NIGHT</b><span>GUEST: WREN<br>ADMIT ONE / 19:40</span></div>
+  <div class="home-chapters"><span><b>01</b> THE GALA</span><i></i><span><b>02</b> THE VAULT</span><i></i><span><b>03</b> THE ESCAPE</span></div>
 </section>
 <section id="briefing" class="page briefing is-hidden" aria-label="Briefing">
   <div class="briefing-panel">
-    <div class="briefing-steps"></div>
-    <span class="kicker briefing-kicker"></span>
-    <h2 class="briefing-title"></h2>
-    <span class="briefing-place"></span>
-    <strong class="briefing-mechanic"></strong>
-    <div class="briefing-body"></div>
-    <ol class="briefing-objectives"></ol>
+    <header class="mission-heading"><div><span class="kicker briefing-kicker"></span><h2 class="briefing-title"></h2><p class="briefing-role"></p></div><div class="briefing-steps"></div></header>
+    <div class="mission-grid">
+      <div class="mission-visual"><figure><img class="briefing-image" alt="" decoding="async"><figcaption class="briefing-caption"></figcaption></figure><div class="briefing-body"></div><h3>THE PLAN</h3><ol class="briefing-objectives"></ol></div>
+      <aside class="mission-guide"><h3>YOUR CONTROLS</h3><div class="briefing-keys"></div><div class="briefing-diagram"></div><h3>WATCH FOR</h3><p class="briefing-warning"></p></aside>
+    </div>
+    <span class="briefing-place"></span><strong class="briefing-mechanic is-hidden"></strong>
     <details class="controls-reference"><summary>Controls reference</summary><ul class="controls"></ul></details>
     <div class="buttons">
       <button type="button" class="primary" data-action="enter">ENTER THE MUSEUM</button>
@@ -102,7 +105,18 @@
     <p class="lock-note"></p>
   </div>
 </section>
+<section id="interlude" class="page interlude is-hidden" aria-label="Level completed">
+  <article class="interlude-panel">
+    <div class="interlude-photo" aria-hidden="true"></div>
+    <div class="interlude-content"><span class="completion-stamp"></span><h2 class="completion-title"></h2><ul class="completion-checks"></ul><p class="interlude-scene"></p>
+      <div class="interlude-conversation"><div class="speaker-portrait" aria-hidden="true"></div><div><b class="interlude-speaker"></b><p class="interlude-dialogue" aria-live="polite"></p></div></div>
+      <footer class="interlude-footer"><span class="interlude-count"></span><button type="button" data-action="interlude-next" class="primary">NEXT LINE →</button></footer>
+      <small class="interlude-help">Enter / click to continue. Nothing advances until you are ready.</small>
+    </div>
+  </article>
+</section>
 <section id="cinematic" class="cinematic is-hidden" aria-label="Story" aria-live="polite">
+  <div class="scene-wipe" aria-hidden="true"></div>
   <div class="cinematic-grain" aria-hidden="true"></div>
   <div class="cinematic-art" aria-hidden="true">
     <div class="cinematic-museum"></div>
@@ -152,6 +166,7 @@
     <label>Volume <output data-out="master"></output><input type="range" name="master" min="0" max="1" step="0.05"></label>
     <label>Music <output data-out="music"></output><input type="range" name="music" min="0" max="1" step="0.05"></label>
     <label class="toggle">Voice narration <input type="checkbox" name="voice" checked></label>
+    <label class="toggle">Step-by-step guidance <input type="checkbox" name="guided" checked></label>
     <div class="voice-check"><button type="button" data-action="voice-test">TEST VOICE</button><span id="voice-status">Pre-rendered character dialogue.</span></div>
     <label>Graphics quality
       <select name="quality"><option value="auto">Auto</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select>
@@ -161,7 +176,7 @@
 </section>
 <section id="results" class="screen is-hidden" aria-label="Results">
   <div class="screen-box">
-    <span class="kicker">OFF THE ROOF</span>
+    <span class="kicker">LEVEL 3 COMPLETED · OFF THE ROOF</span>
     <h2>The Kestrel Star is out of the building.</h2>
     <div class="results-grade"></div>
     <p class="results-score"></p>

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { heightToNormal } from '../render/materials.js';
 
 const ROOM_HEIGHT = 4;
 
@@ -79,18 +80,20 @@ export function createCollision(data) {
 
 function concrete() {
   const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = 256;
+  canvas.width = canvas.height = 512;
   const g = canvas.getContext('2d');
-  g.fillStyle = '#5d6168';
-  g.fillRect(0, 0, 256, 256);
-  for (let i = 0; i < 2600; i += 1) {
-    const v = 70 + Math.floor(Math.random() * 60);
-    g.fillStyle = `rgba(${v},${v},${v + 6},0.25)`;
-    g.fillRect(Math.random() * 256, Math.random() * 256, 2, 2);
+  let seed = 47;
+  const rand = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+  g.fillStyle = '#a8a396'; g.fillRect(0, 0, 512, 512);
+  for (let row = 0; row < 4; row++) for (let col = -1; col < 3; col++) {
+    const x = col * 256 + (row % 2) * 128, y = row * 128, v = Math.floor(rand() * 14);
+    g.fillStyle = `rgb(${160 + v},${155 + v},${143 + v})`; g.fillRect(x + 2, y + 2, 252, 124);
+    g.strokeStyle = '#c7c0ad'; g.lineWidth = 1; g.strokeRect(x + 3, y + 3, 250, 122);
   }
-  g.strokeStyle = 'rgba(30,32,36,0.6)';
-  g.lineWidth = 3;
-  g.strokeRect(1, 1, 254, 254);
+  for (let i = 0; i < 10000; i++) {
+    g.fillStyle = rand() > .5 ? '#292b2d18' : '#f2e7d220';
+    g.fillRect(rand() * 512, rand() * 512, 1 + rand() * 2, 1);
+  }
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
@@ -107,9 +110,11 @@ export function buildLevel(scene, materials, field, data, { roofRain = false } =
   const own = (m) => { owned.push(m); if (field && 'emissive' in m) field.patch(m); return m; };
 
   const concreteTex = concrete();
+  const concreteNormal = new THREE.CanvasTexture(heightToNormal(concreteTex.image, 1.2));
+  concreteNormal.wrapS = concreteNormal.wrapT = THREE.RepeatWrapping;
   const mats = {
     steelWall: own(new THREE.MeshStandardMaterial({ map: materials.steel.map, normalMap: materials.steel.normalMap, color: 0x8c96a2, metalness: 0.7, roughness: 0.42 })),
-    concreteWall: own(new THREE.MeshStandardMaterial({ map: concreteTex, color: 0xb9b2ad, roughness: 0.92 })),
+    concreteWall: own(new THREE.MeshStandardMaterial({ map: concreteTex, normalMap: concreteNormal, normalScale: new THREE.Vector2(.5, .5), color: 0xc4c8c9, roughness: 0.88 })),
     prop: own(new THREE.MeshStandardMaterial({ color: 0x2b3038, metalness: 0.6, roughness: 0.45 })),
     marble: own(new THREE.MeshPhysicalMaterial({ map: materials.marbleFloor.map, normalMap: materials.marbleFloor.normalMap, roughness: 0.3, clearcoat: 0.8 })),
     carpet: materials.carpet,
@@ -156,6 +161,17 @@ export function buildLevel(scene, materials, field, data, { roofRain = false } =
   function wallPiece(pos, size, prop = false) {
     if (size.some((n) => n <= 0.005)) return;
     const mesh = new THREE.Mesh(geo(new THREE.BoxGeometry(...size)), prop ? mats.prop : wallMaterial);
+    if (!prop) {
+      // World-scale UVs avoid stretching one tiny tile across a whole corridor.
+      const uv = mesh.geometry.attributes.uv;
+      for (let i = 0; i < uv.count; i++) {
+        const face = Math.floor(i / 4);
+        const width = face < 2 ? size[2] : face < 4 ? size[0] : size[0];
+        const height = face < 2 ? size[1] : face < 4 ? size[2] : size[1];
+        uv.setXY(i, uv.getX(i) * width / (2 * (wallMaterial.map?.repeat.x ?? 1)), uv.getY(i) * height / (2 * (wallMaterial.map?.repeat.y ?? 1)));
+      }
+      uv.needsUpdate = true;
+    }
     mesh.position.set(...pos); mesh.castShadow = prop; mesh.receiveShadow = true; group.add(mesh);
   }
   for (const w of data.walls) {

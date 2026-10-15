@@ -4,9 +4,11 @@
 import * as THREE from 'three';
 import { NIGHTS, TRANSITIONS, cinematicFor, endingFor } from './story.js';
 import { LEVELS, ALL_LOOT } from '../levels/index.js';
+import { chapterFor, lessonDiagram } from './game/chapters.js';
+import { createChapterConversation } from './gameplay/chapterConversation.js';
 
 const OPTIONS_KEY = 'signal.options.v1';
-export const DEFAULT_OPTIONS = Object.freeze({ sensitivity: 1, master: 0.7, music: 0.6, voice: true, quality: 'auto' });
+export const DEFAULT_OPTIONS = Object.freeze({ sensitivity: 1, master: 0.7, music: 0.6, voice: true, guided: true, quality: 'auto' });
 const ALARM_ORDER = ['quiet', 'suspicious', 'alert', 'lockdown'];
 const ALARM_PENALTY = { quiet: 0, suspicious: 5, alert: 12, lockdown: 25 };
 const TIPS = [
@@ -112,6 +114,7 @@ export function briefingFor(n) {
     objectives: level.objectives.map((o) => o.text),
     controls: CONTROLS[n],
     mechanic: LEVEL_MECHANICS[n],
+    chapter: chapterFor(n),
   };
 }
 
@@ -119,12 +122,12 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
   const $ = (id) => doc.getElementById(id);
   const el = {
     loading: $('loading'), loadingFill: $('loading-fill'), loadingTip: $('loading-tip'),
-    home: $('home'), relock: $('relock'), briefing: $('briefing'), pause: $('pause'), options: $('options'), results: $('results'), card: $('card'), cinematic: $('cinematic'),
+    home: $('home'), relock: $('relock'), briefing: $('briefing'), interlude: $('interlude'), pause: $('pause'), options: $('options'), results: $('results'), card: $('card'), cinematic: $('cinematic'),
     hint: $('hint'), credits: $('credits'), lockNote: doc.querySelectorAll('.lock-note'), fade: $('fade'),
   };
   const tracker = createRunTracker({ events });
   const options = loadOptions(storage);
-  const MENUS = ['loading', 'home', 'briefing', 'cinematic', 'results'];
+  const MENUS = ['loading', 'home', 'briefing', 'cinematic', 'interlude', 'results'];
   let state = 'loading';
   let optionsFrom = 'pause';
   let cardLeft = 0;
@@ -138,6 +141,7 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
   let cinematicTimer = null;
   let typeTimer = null;
   let frameStarted = 0;
+  let interlude = null, interludeTimer = null;
 
   el.hint?.classList.add('is-hidden');
 
@@ -159,6 +163,7 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
 
   function fillBriefing(n) {
     const b = briefingFor(n);
+    const chapter = b.chapter;
     const root = el.briefing;
     if (!root) return;
     root.dataset.level = String(n);
@@ -167,28 +172,34 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
     root.querySelector('.briefing-place').textContent = b.place;
     const mechanic = root.querySelector('.briefing-mechanic');
     if (mechanic) mechanic.textContent = b.mechanic;
-    root.querySelector('.briefing-body').replaceChildren(...b.lines.map((line) => make('p', { textContent: line })));
-    root.querySelector('.briefing-objectives').replaceChildren(...b.objectives.map((text) => make('li', { textContent: text })));
+    root.querySelector('.briefing-body').replaceChildren(make('p', { textContent: chapter.story }));
+    root.querySelector('.briefing-objectives').replaceChildren(...chapter.goals.map((text) => make('li', { textContent: text })));
+    root.querySelector('.briefing-role').textContent = chapter.role;
+    const image = root.querySelector('.briefing-image'); image.src = chapter.image; image.alt = chapter.title + ' - captured inside SIGNAL';
+    root.querySelector('.briefing-caption').textContent = chapter.caption;
+    root.querySelector('.briefing-warning').textContent = chapter.watch;
+    root.querySelector('.briefing-keys').replaceChildren(...chapter.keys.map(([key, text]) => make('div', {}, [make('kbd', { textContent: key }), make('small', { textContent: text })])));
+    root.querySelector('.briefing-diagram').innerHTML = lessonDiagram(n);
     root.querySelector('.controls').replaceChildren(...b.controls.map(([key, text]) => make('li', {}, [make('b', { textContent: key }), ' ' + text])));
     const button = root.querySelector('[data-action="enter"]');
-    if (button) button.textContent = n === 1 ? 'ENTER THE GALA' : 'CONTINUE';
+    if (button) button.textContent = ['ENTER THE GALA →', 'ENTER THE VAULT →', 'MAKE YOUR ESCAPE →'][n - 1];
     const steps = root.querySelector('.briefing-steps');
-    if (steps) steps.replaceChildren(...[1, 2, 3].map((i) => make('i', { className: i < n ? 'done' : i === n ? 'now' : '' })));
+    if (steps) steps.replaceChildren(...[1, 2, 3].map((i) => make('i', { textContent: i < n ? '✓' : String(i), className: i < n ? 'done' : i === n ? 'now' : '' })));
   }
 
   function show(name) {
-    for (const key of ['home', 'briefing', 'pause', 'relock', 'options', 'results', 'cinematic']) el[key]?.classList.toggle('is-hidden', key !== name);
+    for (const key of ['home', 'briefing', 'interlude', 'pause', 'relock', 'options', 'results', 'cinematic']) el[key]?.classList.toggle('is-hidden', key !== name);
     doc.body?.classList.toggle('in-menu', inMenu());
     audio?.duck(name !== null && name !== 'home' && name !== 'briefing');
   }
 
-  const PANEL = { home: 'home', briefing: 'briefing', paused: 'pause', relock: 'relock', options: 'options', cinematic: 'cinematic', results: 'results' };
+  const PANEL = { home: 'home', briefing: 'briefing', interlude: 'interlude', paused: 'pause', relock: 'relock', options: 'options', cinematic: 'cinematic', results: 'results' };
   function setState(next) {
     state = next;
     show(PANEL[next] ?? null);
     const EventType = doc.defaultView?.CustomEvent ?? globalThis.CustomEvent;
     if (EventType) doc.dispatchEvent(new EventType('signal:voice-scene', { detail: {
-      stop: ['home', 'transition', 'results'].includes(next), paused: ['paused', 'relock', 'options', 'briefing'].includes(next),
+      stop: ['home', 'transition', 'results', 'interlude'].includes(next), paused: ['paused', 'relock', 'options', 'briefing'].includes(next),
     } }));
   }
 
@@ -205,12 +216,71 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
     cardLeft = 3.4;
   }
 
+  function sceneEvent(type, detail) {
+    const EventType = doc.defaultView?.CustomEvent ?? globalThis.CustomEvent;
+    if (EventType) doc.dispatchEvent(new EventType(type, { detail }));
+  }
+
+  function paintInterlude() {
+    if (!interlude) return;
+    const root = el.interlude, conversation = interlude.conversation, frame = conversation.frame;
+    root.querySelector('.interlude-scene').textContent = frame.scene;
+    root.querySelector('.interlude-speaker').textContent = frame.speaker;
+    root.querySelector('.speaker-portrait').textContent = frame.speaker?.slice(0, 1) ?? '';
+    root.querySelector('.interlude-dialogue').textContent = conversation.text;
+    root.querySelector('.interlude-count').textContent = `${conversation.index + 1} / ${conversation.count}`;
+    root.querySelector('[data-action="interlude-next"]').textContent = conversation.index === conversation.count - 1 ? `PREPARE LEVEL ${interlude.done + 1} →` : 'NEXT LINE →';
+    sceneEvent('signal:cinematic-line', { who: frame.speaker, text: frame.dialogue, clip: `cinematic-after${interlude.done}-${conversation.index + 1}` });
+  }
+
+  function stageComplete(done, onContinue = () => actions.loadLevel?.(done + 1)) {
+    clearTimeout(resultsTimer); clearInterval(interludeTimer);
+    const chapter = chapterFor(done), root = el.interlude;
+    interlude = { done, onContinue, conversation: createChapterConversation(cinematicFor('after' + done)), busy: false };
+    root.querySelector('.completion-stamp').textContent = `LEVEL ${done} COMPLETED`;
+    root.querySelector('.completion-title').textContent = chapter.result;
+    root.querySelector('.completion-checks').replaceChildren(...chapter.checks.map((text) => make('li', { textContent: text })));
+    root.querySelector('.interlude-photo').style.backgroundImage = `linear-gradient(0deg, #0d202a66, transparent), url("${chapter.image}")`;
+    root.querySelector('[data-action="interlude-next"]').disabled = false;
+    setState('interlude'); unlock(); paintInterlude();
+    root.classList.remove('scene-enter'); void root.offsetWidth; root.classList.add('scene-enter');
+    interludeTimer = setInterval(() => {
+      if (state !== 'interlude' || !interlude || interlude.busy) return;
+      interlude.conversation.tick(.025);
+      root.querySelector('.interlude-dialogue').textContent = interlude.conversation.text;
+    }, 25);
+  }
+
+  async function nextInterlude() {
+    if (!interlude || interlude.busy) return;
+    const outcome = interlude.conversation.next();
+    if (outcome === 'reveal') { el.interlude.querySelector('.interlude-dialogue').textContent = interlude.conversation.text; return; }
+    if (outcome === 'line') { paintInterlude(); return; }
+    if (outcome !== 'complete') return;
+    const active = interlude, button = el.interlude.querySelector('[data-action="interlude-next"]');
+    active.busy = true; button.disabled = true; button.textContent = 'PREPARING NEXT LEVEL…';
+    sceneEvent('signal:cinematic-stop');
+    try {
+      await active.onContinue();
+      if (interlude !== active) return;
+      level = active.done + 1; started = true; fillBriefing(level);
+      clearInterval(interludeTimer); interlude = null;
+      setState('briefing');
+    } catch {
+      button.textContent = 'COULD NOT LOAD';
+      el.interlude.querySelector('.interlude-dialogue').textContent = 'The next level could not load. Refresh the page and try again.';
+    }
+  }
+
   function paintCinematic() {
     frameStarted = Date.now();
     const root = el.cinematic;
     const frame = cinematicFrames[cinematicIndex];
     if (!root || !frame) return;
     root.dataset.visual = frame.visual || 'signal';
+    const still = cinematicKey === 'opening' ? chapterFor(cinematicIndex < 2 ? 2 : 1).image : chapterFor(3).image;
+    root.querySelector('.cinematic-art').style.backgroundImage = `linear-gradient(0deg, #07131bd9, #07131b10 70%), url("${still}")`;
+    root.classList.remove('scene-enter'); void root.offsetWidth; root.classList.add('scene-enter');
     root.querySelector('.cinematic-scene').textContent = frame.scene;
     root.querySelector('.cinematic-title').textContent = frame.title;
     root.querySelector('.cinematic-copy').textContent = frame.text;
@@ -317,17 +387,20 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
     if (q) q.value = options.quality;
     const voice = field('voice');
     if (voice) voice.checked = options.voice;
+    const guided = field('guided');
+    if (guided) guided.checked = options.guided;
   }
   form?.addEventListener('input', (e) => {
     const { name, value } = e.target;
     if (!(name in options)) return;
-    options[name] = name === 'quality' ? value : name === 'voice' ? e.target.checked : Number(value);
+    options[name] = name === 'quality' ? value : ['voice', 'guided'].includes(name) ? e.target.checked : Number(value);
     if (name === 'quality') actions.quality?.(value);
     applyOptions();
     syncForm();
   });
 
   function goHome() {
+    clearInterval(interludeTimer); interlude = null;
     clearTimeout(resultsTimer);
     actions.newHeist?.();
     level = 1;
@@ -356,6 +429,7 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
     credits: () => { try { el.credits?.showModal(); } catch { /* dialog already open */ } },
     'cinematic-next': () => nextCinematic(),
     'cinematic-skip': () => finishCinematic(),
+    'interlude-next': () => nextInterlude(),
     'voice-test': () => {
       const EventType = doc.defaultView?.CustomEvent ?? globalThis.CustomEvent;
       if (EventType) doc.dispatchEvent(new EventType('signal:voice-test', { detail: { who: 'DEX', text: 'Comms check. If you can hear me, the radio is working.' } }));
@@ -368,6 +442,9 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
     ACTIONS[button.dataset.action]?.();
   });
   doc.addEventListener('keydown', (e) => {
+    if (state === 'interlude' && (e.code === 'Enter' || e.code === 'Space')) {
+      e.preventDefault(); e.stopImmediatePropagation(); if (!e.repeat) nextInterlude(); return;
+    }
     if (e.code === 'KeyQ' && !e.repeat && (state === 'paused' || state === 'relock')) {
       e.preventDefault();
       if (state === 'relock') setState('paused'); else lock();
@@ -441,7 +518,7 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
     resultsTimer = setTimeout(() => {
       if (qa) return;
       if (done >= 3) showCinematic('ending', () => { showResults(); try { el.credits?.showModal(); } catch { /* already open */ } });
-      else advance(done + 1);
+      else stageComplete(done);
     }, done >= 3 ? 2200 : 1200);
   });
 
@@ -475,6 +552,7 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
     show: (name) => { if (name === 'briefing') fillBriefing(level); setState(name); },
     showResults,
     showCard,
+    stageComplete,
     home: () => goHome(),
     update(dt) {
       tracker.update(dt);

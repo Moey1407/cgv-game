@@ -110,3 +110,10 @@ test('low quality removes the expensive passes and lowers auxiliary render rates
   assert.ok(QUALITY.low.mapRate < QUALITY.medium.mapRate);
   assert.ok(QUALITY.low.crowdLimit < QUALITY.medium.crowdLimit);
 });
+
+test('quality presets share the non-MSAA target format to avoid rebuilding GPU targets', () => {
+  assert.equal(QUALITY.high.samples, QUALITY.medium.samples);
+  assert.equal(QUALITY.medium.samples, QUALITY.low.samples);
+  assert.ok(QUALITY.high.reflection < 1);
+  assert.ok(QUALITY.high.pixelRatio > QUALITY.medium.pixelRatio);
+});

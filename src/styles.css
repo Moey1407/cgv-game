@@ -72,6 +72,23 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #000; color:
 .feed-keys { position: absolute; left: 42px; bottom: 22px; color: #9fb7bd; font-size: 11px; }
 .frame.map.full { border-color: #e8c46a; }
 .frame.map.full span { color: #e8c46a; }
+.frame.map { background: #0c141a; border-color: #52666b; }
+.map-plan { display: block; width: 100%; height: calc(100% - 31px); }
+.map-destination { height: 30px; box-sizing: border-box; padding: 8px 9px; border-top: 1px solid #3b4c51; font: 10px ui-monospace, monospace; color: #e8c46a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.objective-notice { position: fixed; top: 105px; left: 30px; max-width: min(390px, 55vw); padding: 10px 14px; border-left: 2px solid #e8c46a; background: #101618e8; pointer-events: none; z-index: 8; }
+.objective-notice small { font: 10px ui-monospace, monospace; letter-spacing: 1px; color: #e8c46a; }
+.objective-notice p { margin: 5px 0 0; color: #e1e8e7; font-size: 14px; line-height: 1.35; }
+.guide-marker .guide-diamond { border-color: #e8c46a; }
+.guide-marker.updated .guide-diamond { box-shadow: 0 0 14px #e8c46a; }
+.learning-guide { position: fixed; top: 106px; left: 26px; width: min(350px, 50vw); padding: 14px 16px; box-sizing: border-box; background: #111719eb; border: 1px solid #6b6a55; border-left: 3px solid #e8c46a; z-index: 7; pointer-events: none; color: #e8e9e4; font-family: Arial, sans-serif; }
+.learning-guide small { color: #cdb87b; letter-spacing: 1px; font: 10px ui-monospace, monospace; }
+.learning-guide h3 { margin: 7px 0; font-size: 19px; font-weight: 600; }
+.learning-guide p { margin: 0 0 12px; font-size: 14px; line-height: 1.45; min-height: 60px; }
+.learning-guide kbd { display: inline-block; padding: 6px 9px; color: #f0db9d; background: #272d2e; border: 1px solid #77735b; border-bottom-width: 3px; font: 12px ui-monospace, monospace; }
+.learning-goal { margin-top: 10px; font-size: 12px; line-height: 1.4; color: #afc3c5; }
+body.guided-learning .objective-notice, body.guided-learning #control-hint { display: none; }
+body.cctv-mode .learning-guide { top: auto; bottom: 114px; left: 55px; width: 340px; background: #111719f5; }
+@media(max-height: 600px) { .learning-guide { top: 86px; padding: 10px; width: 300px; } .learning-guide p { font-size: 12px; min-height: 0; } }
 
 body.cctv-mode .top-left,
 body.cctv-mode .alarm,

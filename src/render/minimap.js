@@ -1,134 +1,93 @@
 import * as THREE from 'three';
+import { mapWindow, mapPoint, sameMapFloor } from '../gameplay/mapView.js';
 
 export const LAYER_WORLD_ONLY = 1;
 export const LAYER_MAP_ONLY = 2;
 
-export function createMinimap(renderer, scene, { width = 36, height = 24, altitude = 30, rate = 8 } = {}) {
-  let viewWidth = width;
-  let viewHeight = height;
-  const camera = new THREE.OrthographicCamera(-viewWidth / 2, viewWidth / 2, viewHeight / 2, -viewHeight / 2, 0.1, altitude + 20);
-  camera.up.set(0, 0, -1);
-  camera.position.set(0, altitude, 0);
-  camera.lookAt(0, 0, 0);
-  camera.layers.enable(LAYER_MAP_ONLY);
-  camera.layers.disable(LAYER_WORLD_ONLY);
+// Flat, unlit floor plan: no extra museum render, textures or shadow passes.
+export function createMinimap(renderer, scene, { rate = 8 } = {}) {
+  const host = document.getElementById('map-frame');
+  const canvas = document.createElement('canvas'); canvas.className = 'map-plan';
+  canvas.setAttribute('aria-label', 'Nearby floor plan; gold diamond marks the current objective');
+  host.append(canvas);
+  const caption = document.createElement('div'); caption.className = 'map-destination'; host.append(caption);
+  const g = canvas.getContext('2d');
+  const camera = new THREE.OrthographicCamera();
+  const markers = [], position = new THREE.Vector3(), rotation = new THREE.Euler(), quaternion = new THREE.Quaternion();
+  let data = { floors: [], walls: [], zones: [] }, follow = { x: 0, y: 0, z: 0 }, objective = null;
+  let full = false, age = Infinity, interval = 1 / rate;
+  const colours = { marble: '#27383d', carpet: '#344347', steel: '#26363e', concrete: '#2d3a40' };
 
-  const target = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType });
-  const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ map: target.texture, depthTest: false, depthWrite: false }));
-  quad.frustumCulled = false;
-  const screen = new THREE.Scene();
-  screen.add(quad);
-  const screenCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-
-  const markers = [];
-  const markerGeometry = new THREE.ShapeGeometry(new THREE.Shape([
-    new THREE.Vector2(0, -0.9), new THREE.Vector2(0.6, 0.6), new THREE.Vector2(0, 0.25), new THREE.Vector2(-0.6, 0.6)
-  ]));
-  markerGeometry.rotateX(-Math.PI / 2);
-  const q = new THREE.Quaternion();
-  const e = new THREE.Euler();
-  let interval = 1 / rate;
-  let age = Infinity;
-
-  function hideFromMap(object) {
-    object.traverse((child) => child.layers.set(LAYER_WORLD_ONLY));
+  function hideFromMap(object) { object.traverse((child) => child.layers.set(LAYER_WORLD_ONLY)); }
+  function addMarker(target, colour, scale = 1, offset = 0, kind = 'guard') {
+    const marker = { target, colour: '#' + new THREE.Color(colour).getHexString(), offset, kind, mesh: new THREE.Object3D() };
+    markers.push(marker); return marker;
   }
+  function removeMarker(marker) { const i = markers.indexOf(marker); if (i >= 0) markers.splice(i, 1); }
+  function setLevel(next) { data = next; age = Infinity; }
+  function setObjective(next) { objective = next; }
+  function setView(width, height) { const next = width > 20 || height > 20; if (next !== full) age = Infinity; full = next; }
+  function update(next, bounds, dt = 0) { age += dt; if (next) follow = { x: next.x, y: next.y ?? 0, z: next.z }; }
 
-  function addMarker(object, colour, scale = 1, offset = 0) {
-    const mesh = new THREE.Mesh(markerGeometry, new THREE.MeshBasicMaterial({ color: colour, depthTest: false, fog: false }));
-    mesh.scale.setScalar(scale);
-    mesh.renderOrder = 10;
-    mesh.layers.set(LAYER_MAP_ONLY);
-    scene.add(mesh);
-    const marker = { mesh, target: object, offset };
-    markers.push(marker);
-    return marker;
-  }
-
-  function removeMarker(marker) {
-    const i = markers.indexOf(marker);
-    if (i >= 0) markers.splice(i, 1);
-    scene.remove(marker.mesh);
-    marker.mesh.material.dispose();
-  }
-
-  function update(follow, bounds, dt = 0) {
-    age += dt;
-    for (const marker of markers) {
-      marker.target.getWorldPosition(marker.mesh.position);
-      marker.mesh.position.y = altitude - 2;
-      marker.target.getWorldQuaternion(q);
-      marker.mesh.rotation.set(0, e.setFromQuaternion(q, 'YXZ').y + marker.offset, 0);
-    }
-    if (!follow) return;
-    camera.position.x = follow.x;
-    camera.position.z = follow.z;
-    if (bounds) {
-      const hx = Math.max(0, (bounds.maxX - bounds.minX) / 2 - camera.right);
-      const hz = Math.max(0, (bounds.maxZ - bounds.minZ) / 2 - camera.top);
-      const cx = (bounds.maxX + bounds.minX) / 2;
-      const cz = (bounds.maxZ + bounds.minZ) / 2;
-      camera.position.x = THREE.MathUtils.clamp(follow.x, cx - hx, cx + hx);
-      camera.position.z = THREE.MathUtils.clamp(follow.z, cz - hz, cz + hz);
-    }
-  }
-
-  function refresh(viewport) {
-    if (target.width !== viewport.w || target.height !== viewport.h) {
-      target.setSize(viewport.w, viewport.h);
-      age = Infinity;
+  function render(viewport) {
+    const w = Math.round(viewport.w), h = Math.max(40, Math.round(viewport.h) - 31);
+    const dpr = Math.min(devicePixelRatio || 1, 1.5);
+    if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+      canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); age = Infinity;
     }
     if (age < interval) return;
     age = 0;
-    camera.top = viewHeight / 2;
-    camera.bottom = -viewHeight / 2;
-    camera.right = (viewWidth / 2) * (viewport.w / viewport.h) / (viewWidth / viewHeight);
-    camera.left = -camera.right;
-    camera.updateProjectionMatrix();
-    const fog = scene.fog;
-    scene.fog = null;
-    const shadows = renderer.shadowMap.autoUpdate;
-    renderer.shadowMap.autoUpdate = false;
-    renderer.setRenderTarget(target);
-    renderer.render(scene, camera);
-    renderer.setRenderTarget(null);
-    renderer.shadowMap.autoUpdate = shadows;
-    scene.fog = fog;
+    g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+    g.fillStyle = '#0c141a'; g.fillRect(0, 0, w, h);
+    const view = mapWindow(data.floors, follow, full, w / h);
+    const point = (p) => ({ x: w / 2 + (p[0] - view.x) * w / view.width, y: h / 2 + (p[2] - view.z) * h / view.height });
+    const rect = (box) => { const p = point(box.pos); g.fillRect(p.x - box.size[0] * w / view.width / 2, p.y - box.size[2] * h / view.height / 2, box.size[0] * w / view.width, box.size[2] * h / view.height); };
+    g.save();
+    if (!full) { g.beginPath(); g.ellipse(w / 2, h / 2, w * .49, h * .49, 0, 0, Math.PI * 2); g.clip(); }
+    for (const f of data.floors) if (sameMapFloor(f.pos[1], follow.y)) {
+      g.fillStyle = colours[f.surface] ?? '#2c3c43'; rect(f);
+    }
+    g.fillStyle = '#91a8ac';
+    for (const wall of data.walls) {
+      const bottom = wall.pos[1] - wall.size[1] / 2;
+      if (bottom <= follow.y + 1.5 && bottom + wall.size[1] > follow.y + .2) rect(wall);
+    }
+    if (full) {
+      g.font = '9px ui-monospace, monospace'; g.textAlign = 'center'; g.fillStyle = '#b2c4c7';
+      for (const zone of data.zones ?? []) if (sameMapFloor(zone.min[1], follow.y)) {
+        const p = point([(zone.min[0] + zone.max[0]) / 2, 0, (zone.min[2] + zone.max[2]) / 2]);
+        const label = zone.id.replaceAll('-', ' ').toUpperCase();
+        if ((zone.max[0] - zone.min[0]) * w / view.width > g.measureText(label).width + 4) g.fillText(label, p.x, p.y);
+      }
+    }
+    for (const m of markers) {
+      if (!m.mesh.visible || !m.target.visible) continue;
+      m.target.getWorldPosition(position);
+      if (!sameMapFloor(position.y, follow.y)) continue;
+      if (!full && m.kind !== 'player' && Math.hypot(position.x - follow.x, position.z - follow.z) > 5) continue;
+      const p = point([position.x, position.y, position.z]);
+      m.target.getWorldQuaternion(quaternion); rotation.setFromQuaternion(quaternion, 'YXZ');
+      g.save(); g.translate(p.x, p.y); g.rotate(-rotation.y - m.offset + (m.kind === 'player' ? 0 : Math.PI));
+      if (m.kind === 'player') {
+        g.strokeStyle = '#6fbfc65c'; g.fillStyle = '#6fbfc61f'; g.beginPath(); g.moveTo(0, 0); g.lineTo(-13, -24); g.lineTo(13, -24); g.closePath(); g.fill(); g.stroke();
+      }
+      g.fillStyle = m.colour; g.strokeStyle = '#081018'; g.lineWidth = 1.5;
+      g.beginPath(); g.moveTo(0, -6); g.lineTo(4, 5); g.lineTo(0, 3); g.lineTo(-4, 5); g.closePath(); g.fill(); g.stroke(); g.restore();
+    }
+    g.restore();
+    if (objective) {
+      const p = mapPoint(objective.pos, view, w, h, 24);
+      g.save(); g.translate(p.x, p.y); g.rotate(Math.PI / 4);
+      g.fillStyle = '#e8c46a'; g.strokeStyle = '#0c141a'; g.lineWidth = 2;
+      g.fillRect(-4, -4, 8, 8); g.strokeRect(-4, -4, 8, 8); g.restore();
+      const dy = objective.pos.y - follow.y;
+      const distance = Math.round(Math.hypot(objective.pos.x - follow.x, objective.pos.z - follow.z));
+      caption.textContent = `${objective.label} · ${distance} m${dy > 5 ? ' ↑' : dy < -5 ? ' ↓' : ''}`;
+    } else caption.textContent = 'No active objective';
+    g.fillStyle = '#b5c8cc'; g.font = '10px ui-monospace, monospace'; g.textAlign = 'left'; g.fillText('N ↑', 9, 16);
+    g.fillStyle = '#819398'; g.textAlign = 'right'; g.fillText(full ? 'SONAR SCAN' : 'G · SCAN FLOOR', w - 9, 16);
   }
 
-  function render(viewport) {
-    refresh(viewport);
-    const size = renderer.getSize(new THREE.Vector2());
-    const y = size.y - viewport.y - viewport.h;
-    const auto = renderer.autoClear;
-    renderer.autoClear = false;
-    renderer.setScissorTest(true);
-    renderer.setViewport(viewport.x, y, viewport.w, viewport.h);
-    renderer.setScissor(viewport.x, y, viewport.w, viewport.h);
-    renderer.render(screen, screenCamera);
-    renderer.setScissorTest(false);
-    renderer.setViewport(0, 0, size.x, size.y);
-    renderer.autoClear = auto;
-  }
-
-  function setRate(value) {
-    interval = 1 / value;
-  }
-
-  function setView(widthValue, heightValue) {
-    const nextWidth = Math.max(4, widthValue);
-    const nextHeight = Math.max(4, heightValue);
-    if (nextWidth === viewWidth && nextHeight === viewHeight) return;
-    viewWidth = nextWidth;
-    viewHeight = nextHeight;
-    age = Infinity;
-  }
-
-  function dispose() {
-    target.dispose();
-    quad.geometry.dispose();
-    quad.material.dispose();
-  }
-
-  return { camera, hideFromMap, addMarker, removeMarker, update, render, setRate, setView, dispose };
+  function dispose() { canvas.remove(); caption.remove(); markers.length = 0; }
+  return { camera, hideFromMap, addMarker, removeMarker, update, render, setLevel, setObjective, setView, setRate: (rate) => { interval = 1 / rate; }, dispose };
 }

@@ -4,11 +4,12 @@ import { statSync } from 'node:fs';
 import { createEventBus } from '../src/core/events.js';
 import { createStoryDirector, voiceLines, RECORDED_CLIPS, recordedLineAvailable, SCRIPT, BARKS, EVIDENCE, cinematicFor, CINEMATICS, endingFor, ENDINGS, DEX, WREN } from '../src/story.js';
 
-function setup() {
+function setup(script = SCRIPT) {
   const events = createEventBus();
   const log = { radio: [], barks: [], cards: [], cuts: 0 };
   const story = createStoryDirector({
     events,
+    script,
     onRadio: (l) => l && log.radio.push(l.text),
     onBark: (b) => b && log.barks.push(b.who + ': ' + b.text),
     onEvidence: (c) => c && log.cards.push(c.title),
@@ -26,7 +27,7 @@ test('a new heist plays the Level 1 briefing in order, once', () => {
   assert.deepEqual(log.radio, SCRIPT[1]['level:start'].say.map((l) => l[1]));
   events.emit('checkpoint:save', { id: 'keycard' });
   drain();
-  assert.equal(log.radio.length, 4, 'a mid-level checkpoint must not replay the briefing');
+  assert.equal(log.radio.length, SCRIPT[1]['level:start'].say.length, 'a mid-level checkpoint must not replay the briefing');
 });
 
 test('nothing plays while the game is paused (dt of 0)', () => {
@@ -61,13 +62,15 @@ test('starting a new heist resets once-only lines', () => {
 });
 
 test('urgent lines interrupt the briefing, which then carries on', () => {
-  const { events, story, log, drain } = setup();
+  const script = { ...SCRIPT, 1: { ...SCRIPT[1], 'level:start': { say: [[DEX, 'First setup line.'], [DEX, 'Second setup line.'], [WREN, 'Third setup line.']] } } };
+  const { events, story, log, drain } = setup(script);
   events.emit('checkpoint:save', { id: 'start' });
   story.update(0.1);
   events.emit('player:detected', { id: 'okafor' });
   drain();
   assert.match(log.radio[1], /seen you|Spotted/);
-  assert.equal(log.radio.length, 5);
+  assert.equal(log.radio.length, 4);
+  assert.deepEqual(log.radio.slice(2), ['Second setup line.', 'Third setup line.']);
 });
 
 test('alarm lines play only when the alarm rises, with a cooldown', () => {
@@ -109,7 +112,7 @@ test('Level 3 cuts comms after the betrayal, and Dex stays silent after that', (
   const { events, story, log, drain } = setup();
   story.setLevel(3);
   drain();
-  assert.match(log.radio[0], /Same as Marlowe/);
+  assert.match(log.radio[0], /SIGNAL LOST/);
   assert.equal(log.cuts, 1);
   assert.ok(log.radio.includes('SIGNAL LOST'));
   assert.ok(story.snapshot().cut);
@@ -159,6 +162,15 @@ test('story pages cover the opening, both level transitions and both endings', (
   }
   assert.match(cinematicFor('ending', 3)[1].text, /police|sirens/i);
   assert.match(cinematicFor('ending', 2)[1].text, /alone|truth|never/i);
+});
+
+test('the opening explains passive sound vision separately from audible sonar and the camera tap', () => {
+  const lens = CINEMATICS.opening.find((f) => f.scene.includes('ACOUSTIC LENS'));
+  assert.ok(lens);
+  assert.match(lens.text, /Nobody else sees/);
+  assert.match(lens.dialogue, /hear the ping/);
+  assert.match(lens.text, /CCTV/);
+  assert.ok(CINEMATICS.after2.some((f) => /local rig keeps working/.test(f.text)));
 });
 
 test('published clips exist; rewritten dialogue never plays a stale performance', () => {

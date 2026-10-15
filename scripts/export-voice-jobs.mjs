@@ -11,6 +11,13 @@ const directions = {
   'cinematic-opening-2': 'Quiet guilt under pressure. Do not shout; the choice has already been made.',
   'cinematic-opening-3': 'Measured persuasion. He needs Wren to trust him, but he is hiding something.',
   'cinematic-opening-4': 'Low radio voice. Controlled, specific, almost too calm.',
+  'cinematic-opening-5': 'Wren checking her own equipment. Matter-of-fact and quietly confident, not a tutorial announcer.',
+  'cinematic-after1-1': 'Relieved, outside the gala. Wren wants a straight answer; no breathless chase.',
+  'cinematic-after1-2': 'Dex explains the plan quietly and precisely. Persuasive, not a tutorial announcer.',
+  'cinematic-after1-3': 'Professional agreement with an edge of distrust. Emphasise her own way out.',
+  'cinematic-after2-1': 'Controlled urgency. The exit is not opening, but Wren still expects Dex to help.',
+  'cinematic-after2-2': 'Cold reveal. No villain laughter. The apology is empty; Marlowe confirms the pattern.',
+  'cinematic-after2-3': 'The betrayal lands, then Wren regains control. A short pause after purpose and dead.',
 };
 
 const cast = jobs.map((job) => ({ ...job, direction: directions[job.id] ?? '' }));

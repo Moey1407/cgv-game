@@ -1,7 +1,7 @@
 // Explicit cause-and-effect chain shared by objectives and exit checks.
 export function missionPhase(level, inventory = {}, flags = {}) {
   if (level === 1) {
-    if (!flags.rig) return { id: 'rig', text: 'Slip through the east staff door and plant the rig at the security desk', exitReady: false };
+    if (!flags.rig) return { id: 'rig', text: 'Slip through the east staff door and link the camera tap at the security desk', exitReady: false };
     if (!inventory.hasKeycard) return { id: 'badge', text: 'Copy Okafor’s badge during an inspection stop', exitReady: false };
     if (!flags.nightEntry) return { id: 'reader', text: 'Authorise night entry at the rear staff reader', exitReady: false };
     return { id: 'lobby', text: 'Plan set. Leave through the public lobby', exitReady: true };

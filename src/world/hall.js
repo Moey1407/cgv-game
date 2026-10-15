@@ -273,8 +273,8 @@ export async function buildHall(scene, materials, renderer, { width, height }) {
   function applyFloor() {
     const reflective = reflection > 0;
     mirror.visible = reflective;
-    if (materials.marbleFloor.transparent !== reflective) {
-      materials.marbleFloor.transparent = reflective;
+    if (!materials.marbleFloor.transparent) {
+      materials.marbleFloor.transparent = true;
       materials.marbleFloor.needsUpdate = true;
     }
     materials.marbleFloor.opacity = reflective ? (currentMode === 'gala' ? 0.82 : 0.9) : 1;
@@ -284,7 +284,11 @@ export async function buildHall(scene, materials, renderer, { width, height }) {
     reflection = scale;
     viewSize.width = w;
     viewSize.height = h;
-    if (scale > 0) mirror.getRenderTarget().setSize(Math.max(64, Math.round(w * scale)), Math.max(64, Math.round(h * scale)));
+    if (scale > 0) {
+      const target = mirror.getRenderTarget();
+      const width = Math.max(64, Math.round(w * scale)), height = Math.max(64, Math.round(h * scale));
+      if (target.width !== width || target.height !== height) target.setSize(width, height);
+    }
     applyFloor();
   }
 

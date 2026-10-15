@@ -4,12 +4,6 @@ A capable safecracker who has learned not to trust Dex. Wry, restrained, then sh
 
 One MP3 per line, using the exact filename below. Dry voice only: no music, radio filter, reverb or effects. Use a voice you have permission to use. Keep natural pauses; do not read the direction or filename aloud.
 
-## wren-1-level-start-4.mp3
-
-Context: level:start · level 1.
-
-And I choose the way out this time. There is a line waiting on the roof.
-
 ## wren-1-evidence-1.mp3
 
 Context: evidence · level 1.
@@ -28,7 +22,31 @@ Context: diamond:taken · level 2.
 
 I have it. Service door, then the roof.
 
-## wren-3-level-start-3.mp3
+## wren-3-hint-shutter-1.mp3
+
+Context: hint:shutter · level 3.
+
+Stand at the override. R to record, hold E a few seconds, R again. Then walk while my Echo holds it.
+
+## wren-3-hint-sensors-1.mp3
+
+Context: hint:sensors · level 3.
+
+Stairs in the north-east corner. Up top, record myself on one plate, rewind, take the other.
+
+## wren-3-hint-hatch-1.mp3
+
+Context: hint:hatch · level 3.
+
+Both plates are locked. Hold the override by the hatch.
+
+## wren-3-hint-zipline-1.mp3
+
+Context: hint:zipline · level 3.
+
+The line is at the far edge of the roof. Clip on.
+
+## wren-3-level-start-2.mp3
 
 Context: level:start · level 3.
 
@@ -88,6 +106,12 @@ Context: evidence:uploaded · level 3.
 
 Three files. Names, orders, payment. Sending it all. Your turn to wait for the police, Dex.
 
+## wren-any-door-security-desk-2.mp3
+
+Context: door:security-desk · level any.
+
+And I choose the way out this time. There is a line waiting on the roof.
+
 ## wren-any-evidence-1.mp3
 
 Context: evidence · level any.
@@ -119,3 +143,43 @@ Context: cinematic:opening.
 Direction: Breathless, urgent. A steel shutter is falling behind you.
 
 Dex, open the service door. I have the drive.
+
+## cinematic-opening-5.mp3
+
+Context: cinematic:opening.
+
+Direction: Wren checking her own equipment. Matter-of-fact and quietly confident, not a tutorial announcer.
+
+Lens is live. The rings are mine, not lights in the room. A pulse maps the floor, but they can hear the ping.
+
+## cinematic-after1-1.mp3
+
+Context: cinematic:after1.
+
+Direction: Relieved, outside the gala. Wren wants a straight answer; no breathless chase.
+
+Access is authorised. I am outside. Tell me why we are waiting.
+
+## cinematic-after1-3.mp3
+
+Context: cinematic:after1.
+
+Direction: Professional agreement with an edge of distrust. Emphasise her own way out.
+
+You handle the cameras. I handle the safe. Then I take my own way out.
+
+## cinematic-after2-1.mp3
+
+Context: cinematic:after2.
+
+Direction: Controlled urgency. The exit is not opening, but Wren still expects Dex to help.
+
+Star secured. I am at the service door. Open the exit, Dex.
+
+## cinematic-after2-3.mp3
+
+Context: cinematic:after2.
+
+Direction: The betrayal lands, then Wren regains control. A short pause after purpose and dead.
+
+You left me in there on purpose. Radio is dead. The rig is local. I can make my own second operator.

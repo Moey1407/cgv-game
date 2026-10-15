@@ -37,6 +37,8 @@ import { makeTraversalPath } from './gameplay/traversal.js';
 import { patrolEta, etaText } from './gameplay/patrolEta.js';
 import { createZiplineRig } from './render/ziplineRig.js';
 import { createNavigation } from './gameplay/navigation.js';
+import { createLearningGuide } from './gameplay/learning.js';
+import { createLearningView } from './game/learningView.js';
 
 const QUALITIES = ['low', 'medium', 'high'];
 const LEVEL_MODE = { 1: 'gala', 2: 'night', 3: 'lockdown' };
@@ -74,11 +76,20 @@ const GALA_GUESTS = [
   { x: 3.6, z: -13.6, rotation: -2.4, style: 'dress', colour: 0x711d43, skin: 0xd3a17a, hair: 0x2c1912 },
   { x: -5.6, z: -21.5, rotation: 1.4, style: 'suit', colour: 0x191b20, accent: 0x5e2030, skin: 0x6b4635 },
   { x: 4.7, z: -22.4, rotation: -0.8, style: 'dress', colour: 0x173c57, skin: 0xb98062, hair: 0x1c130e },
+  { x: -5.8, z: -11.8, rotation: 1.1, style: 'dress', skin: 0xc18f70, hair: 0x352016 },
+  { x: 4.6, z: -18.6, rotation: -1.5, style: 'suit', accent: 0x9e7749, skin: 0x754a35 },
+  { x: -2.8, z: -24.4, rotation: .4, style: 'suit', accent: 0x386c78, skin: 0xd8ad88 },
+  { x: 5.6, z: -27.5, rotation: -.6, style: 'dress', skin: 0x8c6048, hair: 0x17110e },
 ];
 
 // Deliberate formalwear palette: cream, steel blue, emerald, plum and rose.
 const GALA_COLOURS = [0x42658c, 0x3778b8, 0xb3aa94, 0xbc4261, 0x68717a, 0x278f73, 0x8b6b50, 0x9b5fbc, 0x455d7a, 0x657177, 0xd3a956, 0xba507e, 0x6c4851, 0x388a9f];
-GALA_GUESTS.forEach((guest, i) => { guest.colour = GALA_COLOURS[i]; });
+GALA_GUESTS.forEach((guest, i) => {
+  guest.colour = GALA_COLOURS[i % GALA_COLOURS.length];
+  guest.height = [.97, 1.01, 1.035, .94, 1][i % 5];
+  guest.build = [1, .94, 1.07, .98][i % 4];
+  guest.hairStyle = i % 3 === 0 ? 'bob' : 'bun';
+});
 
 const v3 = (a) => new THREE.Vector3(a[0], a[1], a[2]);
 const near = (p, a, r = USE_RANGE) => Math.hypot(p.x - a[0], p.z - a[2]) <= r && Math.abs((p.y ?? 0) - (a[1] ?? 0)) < 2;
@@ -194,6 +205,8 @@ async function start() {
   const airCamera = camera.clone();
   airCamera.rotation.order = 'YXZ';
   const guide = createGuide({ scene, camera });
+  const learning = createLearningGuide();
+  const learningView = createLearningView();
   const LAYER_AVATAR = 3;
   const avatar = new THREE.Group();
   const avatarBody = new THREE.Group();
@@ -204,10 +217,12 @@ async function start() {
   avatar.traverse((o) => { o.layers.set(LAYER_AVATAR); if (o.isMesh) o.castShadow = false; });
   const view = { third: false, distance: 2.6, eye: new THREE.Vector3(), want: new THREE.Vector3(), step: new THREE.Vector3(), back: new THREE.Vector3(), right: new THREE.Vector3() };
 
-  // Xbot is kept for the Echo; the gala uses a purpose-built instanced crowd
-  // so suits and dresses read clearly without fourteen skinned models.
+  // Xbot is kept for the Echo; lightweight formalwear actors form the gala crowd.
   const xbot = await loadCharacter('./models/xbot.glb');
-  const guests = createGalaCrowd(GALA_GUESTS);
+  const guests = createGalaCrowd(GALA_GUESTS, {
+    canStand: (x, z) => Boolean(cur && cur.n === 1) && canStand(x, z, .45, 0),
+    onStep: (position) => field.emit(position, 0xc1b998, 2.4, { source: 'guest', speed: 4, strength: .35 }),
+  });
   scene.add(guests.root);
   guests.update(0);
 
@@ -223,13 +238,13 @@ async function start() {
   const hologram = applyHologram(echoActor.root);
   echoActor.root.visible = false;
   scene.add(echoActor.root);
-  const echoMarker = minimap.addMarker(echoActor.root, RING_COLOURS.echo, 1.3);
+  const echoMarker = minimap.addMarker(echoActor.root, RING_COLOURS.echo, 1.3, 0, 'echo');
   echoMarker.mesh.visible = false;
 
   const player = { position: new THREE.Vector3(), base: 0, y: 0, vy: 0, yaw: 0, pitch: -0.04, step: 0, height: 1.68, profile: MOVEMENT.run, moving: false };
   const playerMarker = new THREE.Object3D();
   scene.add(playerMarker);
-  minimap.addMarker(playerMarker, RING_COLOURS.player, 1.9, Math.PI);
+  minimap.addMarker(playerMarker, RING_COLOURS.player, 1.9, 0, 'player');
 
   const keys = {};
   const throwables = [];
@@ -347,6 +362,9 @@ async function start() {
     aim.position.set(0.2, 0.1, 6);
     actor.root.add(torch, aim);
     torch.target = aim;
+    // Keep the shadow shader variant stable between quality presets.
+    torch.castShadow = true;
+    torch.shadow.mapSize.set(256, 256);
     const marker = minimap.addMarker(actor.root, RING_COLOURS.guard, 1.7);
     const guard = createGuardAI({ id: guardId(def.name), actor, torch, waypoints, speed: def.speed, pauseSeconds: def.pauseSeconds ?? 0, events });
     guard.marker = marker;
@@ -419,6 +437,7 @@ async function start() {
       flags: {}
     };
     cur.bounds = cur.collision.bounds();
+    minimap.setLevel(data);
     cur.elapsed = 0;
     cur.phase = { id: null, time: 0 };
     cur.navigation = createNavigation(cur.bounds, (x, z) => canStand(x, z, 0.4, 0));
@@ -469,7 +488,6 @@ async function start() {
       const previous = renderer.getRenderTarget();
       renderer.setRenderTarget(primeTarget);
       scene.fog = null;
-      jobs.push(renderer.compileAsync(scene, minimap.camera));
       scene.fog = fog;
       jobs.push(renderer.compileAsync(scene, camera));
       if (cur.cctv.feeds[0]) {
@@ -518,8 +536,8 @@ async function start() {
       g.torch.userData.base ??= g.torch.intensity;
       g.torch.intensity = on ? g.torch.userData.base : 0;
       g.torch.userData.on = on;
-      g.torch.castShadow = state.quality === 'high';
-      g.torch.shadow.autoUpdate = on;
+      g.torch.shadow.autoUpdate = on && state.quality === 'high';
+      if (on && state.quality === 'high') g.torch.shadow.needsUpdate = true;
     }
     fx.setBloom({ threshold: mode === 'gala' ? 0.9 : 0.6, strength: mode === 'gala' ? 0.32 : 0.5 });
     ui.mode.dataset.mode = mode;
@@ -693,6 +711,7 @@ async function start() {
   }
 
   function newHeist() {
+    learning.reset(); learningView.reset();
     safe = createSafecrackSystem({ combination: randomCombination(), events });
     state.detections = 0;
     state.time = 0;
@@ -739,12 +758,11 @@ async function start() {
     inLock.setDoor('near', 0, true);
     inLock.setDoor('far', 0, true);
     const loaded = cur;
-    cur.ready.then(() => {
+    return cur.ready.then(() => {
       if (state.transit !== t || cur !== loaded) return;
       t.stage = 'arriving';
       t.sealed = false;
       inLock.setDoor('far', 1);
-      screens.showCard(next);
     });
   }
 
@@ -768,8 +786,9 @@ async function start() {
     if (t.stage === 'sealing') {
       if (t.level === 1) hall.setLobbyDoors(Math.max(0, 1 - t.timer * 1.6));
       if (outLock.doors.near.open > 0) return false;
+      t.stage = 'debrief';
       events.emit('level:complete', { level: t.level, seamless: true });
-      beginNextLevel();
+      screens.stageComplete(t.level, () => beginNextLevel());
       return true;
     }
     if (t.stage === 'arriving') {
@@ -821,7 +840,11 @@ async function start() {
     const phase = missionPhase(cur.n, state, cur.flags).id;
     const u = cur.use;
     if (cur.n === 1) {
-      if (phase === 'rig') return at(u.security_desk.pos, 'SECURITY DESK');
+      if (phase === 'rig') {
+        if (player.position.x < 11.3) return at([11.05, 1.3, -19.5], 'EAST STAFF DOOR');
+        if (player.position.x < 17) return at([18, 1.3, -19.5], 'SECURITY OFFICE');
+        return at(u.security_desk.pos, 'LINK CAMERA TAP');
+      }
       if (phase === 'badge' && cur.okafor) return { pos: cur.okafor.position.clone().setY(2.1), label: 'OKAFOR', glow: false };
       if (phase === 'reader') return at([u.vault_door.usePos[0], 1.5, u.vault_door.usePos[2] - 0.4], 'STAFF READER');
       return at(u.gala_exit.pos, 'LOBBY EXIT');
@@ -831,7 +854,7 @@ async function start() {
       if (phase === 'safe' || phase === 'star') return at(u.safe.pos, phase === 'star' ? 'THE STAR' : 'SAFE');
       return at(u.service_exit.pos, 'FIRE DOOR');
     }
-    if (phase === 'shutter') return at(u.shutter_hold.pos, 'OVERRIDE');
+    if (phase === 'shutter') return echo.snapshot().mode === 'replaying' ? at([0, 1.4, -21.8], 'CROSS SHUTTER') : at(u.shutter_hold.pos, 'OVERRIDE');
     if (phase === 'sensors') {
       if (player.base < 10) return at([u.stairs.usePos[0], 1.4, u.stairs.usePos[2]], 'STAIRWELL');
       const free = cur.plates.plates.find((p) => !p.occupants.length) ?? cur.plates.plates[0];
@@ -854,10 +877,15 @@ async function start() {
   function updateGuide(dt) {
     const busy = state.inSafe || state.vent || state.climb || state.zip || state.ended || cur.cctv.active >= 0;
     guide.set(guideTarget());
+    minimap.setObjective(busy ? null : guideTarget());
     guide.setExtra(nearbyEvidence());
     guide.update(dt, player.position, { hidden: busy || screens.inMenu });
     const phase = state.transit ? 'passage' : missionPhase(cur.n, state, cur.flags).id;
-    if (cur.phase.id !== phase) { cur.phase.id = phase; cur.phase.time = 0; return; }
+    if (cur.phase.id !== phase) {
+      cur.phase.id = phase; cur.phase.time = 0;
+      if (!busy && !screens.blocking) guide.announce(objectiveText());
+      return;
+    }
     if (state.ended || state.transit || screens.blocking) return;
     cur.phase.time += dt;
     if (cur.phase.time > 40) {
@@ -1215,7 +1243,7 @@ async function start() {
     if (cur.n === 1) {
       if (!state.transit && near(player.position, cur.use.gala_exit.usePos, 2)) return { id: 'gala_exit', text: cur.flags.nightEntry ? 'E · LEAVE THE GALA' : 'NIGHT ENTRY NOT READY · COMPLETE THE RECON' };
       const desk = cur.use.security_desk;
-      if (!cur.flags.rig && near(player.position, desk.usePos, 1.4)) return { id: 'security_desk', text: 'HOLD E · PLANT THE RIG', progress: (cur.flags.rigProgress ?? 0) / desk.holdSeconds };
+      if (!cur.flags.rig && near(player.position, desk.usePos, 1.4)) return { id: 'security_desk', text: 'HOLD E · LINK CAMERA TAP', progress: (cur.flags.rigProgress ?? 0) / desk.holdSeconds };
       const door = cur.use.vault_door;
       if (near(player.position, door.usePos, 1.9)) return { id: 'vault_door', text: cur.flags.nightEntry ? 'NIGHT ENTRY BOOKED · RETURN TO THE LOBBY' : state.hasKeycard ? 'E · AUTHORISE 01:30 STAFF ENTRY' : 'STAFF READER · COPY OKAFOR’S BADGE FIRST' };
     }
@@ -1267,7 +1295,7 @@ async function start() {
     g.sedate(40);
     emitNoise(g.position, RING_COLOURS.player, 2.2, { source: 'player', damped: true, strength: 0.4 });
     hud.toast(name + ' IS OUT · ABOUT 40 SECONDS · ' + (state.doses > 0 ? state.doses + ' DOSE LEFT' : 'NO DOSES LEFT'), 3.5);
-    if (cur.n === 1 && player.position.x < 11.3 && galaWitnessNearby(player.position, GALA_GUESTS.slice(0, QUALITY[state.quality].crowdLimit))) {
+    if (cur.n === 1 && player.position.x < 11.3 && galaWitnessNearby(player.position, guests.witnesses)) {
       events.emit('player:detected', { id: 'guest' });
       hud.toast('A GUEST SAW YOU DO IT');
     }
@@ -1282,7 +1310,7 @@ async function start() {
     if (!state.hasKeycard && cur.okafor) {
       const target = { position: cur.okafor.position, yaw: cur.okafor.yaw, state: cur.okafor.state, stationary: (cur.okafor.pauseTimer > 0.5 && cur.okafor.checkingGuest <= 0) || cur.okafor.sleep > 0, id: 'okafor' };
       const inPosition = pickpocketAccess(player.position, target);
-      const witnessed = inPosition && galaWitnessNearby(player.position, GALA_GUESTS.slice(0, QUALITY[state.quality].crowdLimit));
+      const witnessed = inPosition && galaWitnessNearby(player.position, guests.witnesses);
       state.lifting = inPosition && Boolean(keys.KeyE) && state.locked;
       if (state.lifting && witnessed && state.witnessCooldown <= 0) {
         events.emit('player:detected', { id: 'guest' });
@@ -1577,9 +1605,9 @@ async function start() {
     const w = window.innerWidth;
     const h = window.innerHeight;
     const pipW = Math.round(w * 0.2);
-    const mapW = Math.round(w * (state.quality === 'low' ? 0.13 : 0.17));
+    const mapW = Math.round(Math.min(250, Math.max(175, w * 0.2), h * 0.38));
     const pip = { x: w - pipW - 24, y: 24, w: pipW, h: Math.round(pipW * 9 / 16) };
-    const map = { x: w - mapW - 24, y: h - Math.round(mapW * 2 / 3) - 24, w: mapW, h: Math.round(mapW * 2 / 3) };
+    const map = { x: w - mapW - 24, y: h - mapW - 24, w: mapW, h: mapW };
     const hasFeeds = (cur?.cctv.feeds.length ?? 0) > 0;
     const watching = (cur?.cctv.active ?? -1) >= 0;
     const margin = 42;
@@ -1650,6 +1678,14 @@ async function start() {
     renderer.info.reset();
     const menu = screens.inMenu;
     const dt = screens.blocking ? 0 : raw;
+    const learningHidden = screens.blocking || state.ended || state.zip || state.vent || state.climb || state.transit || !screens.options.guided;
+    const lesson = learningHidden ? null : learning.update(dt, {
+      level: cur.n, flags: cur.flags, x: player.position.x, z: player.position.z, yaw: player.yaw, base: player.base,
+      movement: player.profile.id, moving: player.moving, hasKeycard: state.hasKeycard, hasStar: state.hasStar, inSafe: state.inSafe,
+      camera: cur.cctv.active, hallLooped: (cur.cctv.feeds[1]?.loopTimer ?? 0) > 0,
+      echo: echo.snapshot().mode, echoElapsed: echo.snapshot().elapsed,
+    });
+    learningView.update(dt, lesson, Boolean(learningHidden));
     state.lastDt = dt;
     elapsed += menu ? raw : dt;
     if (menu) {
@@ -1726,11 +1762,12 @@ async function start() {
     cur.cctv.update(dt);
     state.mapReveal = Math.max(0, state.mapReveal - dt);
     const fullMap = state.mapReveal > 0;
+    ui.map.classList.toggle('is-hidden', !state.map || Boolean(state.zip || state.vent || state.climb || state.transit) || cur.cctv.active >= 0);
     const boundsWidth = cur.bounds.maxX - cur.bounds.minX + 4;
     const boundsHeight = cur.bounds.maxZ - cur.bounds.minZ + 4;
     minimap.setView(fullMap ? Math.max(24, boundsWidth) : 10, fullMap ? Math.max(16, boundsHeight) : 7);
     ui.map.classList.toggle('full', fullMap);
-    ui.mapLabel.textContent = fullMap ? 'TACTICAL MAP · FULL / SONAR' : 'TACTICAL MAP · LOCAL';
+    ui.mapLabel.textContent = fullMap ? 'FLOOR SCAN' : 'ACOUSTIC LENS · NEARBY';
     minimap.update(player.position, cur.bounds, dt);
     state.damage = Math.max(0, state.damage - dt * 1.2);
     if (state.dampen) {
@@ -1832,7 +1869,7 @@ async function start() {
       if (cur.n === 1) state.socialHeat = 4;
       emitNoise(player.position, RING_COLOURS.player, 16, { source: 'player', damped: state.dampen, speed: 14, strength: 1, cause: 'sonar' });
     }
-    if (e.code === 'Tab' && cur.n === 1 && !cur.flags.rig) { hud.toast('NO CAMERA ACCESS · PLANT THE RIG AT THE SECURITY DESK', 3); return; }
+    if (e.code === 'Tab' && cur.n === 1 && !cur.flags.rig) { hud.toast('NO CAMERA ACCESS · LINK THE TAP AT THE SECURITY DESK', 3); return; }
     if (e.code === 'Tab') {
       if (cur.cctv.feeds.length) { cur.cctv.enter(); rects = layoutOverlays(); } else hud.toast('NO CAMERAS ON THIS FLOOR');
     }
@@ -1935,7 +1972,8 @@ async function start() {
         evidence: pickups.snapshot().evidence.length, safe: safe.snapshot(), mode: state.mode, timeLeft: cur.timeLeft,
         shutter: cur.props.shutter?.lift, zip: state.zip?.t, screen: screens.state,
         decoys: throwables.map((t) => [t.mesh.position.x, t.mesh.position.y, t.mesh.position.z]), doses: state.doses,
-        transit: state.transit?.stage ?? null, guide: guide.target?.label ?? null, ready: !cur.warming
+        transit: state.transit?.stage ?? null, guide: guide.target?.label ?? null, ready: !cur.warming,
+        guests: cur.n === 1 ? guests.witnesses : undefined
       })
     };
     window.__ready = true;
@@ -1943,12 +1981,45 @@ async function start() {
       const { installReviewTools } = await import('./dev/review.js');
       const game = window.__game;
       const simulate = (seconds) => { state.skipRender = true; game.step(seconds); state.skipRender = false; game.step(0.04); };
-      const prepare = (n) => { if (cur.n !== n || state.ended) enterLevel(n); screens.show('playing'); state.locked = true; game.freezeGuards(true); };
+      const prepare = (n) => { if (cur.n !== n || state.ended || state.transit) enterLevel(n); screens.show('playing'); state.locked = true; game.freezeGuards(true); };
       const check = (condition, message) => { if (!condition) throw new Error(message); return 'PASS · ' + message; };
       const useAt = (x, z, yaw = 0, y = 0) => { game.view(x, z, yaw, 0, y); simulate(0.04); interact(); simulate(0.04); };
       installReviewTools({
+        'Capture still (F9 restores UI)': () => { document.body.classList.add('capture-still'); },
+        'Level 1 completed screen': () => { screens.stageComplete(1, () => enterLevel(2)); },
+        'Level 2 completed screen': () => { screens.stageComplete(2, () => enterLevel(3)); },
+        'Check gala passage': () => {
+          prepare(1); state.hasKeycard = true; cur.flags.rig = true; cur.flags.nightEntry = true;
+          const p = outLock.transform.toWorld(0, -AIRLOCK.length * .6); game.view(p.x, p.z, outLock.transform.yaw, 0, outLock.transform.y);
+          startPassage(1); simulate(1.5); return check(screens.state === 'interlude' && state.transit?.stage === 'debrief', 'sealed passage opens the completion conversation');
+        },
+        'Check vault passage': () => {
+          prepare(2); state.hasStar = true; cur.flags.sensorDisabled = cur.flags.safeOpened = true;
+          const p = outLock.transform.toWorld(0, -AIRLOCK.length * .6); game.view(p.x, p.z, outLock.transform.yaw, 0, outLock.transform.y);
+          startPassage(2); simulate(1.5); return check(screens.state === 'interlude' && state.transit?.stage === 'debrief', 'vault passage opens the betrayal conversation');
+        },
+        'Level 1 briefing': () => { screens.setLevel(1); screens.show('briefing'); },
+        'Level 2 briefing': () => { screens.setLevel(2); screens.show('briefing'); },
+        'Level 3 briefing': () => { screens.setLevel(3); screens.show('briefing'); },
         'Gala view': () => { newHeist(); prepare(1); game.view(-1.2, 1.1, 0); simulate(0.1); },
         'Officer view': () => { prepare(1); game.view(-9.6, -16, Math.PI); simulate(0.1); },
+        'Guest portrait': () => {
+          prepare(1); const guest = GALA_GUESTS[2];
+          game.view(guest.x + Math.sin(guest.rotation) * 1.7, guest.z + Math.cos(guest.rotation) * 1.7, guest.rotation, -.06);
+          simulate(.1);
+        },
+        'Local map': () => { state.mapReveal = 0; simulate(0.2); },
+        'Observe crowd': async () => {
+          // Yield real browser frames so the preview can present the movement,
+          // rather than blocking the tab with hundreds of renders in one click.
+          for (let i = 0; i < 240; i++) {
+            await new Promise((resolve) => requestAnimationFrame(resolve)); game.step(1 / 30);
+          }
+          return 'guests stroll while the current lesson waits for your input';
+        },
+        'Sonar map': () => { state.mapReveal = 2.4; simulate(0.2); },
+        'High graphics': () => { game.quality('high'); simulate(0.2); },
+        'Low graphics': () => { game.quality('low'); simulate(0.2); },
         'Loop hall camera': () => { prepare(1); game.cctv(1); cur.cctv.loop(); cur.cctvSystem.loop(1); game.cctv(-1); simulate(0.1); return 'camera 02 looped for 8 seconds'; },
         'Copy badge': () => { prepare(1); cur.okafor.root.position.set(-9.6, 0, -20); cur.okafor.pauseTimer = 4; cur.okafor.checkingGuest = 0; cur.okafor.root.rotation.y = Math.PI;
           game.view(cur.okafor.position.x, cur.okafor.position.z + 1.1, 0); keys.KeyE = true; simulate(0.8); keys.KeyE = false;
@@ -1966,6 +2037,7 @@ async function start() {
         'Take evidence': () => { const file = cur.data.pickups.find((item) => item.kind === 'evidence'); const p = file.usePos ?? [file.pos[0], 0, file.pos[2]];
           useAt(p[0], p[2], 0, p[1]); return check(pickups.snapshot().evidence.includes(file.id), 'evidence collected from its reachable furniture position'); },
         'Escape view': () => { prepare(3); game.view(0, -3, 0); simulate(0.1); },
+        'Roof map': () => { prepare(3); cur.flags.pastShutter = true; game.view(0, -60, 0, 0, 20); state.mapReveal = 2.4; simulate(0.2); },
         'Echo shutter': () => { prepare(3); game.view(-3.6, -18.6, 0); toggleEcho(); keys.KeyE = true; simulate(4); keys.KeyE = false; toggleEcho();
           game.view(0, -18.5, 0); keys.KeyW = true; simulate(2); keys.KeyW = false; return check(cur.flags.pastShutter, 'Echo holds the override while the player crosses'); },
         'Crawl duct': () => { prepare(3); game.view(-9, -32.5, Math.PI / 2); keys.KeyZ = true; simulate(0.1); interact(); keys.KeyW = true; simulate(10.5); keys.KeyW = false; keys.KeyZ = false;
@@ -1981,6 +2053,7 @@ async function start() {
         'CCTV view': () => { game.cctv(0); simulate(0.1); },
         'Close CCTV': () => { game.cctv(-1); simulate(0.1); },
       }, game.state);
+      document.addEventListener('keydown', (event) => { if (event.code === 'F9') { document.body.classList.toggle('capture-still'); event.preventDefault(); } });
     }
   } else {
     requestAnimationFrame(frame);
