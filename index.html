@@ -9,7 +9,14 @@
 </head>
 <body>
 <canvas id="view"></canvas>
-<div id="loading" class="loading">LOADING THE VARGA MUSEUM</div>
+<div id="loading" class="loading">
+  <div class="loading-box">
+    <b class="logo">SIGNAL</b>
+    <span>LOADING THE VARGA MUSEUM</span>
+    <div class="loading-track"><i id="loading-fill"></i></div>
+    <small id="loading-tip"></small>
+  </div>
+</div>
 <div class="top-left">
   <div id="mode" class="mode">LEVEL 1 · THE GALA · 19:40</div>
   <div id="objective" class="objective">Lift Okafor's keycard</div>
@@ -27,6 +34,9 @@
 <div id="stats" class="stats"></div>
 <div id="toast" class="toast is-hidden" role="status"></div>
 <div id="prompt" class="prompt is-hidden"><span id="prompt-text"></span><div class="prompt-track"><i id="prompt-fill"></i></div></div>
+<div id="radio" class="radio is-hidden" data-who="dex" aria-live="polite"><span class="radio-who">DEX · RADIO</span><p class="radio-text"></p></div>
+<div id="bark" class="bark is-hidden"><b class="bark-who"></b><span class="bark-text"></span></div>
+<aside id="evidence-card" class="evidence-card is-hidden"><span class="evidence-kicker"></span><h3 class="evidence-title"></h3><p class="evidence-body"></p></aside>
 <div id="pip-frame" class="frame pip"><span>LAST CCTV FEED</span></div>
 <div id="map-frame" class="frame map"><span>TACTICAL MAP</span></div>
 <div id="feed" class="feed is-hidden">
@@ -56,12 +66,71 @@
   <span>Lift the keycard, stand on both plates with your Echo, cross the lasers, crack the vault.</span>
   <button id="credits-button" class="credits-button" type="button">CREDITS</button>
 </div>
+<section id="briefing" class="screen is-hidden" aria-label="Briefing">
+  <div class="screen-box wide">
+    <span class="kicker">A HEIST IN THREE NIGHTS</span>
+    <b class="logo">SIGNAL</b>
+    <h2 class="briefing-title"></h2>
+    <div class="briefing-body"></div>
+    <ul class="controls">
+      <li><b>WASD</b> move</li><li><b>Shift</b> walk quietly</li><li><b>C</b> crouch</li><li><b>Z</b> crawl</li>
+      <li><b>X</b> sprint</li><li><b>Space</b> jump</li><li><b>G</b> sonar</li><li><b>E</b> interact, hold to pickpocket</li>
+      <li><b>Tab</b> cameras</li><li><b>Q</b> record your Echo</li><li><b>F</b> dampener</li><li><b>Esc</b> pause</li>
+    </ul>
+    <div class="buttons">
+      <button type="button" class="primary" data-action="start">START THE HEIST</button>
+      <button type="button" data-action="options">OPTIONS</button>
+      <button type="button" data-action="credits">CREDITS</button>
+    </div>
+    <p class="lock-note"></p>
+  </div>
+</section>
+<section id="pause" class="screen is-hidden" aria-label="Paused">
+  <div class="screen-box">
+    <span class="kicker">PAUSED</span>
+    <div class="buttons column">
+      <button type="button" class="primary" data-action="resume">RESUME</button>
+      <button type="button" data-action="restart">RESTART FROM CHECKPOINT</button>
+      <button type="button" data-action="new-heist">NEW HEIST</button>
+      <button type="button" data-action="options">OPTIONS</button>
+      <button type="button" data-action="credits">CREDITS</button>
+    </div>
+    <p class="lock-note"></p>
+  </div>
+</section>
+<section id="options" class="screen is-hidden" aria-label="Options">
+  <div class="screen-box">
+    <span class="kicker">OPTIONS</span>
+    <label>Mouse sensitivity <output data-out="sensitivity"></output><input type="range" name="sensitivity" min="0.3" max="2.5" step="0.05"></label>
+    <label>Volume <output data-out="master"></output><input type="range" name="master" min="0" max="1" step="0.05"></label>
+    <label>Music <output data-out="music"></output><input type="range" name="music" min="0" max="1" step="0.05"></label>
+    <label>Graphics quality
+      <select name="quality"><option value="auto">Auto</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select>
+    </label>
+    <div class="buttons"><button type="button" class="primary" data-action="back">BACK</button></div>
+  </div>
+</section>
+<section id="results" class="screen is-hidden" aria-label="Results">
+  <div class="screen-box">
+    <span class="kicker">VAULT OPEN</span>
+    <h2>The Kestrel Star is yours.</h2>
+    <div class="results-grade"></div>
+    <p class="results-score"></p>
+    <dl class="results-stats"></dl>
+    <p class="results-ending is-hidden"></p>
+    <div class="buttons">
+      <button type="button" class="primary" data-action="new-heist">NEW HEIST</button>
+      <button type="button" data-action="credits">CREDITS</button>
+    </div>
+  </div>
+</section>
+<div id="card" class="card is-hidden"><b class="card-title"></b><span class="card-text"></span></div>
 <dialog id="credits" class="credits">
   <h2>Credits</h2>
   <p>Three.js, MIT Licence. Vite, MIT Licence.</p>
   <p>Soldier, Xbot and Michelle character models and animations from the Three.js examples (Mixamo, Adobe).</p>
   <p>Paintings, public domain: The Starry Night (Vincent van Gogh, 1889), The Scream (Edvard Munch, 1893), The Great Wave off Kanagawa (Katsushika Hokusai, c. 1831), The Shipwreck (J. M. W. Turner, 1805).</p>
-  <p>All other geometry, textures, shaders and code were made by the SIGNAL team.</p>
+  <p>All other geometry, textures, shaders, sound and code were made by the SIGNAL team. Music and sound effects are synthesised in the browser.</p>
   <button id="close-credits" type="button">CLOSE</button>
 </dialog>
 <script type="module" src="./src/main.js"></script>

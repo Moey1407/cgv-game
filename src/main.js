@@ -20,6 +20,8 @@ import { createSafecrackSystem } from './gameplay/safecrack.js';
 import { createStaminaSystem } from './gameplay/stamina.js';
 import { createGuardAI } from './game/guardAI.js';
 import { createHud } from './game/hud.js';
+import { createStory } from './story.js';
+import { createScreens } from './screens.js';
 
 const QUALITIES = ['low', 'medium', 'high'];
 const MODE_LABELS = {
@@ -55,6 +57,21 @@ async function start() {
   };
   const hud = createHud();
   const events = createEventBus();
+  const story = createStory({ events });
+  const screens = createScreens({
+    events,
+    audio: story.audio,
+    qa,
+    actions: {
+      lock: () => canvas.requestPointerLock(),
+      restart: () => restore(checkpoints.restore() ?? snapshotCheckpoint()),
+      newHeist: () => newHeist(),
+      quality: (q) => {
+        state.auto = q === 'auto';
+        if (q !== 'auto') { applyQuality(q); setMode(state.mode); }
+      }
+    }
+  });
 
   const canvas = $('view');
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: qa });
@@ -201,6 +218,26 @@ async function start() {
     hall.setReflection(q.reflection, window.innerWidth, window.innerHeight);
     cctv.setRate(q.feedRate);
     minimap.setRate(q.mapRate);
+    warmShaders();
+  }
+
+  // Each lighting mode (gala, night, lockdown) uses a different set of lights, and
+  // Three.js must compile every shader again for each set, for each view (main
+  // view, CCTV feeds, and the minimap, which renders without fog). Doing that the
+  // first time lockdown starts froze the game for seconds. Render every mode once
+  // now, while the loading screen or a menu is up, so the switch is instant later.
+  // Quality changes switch shadows on or off, which needs new shaders too.
+  function warmShaders() {
+    const mode = state.mode;
+    for (const m of ['night', 'lockdown', 'gala']) {
+      setMode(m);
+      if (!cctv.feeds.some((f) => f.loopTimer > 0)) cctv.update(10);
+      minimap.update(player.position, mapBounds, 10);
+      fx.render(0, 0, camera);
+      cctv.renderPip(rects.pip);
+      minimap.render(rects.map);
+    }
+    setMode(mode);
   }
 
   function setMode(mode) {
@@ -340,8 +377,7 @@ async function start() {
     hud.toast('VAULT OPEN', 3);
     events.emit('level:complete', { level: 1 });
     setTimeout(() => {
-      state.ended = 'won';
-      hud.end('won', summary());
+      state.ended = 'won'; // screens.js shows the results with the grade
     }, 2600);
   });
   events.on('echo:shattered', () => {
@@ -596,7 +632,8 @@ async function start() {
   }
 
   function frame() {
-    const dt = Math.min(clock.getDelta(), qa ? 1 : 0.05);
+    const raw = Math.min(clock.getDelta(), qa ? 1 : 0.05);
+    const dt = screens.blocking ? 0 : raw;
     state.lastDt = dt;
     elapsed += dt;
     const playing = !state.ended;
@@ -654,6 +691,8 @@ async function start() {
     hud.items({ keycard: state.hasKeycard, cash: ps.cash, evidence: ps.evidence.length, evidenceTotal: LOOT.filter((i) => i.type === 'evidence').length });
     hud.objective(objectiveText());
     hud.update(dt);
+    story.update(state.locked ? dt : 0, player, guards);
+    screens.update(dt);
     if (cctv.active >= 0) {
       cctv.render();
       const feed = cctv.feeds[cctv.active];
@@ -679,6 +718,7 @@ async function start() {
   }
 
   document.addEventListener('keydown', (e) => {
+    if (screens.blocking) return; // menus are open
     keys[e.code] = true;
     if (['Tab', 'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
     if (e.repeat) return;
@@ -718,16 +758,16 @@ async function start() {
   canvas.addEventListener('click', () => { if (!state.locked) canvas.requestPointerLock(); });
   document.addEventListener('pointerlockchange', () => {
     state.locked = document.pointerLockElement === canvas;
-    ui.hint.classList.toggle('is-hidden', state.locked);
+    screens.lockChanged(state.locked);
   });
   document.addEventListener('mousemove', (e) => {
     if (!state.locked || cctv.active >= 0) return;
     if (state.inSafe) {
-      safe.turn(e.movementX * 0.035, Math.max(state.lastDt, 1 / 240));
+      safe.turn(e.movementX * 0.035 * screens.options.sensitivity, Math.max(state.lastDt, 1 / 240));
       return;
     }
-    player.yaw -= e.movementX * 0.0022;
-    player.pitch = THREE.MathUtils.clamp(player.pitch - e.movementY * 0.0019, -1.3, 1.3);
+    player.yaw -= e.movementX * 0.0022 * screens.options.sensitivity;
+    player.pitch = THREE.MathUtils.clamp(player.pitch - e.movementY * 0.0019 * screens.options.sensitivity, -1.3, 1.3);
   });
   window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
@@ -747,11 +787,14 @@ async function start() {
   applyQuality('medium');
   newHeist();
   ui.loading.classList.add('is-hidden');
+  screens.ready();
   clock.getDelta();
 
   if (qa) {
     window.__game = {
       events,
+      story,
+      screens,
       setMode,
       step(seconds = 1, fps = 30) {
         const n = Math.max(1, Math.round(seconds * fps));
