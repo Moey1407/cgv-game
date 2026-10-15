@@ -1,104 +1,40 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#03070d" />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Ccircle cx=%2732%27 cy=%2732%27 r=%278%27 fill=%27%2372efff%27/%3E%3Ccircle cx=%2732%27 cy=%2732%27 r=%2724%27 fill=%27none%27 stroke=%27%2372efff%27 stroke-width=%273%27/%3E%3C/svg%3E" />
-  <meta name="description" content="SIGNAL — a stealth game where sound is the only thing you can see." />
-  <title>SIGNAL — Alpha</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIGNAL</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="./src/styles.css">
 </head>
 <body>
-  <canvas id="game" aria-label="SIGNAL 3D game canvas"></canvas>
-  <div id="grain" aria-hidden="true"></div>
-  <div id="vignette" aria-hidden="true"></div>
-  <div id="dampener-veil" aria-hidden="true"></div>
-
-  <header id="hud" class="is-hidden">
-    <div class="brand-lockup"><span class="signal-mark"></span><div><strong>SIGNAL</strong><span id="stage-label">GALLERIES / ALPHA 01</span></div><span id="practice-flag" class="practice-flag is-hidden">PRACTICE</span></div>
-    <div class="objective-block"><span class="eyebrow">CURRENT OBJECTIVE</span><strong id="objective">Steal the security key and unlock the vault</strong><div id="level-progress" class="level-progress"><i class="active">01</i><i>02</i><i>03</i></div></div>
-    <div class="status-cluster">
-      <div id="movement-state" class="movement-state">RUNNING</div>
-      <div class="noise-readout"><span>NOISE</span><div class="noise-track"><i id="noise-fill"></i></div></div>
-      <div id="surface-state" class="surface-state is-hidden">CARPET</div>
-      <div id="guard-state" class="guard-state">UNDETECTED</div>
-    </div>
-  </header>
-
-  <div id="reticle" class="is-hidden" aria-hidden="true"><i></i></div>
-  <div id="vault-signature" class="vault-signature is-hidden" aria-label="Acoustic signature comparison"></div>
-  <div id="door-override" class="door-override is-hidden"><span id="override-text"></span><div class="override-track"><i id="override-fill"></i></div></div>
-  <div id="interaction" class="interaction is-hidden"></div>
-  <aside id="lesson" class="lesson is-hidden">
-    <span id="lesson-step" class="lesson-step">1 / 6</span>
-    <strong id="lesson-title">LOOK AROUND</strong>
-    <span id="lesson-hint">Move the mouse, or hold the arrow keys.</span>
-  </aside>
-  <div id="toast" class="toast is-hidden" role="status"></div>
-  <div class="ability-stack">
-    <div id="sonar-status" class="sonar-status is-hidden">SONAR READY <kbd>SPACE</kbd></div>
-    <div id="decoy-status" class="decoy-status is-hidden">DECOY ×3 <kbd>CLICK</kbd></div>
-    <div id="dampener-status" class="decoy-status is-hidden">DAMPENER READY <kbd>F</kbd></div>
-    <div id="exposure-state" class="sonar-status is-hidden">DIAMOND SECURED // LOW EXPOSURE</div>
-  </div>
-  <aside id="minimap" class="minimap is-hidden" aria-label="Museum floor minimap"><canvas id="map-canvas" class="map-canvas" width="440" height="304"></canvas><span>TACTICAL MAP <b id="map-status">LIVE</b></span><div class="map-grid"></div><div class="map-legend"><i class="you"></i>YOU <i class="target"></i>TARGET <i class="hostile"></i>GUARD</div></aside>
-
-  <section id="start-screen" class="screen start-screen">
-    <div class="start-copy">
-      <div class="kicker"><span></span> ALPHA BUILD / MUSEUM 01</div>
-      <h1>SIGNAL</h1>
-      <p class="tagline">Sound is the only thing you can see.</p>
-      <p class="premise">Break into a museum after dark. Every footstep exposes the room—and you. Read the echoes, misdirect the guard, and steal the security key to unlock the vault.</p>
-      <div class="start-actions">
-        <button id="start-button" class="primary-button"><span>BEGIN THREE-LEVEL RUN</span><b>ENTER</b></button>
-        <button id="training-button" class="primary-button secondary"><span>TRAINING FLOOR</span><b>T</b></button>
-      </div>
-      <div class="controls-grid">
-        <div><kbd>WASD</kbd><span>MOVE</span></div><div><kbd>MOUSE</kbd><span>LOOK</span></div>
-        <div><kbd>&#8592;&#8593;&#8595;&#8594;</kbd><span>LOOK (KEYS)</span></div><div><kbd>SHIFT</kbd><span>WALK / QUIET</span></div>
-        <div><kbd>C</kbd><span>CROUCH / SILENT</span></div><div><kbd>F</kbd><span>DAMPENER</span></div>
-        <div><kbd>CLICK</kbd><span>THROW DECOY</span></div><div><kbd>RIGHT CLICK</kbd><span>AIM THROW</span></div>
-        <div><kbd>E</kbd><span>INTERACT</span></div><div><kbd>SPACE</kbd><span>SONAR PULSE</span></div>
-        <div><kbd>1/2/3</kbd><span>PRACTICE SELECT</span></div><div><kbd>R</kbd><span>RETRY</span></div>
-      </div>
-      <p class="premise surface-hint">Carpet muffles you, marble carries. Watch the floor readout &mdash; running on stone makes a wave twice the size.</p>
-    </div>
-    <div class="start-visual" aria-hidden="true">
-      <div class="orb orb-one"></div><div class="orb orb-two"></div><div class="orb-core"></div><div class="scan-line"></div>
-      <span class="visual-label label-a">PLAYER / CYAN</span><span class="visual-label label-b">HOSTILE / RED</span>
-    </div>
-    
-  </section>
-
-  <section id="stage-transition" class="stage-transition is-hidden" aria-live="polite">
-    <span id="transition-kicker" class="kicker">LEVEL CLEARED</span>
-    <h2 id="transition-title">THE VAULT</h2>
-    <p id="transition-copy">Security is awake. Stay below the laser grid.</p>
-  </section>
-
-  <section id="result-screen" class="screen result-screen is-hidden">
-    <div class="result-card">
-      <span id="result-kicker" class="kicker">MISSION COMPLETE</span><h2 id="result-title">SIGNAL LOST.</h2>
-      <p id="result-copy">The artefact is secure. You left nothing behind but an echo.</p>
-      <div class="result-stats">
-        <div><span>ACTIVE TIME</span><strong id="stat-time">00:00</strong></div>
-        <div><span>SONAR USED</span><strong id="stat-rings">0</strong></div>
-        <div><span>DETECTED</span><strong id="stat-alerts">0</strong></div>
-      </div>
-      <p id="result-campaign" class="result-campaign"></p>
-      <div class="result-actions">
-        <button id="restart-button" class="primary-button"><span>RUN AGAIN</span><b>R</b></button>
-        <button id="newheist-button" class="primary-button secondary"><span>RESTART HEIST</span><b>N</b></button>
-      </div>
-    </div>
-  </section>
-
-  <dialog id="credits-dialog">
-    <button id="close-credits" aria-label="Close credits">×</button><span class="kicker">PROJECT CREDITS</span><h2>Built in the dark.</h2>
-    <p>Three.js — 3D rendering library, MIT Licence.</p><p>Vite — development and production bundler, MIT Licence.</p>
-    <p>All geometry, shaders, interface graphics and game logic in this Alpha are original procedural work created for SIGNAL.</p>
-  </dialog>
-  <button id="credits-button" class="credits-button">CREDITS</button>
-  <script type="module" src="./src/main.js"></script>
+<canvas id="view"></canvas>
+<div id="loading" class="loading">LOADING THE VARGA MUSEUM</div>
+<div id="mode" class="mode">LEVEL 1 · THE GALA · 19:40</div>
+<div id="stats" class="stats"></div>
+<div id="pip-frame" class="frame pip"><span>LAST CCTV FEED</span></div>
+<div id="map-frame" class="frame map"><span>TACTICAL MAP</span></div>
+<div id="feed" class="feed is-hidden">
+  <div class="feed-top"><span class="rec">REC</span><span id="feed-name"></span></div>
+  <div id="feed-state" class="feed-state"></div>
+  <div class="feed-keys">TAB NEXT · SHIFT+TAB PREVIOUS · L LOOP · Q BACK</div>
+</div>
+<div id="hint" class="hint">
+  <strong>CLICK TO LOOK AROUND</strong>
+  <span>WASD move · Shift run · C crouch · arrows look</span>
+  <span>1 gala · 2 night · 3 lockdown</span>
+  <span>Space sonar · Tab CCTV · F dampener · G glitch · H dissolve echo</span>
+  <span>P picture-in-picture · M map · K quality</span>
+  <button id="credits-button" class="credits-button" type="button">CREDITS</button>
+</div>
+<dialog id="credits" class="credits">
+  <h2>Credits</h2>
+  <p>Three.js, MIT Licence. Vite, MIT Licence.</p>
+  <p>Soldier, Xbot and Michelle character models and animations from the Three.js examples (Mixamo, Adobe).</p>
+  <p>Paintings, public domain: The Starry Night (Vincent van Gogh, 1889), The Scream (Edvard Munch, 1893), The Great Wave off Kanagawa (Katsushika Hokusai, c. 1831), The Shipwreck (J. M. W. Turner, 1805).</p>
+  <p>All other geometry, textures, shaders and code were made by the SIGNAL team.</p>
+  <button id="close-credits" type="button">CLOSE</button>
+</dialog>
+<script type="module" src="./src/main.js"></script>
 </body>
 </html>
