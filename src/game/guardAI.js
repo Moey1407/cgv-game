@@ -1,8 +1,12 @@
 import * as THREE from 'three';
 
 export const GUARD_STATES = ['patrol', 'investigate', 'pursue', 'search'];
-export const INVESTIGATE_GIVE_UP = 12; // seconds of walking toward a noise before giving up
-export const INVESTIGATE_NO_PROGRESS = 3; // seconds without getting closer before giving up
+// Backstop only: a long but walkable route (archive to laser corridor is ~31 m) must
+// finish. Pushing at a wall is caught much sooner by INVESTIGATE_NO_PROGRESS.
+export const INVESTIGATE_GIVE_UP = 40; // seconds of walking toward a noise before giving up
+export const URGENT_PACE = 2; // hurrying to a tripped alarm
+export const URGENT_LOOK = 6; // seconds spent looking around where it went off
+export const INVESTIGATE_NO_PROGRESS = 3; // seconds without moving before giving up
 
 const SIGHT = {
   gala: { range: 10, fov: Math.PI * 0.55 },
@@ -77,16 +81,19 @@ export function createGuardAI({ id, actor, torch, waypoints, speed, pauseSeconds
     return true;
   }
 
-  function hear(position, strength = 1) {
+  // urgent: an alarm with a location (a tripped laser). He hurries there and looks
+  // around for longer. A quieter noise heard on the way does not slow him down.
+  function hear(position, strength = 1, { urgent = false } = {}) {
     if (guard.sleep > 0) return false;
     if (guard.state === 'pursue') return false;
+    guard.urgent = urgent || (guard.urgent && guard.state === 'investigate');
     target.set(position.x, 0, position.z);
     guard.timer = 0;
     guard.seeking = 0;
     guard.freshNoise = true;
     guard.suspicion = Math.min(0.6, guard.suspicion + 0.15 * strength);
     setState('investigate');
-    actor.play('Walk');
+    actor.play(guard.urgent ? 'Run' : 'Walk');
     return true;
   }
 
@@ -118,7 +125,8 @@ export function createGuardAI({ id, actor, torch, waypoints, speed, pauseSeconds
     const nx = root.position.x + step.x * advance;
     const nz = root.position.z + step.z * advance;
     const beforeX = root.position.x, beforeZ = root.position.z;
-    if (!canStand || canStand(nx, nz)) {
+    // A guard already wedged into geometry may step anywhere, so he can work free.
+    if (!canStand || canStand(nx, nz) || !canStand(beforeX, beforeZ)) {
       root.position.x = nx;
       root.position.z = nz;
     } else if (canStand(nx, root.position.z)) {
@@ -206,14 +214,18 @@ export function createGuardAI({ id, actor, torch, waypoints, speed, pauseSeconds
         if (guard.freshNoise) {
           guard.freshNoise = false;
           if (ctx.canStand && !ctx.canStand(target.x, target.z)) nearestStandable(target, ctx.canStand);
-          guard.bestDistance = Infinity;
+          guard.anchor = { x: root.position.x, z: root.position.z };
           guard.noProgress = 0;
         }
         guard.seeking = (guard.seeking ?? 0) + dt;
-        const d = Math.hypot(target.x - root.position.x, target.z - root.position.z);
-        if (d < guard.bestDistance - 0.25) { guard.bestDistance = d; guard.noProgress = 0; } else guard.noProgress += dt;
-        if (moveToward(target, pace, dt, ctx.canStand, ctx.findPath) || guard.seeking > INVESTIGATE_GIVE_UP || guard.noProgress > INVESTIGATE_NO_PROGRESS) {
-          guard.timer = 3;
+        // Progress means actually moving. A route around a wall can lead away from the
+        // noise for a while, so distance to the target is not used here.
+        if (Math.hypot(root.position.x - guard.anchor.x, root.position.z - guard.anchor.z) > 0.3) {
+          guard.anchor.x = root.position.x; guard.anchor.z = root.position.z; guard.noProgress = 0;
+        } else guard.noProgress += dt;
+        if (moveToward(target, pace * (guard.urgent ? URGENT_PACE : 1), dt, ctx.canStand, ctx.findPath) || guard.seeking > INVESTIGATE_GIVE_UP || guard.noProgress > INVESTIGATE_NO_PROGRESS) {
+          guard.timer = guard.urgent ? URGENT_LOOK : 3;
+          guard.urgent = false;
           actor.play('Idle');
         }
       }

@@ -74,3 +74,24 @@ test('a sedated guard ignores noise and the player, then wakes up searching', as
   g.reset();
   assert.equal(g.sleep, 0);
 });
+
+test('a tripped laser: the guard hurries there and looks around longer than for a footstep', async () => {
+  const THREE = await import('three');
+  const { createGuardAI, URGENT_LOOK } = await import('../src/game/guardAI.js');
+  const run = (urgent) => {
+    const root = new THREE.Group();
+    const g = createGuardAI({ id: 'test', actor: { root, play() {}, update() {} }, waypoints: [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -1)], speed: 1 });
+    g.reset();
+    g.hear(new THREE.Vector3(0, 0, 10), 1, { urgent });
+    const ctx = { mode: 'night', time: 0, alarm: { guardSpeed: 1, pulseInterval: 1 }, canStand: () => true, player: { position: new THREE.Vector3(50, 0, 50), crouching: false, visible: false } };
+    let arrived = null;
+    for (let t = 0; t < 30 && g.state === 'investigate'; t += 0.1) {
+      g.update(0.1, ctx);
+      if (arrived === null && root.position.z > 9.7) arrived = t;
+    }
+    return arrived;
+  };
+  const walk = run(false), hurry = run(true);
+  assert.ok(hurry < walk * 0.75, `urgent ${hurry?.toFixed(1)} s should beat a walk ${walk?.toFixed(1)} s`);
+  assert.ok(URGENT_LOOK > 3);
+});
