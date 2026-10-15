@@ -194,6 +194,15 @@ async function start() {
   const airCamera = camera.clone();
   airCamera.rotation.order = 'YXZ';
   const guide = createGuide({ scene, camera });
+  const LAYER_AVATAR = 3;
+  const avatar = new THREE.Group();
+  const avatarBody = new THREE.Group();
+  const wren = createPerson({ style: 'suit', colour: 0x1d2129, trouser: 0x16181d, shirt: 0x2c313b, accent: 0x72efff, hair: 0x1b1412, skin: 0xb07a5c });
+  avatarBody.add(wren.root);
+  avatar.add(avatarBody);
+  scene.add(avatar);
+  avatar.traverse((o) => { o.layers.set(LAYER_AVATAR); if (o.isMesh) o.castShadow = false; });
+  const view = { third: false, distance: 2.6, eye: new THREE.Vector3(), want: new THREE.Vector3(), step: new THREE.Vector3(), back: new THREE.Vector3(), right: new THREE.Vector3() };
 
   // Xbot is kept for the Echo; the gala uses a purpose-built instanced crowd
   // so suits and dresses read clearly without fourteen skinned models.
@@ -280,7 +289,7 @@ async function start() {
     const forward = tmp.dir.set(-Math.sin(player.yaw), 0, -Math.cos(player.yaw)).normalize();
     const mesh = new THREE.Mesh(decoyGeometry, decoyMaterial);
     mesh.castShadow = true;
-    mesh.position.copy(camera.position).addScaledVector(forward, 0.45);
+    mesh.position.set(player.position.x, player.base + player.y + player.height, player.position.z).addScaledVector(forward, 0.45);
     mesh.position.y -= 0.22;
     scene.add(mesh);
     minimap.hideFromMap(mesh);
@@ -380,7 +389,7 @@ async function start() {
       ? HALL_CAMERAS.map((c) => ({ ...c, position: v3(c.position), target: v3(c.target) }))
       : data.cameras.map(cameraFromData);
     const cctv = createCCTV(renderer, scene, cameraDefs, { aspect: window.innerWidth / window.innerHeight });
-    for (const feed of cctv.feeds) feed.camera.layers.enable(LAYER_WORLD_ONLY);
+    for (const feed of cctv.feeds) { feed.camera.layers.enable(LAYER_WORLD_ONLY); feed.camera.layers.enable(LAYER_AVATAR); }
     cctv.setRate(QUALITY[state.quality].feedRate);
     const cctvSystem = createCctvSystem(cameraDefs.map((c, i) => ({
       id: i,
@@ -1080,7 +1089,50 @@ async function start() {
     } else hud.prompt('W CLIMB  ·  S BACK DOWN', c.distance / c.path.length);
   }
 
+  function thirdAllowed() {
+    return view.third && !state.inSafe && !state.vent && !state.climb && !state.zip && !state.transit?.sealed && cur.cctv.active < 0;
+  }
+
+  function poseAvatar(dt) {
+    avatar.position.set(player.position.x, player.base + player.y, player.position.z);
+    avatar.rotation.y = player.yaw + Math.PI;
+    const id = player.profile.id;
+    const crawl = id === 'crawl';
+    const crouch = id === 'crouch';
+    avatarBody.rotation.x += ((crawl ? 1.42 : 0) - avatarBody.rotation.x) * Math.min(1, dt * 8);
+    avatarBody.position.y += ((crawl ? 0.14 : 0) - avatarBody.position.y) * Math.min(1, dt * 8);
+    avatarBody.position.z += ((crawl ? -0.8 : 0) - avatarBody.position.z) * Math.min(1, dt * 8);
+    const squash = crouch ? 0.64 : 1;
+    avatarBody.scale.y += (squash - avatarBody.scale.y) * Math.min(1, dt * 8);
+    wren.play(!player.moving ? 'idle' : id === 'run' || id === 'sprint' ? 'run' : 'walk');
+    wren.update(dt * (crawl ? 0.6 : 1));
+  }
+
+  function applyView(dt) {
+    poseAvatar(dt);
+    const third = thirdAllowed();
+    if (third) camera.layers.enable(LAYER_AVATAR); else camera.layers.disable(LAYER_AVATAR);
+    if (!third) return;
+    view.eye.set(player.position.x, player.base + player.y + Math.max(0.5, player.height * 0.92), player.position.z);
+    const cp = Math.cos(player.pitch);
+    const back = view.back.set(Math.sin(player.yaw) * cp, -Math.sin(player.pitch), Math.cos(player.yaw) * cp);
+    const right = view.right.set(Math.cos(player.yaw), 0, -Math.sin(player.yaw));
+    const wanted = player.profile.id === 'crawl' ? 1.9 : 2.6;
+    let reach = 0.3;
+    for (let d = 0.3; d <= wanted; d += 0.1) {
+      view.step.copy(view.eye).addScaledVector(back, d).addScaledVector(right, 0.42 * (d / wanted));
+      const ceiling = player.base + (cur.n === 1 && player.position.x < 11.3 ? 9.4 : 2.9);
+      if (view.step.y > ceiling || view.step.y < player.base + 0.2 || !canStand(view.step.x, view.step.z, 0.18, player.base)) break;
+      reach = d;
+    }
+    view.distance += (reach - view.distance) * Math.min(1, dt * (reach < view.distance ? 18 : 5));
+    view.want.copy(view.eye).addScaledVector(back, view.distance).addScaledVector(right, 0.42 * (view.distance / wanted));
+    camera.position.copy(view.want);
+    camera.rotation.set(player.pitch, player.yaw, 0);
+  }
+
   function updatePlayer(dt, time) {
+    if (!thirdAllowed()) camera.layers.disable(LAYER_AVATAR);
     if (state.zip) { updateZip(dt); return; }
     if (state.vent) { updateVent(dt, time); return; }
     if (state.climb) { updateClimb(dt, time); return; }
@@ -1117,6 +1169,7 @@ async function start() {
     const bob = player.moving && player.y === 0 ? Math.sin(time * (profile.id === 'run' || profile.id === 'sprint' ? 12 : 8.5)) * 0.025 : 0;
     camera.position.set(player.position.x, player.base + player.y + player.height + bob, player.position.z);
     camera.rotation.set(player.pitch, player.yaw, 0);
+    applyView(dt);
     playerMarker.position.copy(player.position);
     playerMarker.rotation.y = player.yaw;
 
@@ -1558,6 +1611,7 @@ async function start() {
       }
       const menuDt = menuFrame;
       menuFrame = 0;
+      camera.layers.disable(LAYER_AVATAR);
       attractCamera(menuDt);
       updateCrowd(menuDt);
       cur.props.update(menuDt, elapsed);
@@ -1733,6 +1787,11 @@ async function start() {
     if (e.code === 'KeyF' && (state.dampen || state.cell > 0.7)) state.dampen = !state.dampen;
     if (e.code === 'KeyP') { state.pip = !state.pip; rects = layoutOverlays(); }
     if (e.code === 'KeyM') { state.map = !state.map; rects = layoutOverlays(); }
+    if (e.code === 'KeyV') {
+      view.third = !view.third;
+      view.distance = 0.3;
+      hud.toast(view.third ? 'THIRD PERSON · V TO SWITCH BACK' : 'FIRST PERSON', 1.6);
+    }
   });
   document.addEventListener('keyup', (e) => { keys[e.code] = false; });
   window.addEventListener('blur', () => { for (const k of Object.keys(keys)) keys[k] = false; });
@@ -1813,6 +1872,7 @@ async function start() {
       okafor: () => cur.okafor && ({ x: cur.okafor.position.x, z: cur.okafor.position.z, yaw: cur.okafor.yaw, state: cur.okafor.state }),
       guards: () => cur.guards.map((g) => ({ id: g.id, state: g.state, suspicion: g.suspicion, x: g.position.x, z: g.position.z, heading: g.yaw })),
       render(on = true) { state.skipRender = !on; },
+      thirdPerson(on = true) { view.third = on; view.distance = 0.3; },
       passageView() { if (state.transit) renderPassage(0); return Boolean(state.transit); },
       freezeGuards(on = true) { for (const g of cur.guards) g.speed = on ? 0 : g.def.speed; },
       state: () => ({

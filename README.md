@@ -32,6 +32,7 @@ Open http://localhost:5173/. Press Play for the opening and click Enter the Gala
 | 1–4 | Select a CCTV feed; E loops the selected feed for eight seconds |
 | F | Dampener (your rings stop being heard while it lasts) |
 | P / M | Toggle picture-in-picture / minimap. The map is local until sonar resolves the full floor |
+| V | Switch between first-person and third-person view |
 | Esc | Close the camera feeds or step back from the safe |
 | Q | Pause menu (resume, restart from checkpoint, options, quit to title) |
 | R / N | After a capture: restart from checkpoint / back to title |
