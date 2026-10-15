@@ -109,7 +109,7 @@ export function createGuardAI({ id, actor, torch, waypoints, speed, pauseSeconds
     if (!ctx.player.blending) {
       const range = (ctx.player.visible ? sight.range : 1.8) * crouchFactor;
       sees = inCone(root.position, root.rotation.y, ctx.player.position, range, sight.fov);
-      if (!sees && torch?.visible && inCone(root.position, root.rotation.y, ctx.player.position, 14, 0.6)) sees = true;
+      if (!sees && torch?.visible && torch.userData.on !== false && inCone(root.position, root.rotation.y, ctx.player.position, 14, 0.6)) sees = true;
       if (sees && ctx.clearView && !ctx.clearView(root.position, ctx.player.position)) sees = false;
     }
     if (sees) {

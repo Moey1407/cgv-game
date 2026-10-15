@@ -86,9 +86,9 @@ const money = (n) => '$' + Math.round(n).toLocaleString('en-US');
 
 
 const CONTROLS = {
-  1: [['WASD', 'move'], ['Mouse', 'look'], ['Shift', 'walk quietly'], ['C', 'crouch'], ['Z', 'crawl'], ['X', 'sprint'], ['Click', 'throw a decoy'], ['G', 'sonar pulse'], ['Tab', 'open all camera feeds'], ['1–4', 'select a camera, E loops it'], ['E', 'interact, hold to pickpocket'], ['F', 'dampener'], ['Esc', 'pause']],
-  2: [['WASD', 'move'], ['Z', 'crawl under a beam'], ['Space', 'jump a beam'], ['C', 'crouch, fits the vent'], ['Shift', 'walk quietly'], ['Click', 'throw a decoy'], ['G', 'sonar pulse'], ['E', 'vent, safe, loot'], ['Mouse', 'turn the dial slowly'], ['Tab', 'open all camera feeds'], ['Esc', 'pause']],
-  3: [['WASD', 'move'], ['Q', 'record your Echo, Q again to rewind'], ['E', 'hold an override'], ['Click', 'throw a decoy'], ['G', 'sonar, lures the sweep team'], ['Shift', 'walk quietly'], ['C', 'crouch'], ['Z', 'crawl'], ['X', 'sprint'], ['Esc', 'pause']],
+  1: [['WASD', 'move'], ['Mouse', 'look'], ['Shift', 'walk quietly'], ['C', 'crouch'], ['Z', 'crawl'], ['X', 'sprint'], ['Click', 'throw a decoy'], ['G', 'sonar pulse'], ['Tab', 'open all camera feeds'], ['1–4', 'select a camera, E loops it'], ['E', 'interact, hold to pickpocket'], ['F', 'dampener'], ['Esc', 'close a camera or the safe'], ['Q', 'pause menu']],
+  2: [['WASD', 'move'], ['Z', 'crawl under a beam'], ['Space', 'jump a beam'], ['C', 'crouch, fits the vent'], ['Shift', 'walk quietly'], ['Click', 'throw a decoy'], ['G', 'sonar pulse'], ['E', 'vent, safe, loot'], ['Mouse', 'turn the dial slowly'], ['Tab', 'open all camera feeds'], ['Esc', 'step back from the safe'], ['Q', 'pause menu']],
+  3: [['WASD', 'move'], ['R', 'record your Echo, R again to rewind'], ['E', 'hold an override'], ['Click', 'throw a decoy'], ['G', 'sonar, lures the sweep team'], ['Shift', 'walk quietly'], ['C', 'crouch'], ['Z', 'crawl'], ['X', 'sprint'], ['Q', 'pause menu']],
 };
 
 export const LEVEL_MECHANICS = Object.freeze({
@@ -115,7 +115,7 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
   const $ = (id) => doc.getElementById(id);
   const el = {
     loading: $('loading'), loadingFill: $('loading-fill'), loadingTip: $('loading-tip'),
-    home: $('home'), briefing: $('briefing'), pause: $('pause'), options: $('options'), results: $('results'), card: $('card'), cinematic: $('cinematic'),
+    home: $('home'), relock: $('relock'), briefing: $('briefing'), pause: $('pause'), options: $('options'), results: $('results'), card: $('card'), cinematic: $('cinematic'),
     hint: $('hint'), credits: $('credits'), lockNote: doc.querySelectorAll('.lock-note'), fade: $('fade'),
   };
   const tracker = createRunTracker({ events });
@@ -173,18 +173,18 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
   }
 
   function show(name) {
-    for (const key of ['home', 'briefing', 'pause', 'options', 'results', 'cinematic']) el[key]?.classList.toggle('is-hidden', key !== name);
+    for (const key of ['home', 'briefing', 'pause', 'relock', 'options', 'results', 'cinematic']) el[key]?.classList.toggle('is-hidden', key !== name);
     doc.body?.classList.toggle('in-menu', inMenu());
     audio?.duck(name !== null && name !== 'home' && name !== 'briefing');
   }
 
-  const PANEL = { home: 'home', briefing: 'briefing', paused: 'pause', options: 'options', cinematic: 'cinematic', results: 'results' };
+  const PANEL = { home: 'home', briefing: 'briefing', paused: 'pause', relock: 'relock', options: 'options', cinematic: 'cinematic', results: 'results' };
   function setState(next) {
     state = next;
     show(PANEL[next] ?? null);
     const EventType = doc.defaultView?.CustomEvent ?? globalThis.CustomEvent;
     if (EventType) doc.dispatchEvent(new EventType('signal:voice-scene', { detail: {
-      stop: ['home', 'transition', 'results'].includes(next), paused: ['paused', 'options', 'briefing'].includes(next),
+      stop: ['home', 'transition', 'results'].includes(next), paused: ['paused', 'relock', 'options', 'briefing'].includes(next),
     } }));
   }
 
@@ -364,6 +364,16 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
     ACTIONS[button.dataset.action]?.();
   });
   doc.addEventListener('keydown', (e) => {
+    if (e.code === 'KeyQ' && !e.repeat && (state === 'paused' || state === 'relock')) {
+      e.preventDefault();
+      if (state === 'relock') setState('paused'); else lock();
+      return;
+    }
+    if (state === 'relock' && (e.code === 'Escape' || e.code === 'Enter' || e.code === 'Space')) {
+      e.preventDefault();
+      lock();
+      return;
+    }
     if (state !== 'cinematic') return;
     if (e.code === 'Enter' || e.code === 'Space') {
       e.preventDefault();
@@ -447,14 +457,15 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
       if (qa) { state = 'playing'; show(null); return; }
       setState('home');
     },
-    lockChanged(locked) {
-      if (locked && (state === 'briefing' || state === 'paused')) {
+    lockChanged(locked, { soft = false } = {}) {
+      if (locked && (state === 'briefing' || state === 'paused' || state === 'relock')) {
         setState('playing');
         if (!started) started = true;
       } else if (!locked && state === 'playing') {
-        setState('paused');
+        setState(soft ? 'relock' : 'paused');
       }
     },
+    pause() { if (state === 'playing' || state === 'relock') setState('paused'); },
     setLevel(n) { level = n; fillBriefing(n); },
     show: (name) => { if (name === 'briefing') fillBriefing(level); setState(name); },
     showResults,

@@ -335,3 +335,6 @@ body[data-traversal="zipline"] .status, body[data-traversal="zipline"] .stats,
 body[data-traversal="zipline"] .radio, body[data-traversal="zipline"] .toast,
 body[data-traversal="zipline"] .frame, body[data-traversal="zipline"] .bark { display: none; }
 body[data-traversal="vent"] .frame { display: none; }
+.relock { background: rgba(3, 6, 10, 0.35); }
+.relock .screen-box { width: min(320px, calc(100vw - 32px)); align-items: center; text-align: center; }
+.relock-keys { margin: 0; font: 12px ui-monospace, monospace; letter-spacing: 3px; color: #9fb7bd; }

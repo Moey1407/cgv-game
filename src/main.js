@@ -405,10 +405,49 @@ async function start() {
     setMode(LEVEL_MODE[n]);
     const loaded = cur;
     loaded.warming = !qa;
-    loaded.ready = qa ? (renderer.compile(scene, camera), Promise.resolve())
-      : renderer.compileAsync(scene, camera).finally(() => { loaded.warming = false; });
+    loaded.ready = qa ? (withHidden(() => renderer.compile(scene, camera)), primeViews(), Promise.resolve())
+      : withHidden(() => renderer.compileAsync(scene, camera)).then(() => (cur === loaded ? primeViews() : null)).finally(() => { loaded.warming = false; });
     return cur;
   }
+
+  function withHidden(run) {
+    const skip = new Set([lighting.group, ...(cur.n === 1 ? [] : [hall.world, guests.root])]);
+    const holdsLight = (o) => o.isLight || o.children.some(holdsLight);
+    const shown = [];
+    const visit = (o) => {
+      if (skip.has(o)) return;
+      if (!o.visible && !holdsLight(o)) { o.visible = true; shown.push(o); }
+      if (o.visible) for (const c of o.children) visit(c);
+    };
+    visit(scene);
+    try { return run(); } finally { for (const o of shown) o.visible = false; }
+  }
+
+  const primeTarget = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType });
+  function primeViews() {
+    return withHidden(() => {
+      const jobs = [];
+      const fog = scene.fog;
+      const previous = renderer.getRenderTarget();
+      renderer.setRenderTarget(primeTarget);
+      scene.fog = null;
+      jobs.push(renderer.compileAsync(scene, minimap.camera));
+      scene.fog = fog;
+      jobs.push(renderer.compileAsync(scene, camera));
+      if (cur.cctv.feeds[0]) {
+        renderer.setRenderTarget(cur.cctv.feeds[0].target);
+        jobs.push(renderer.compileAsync(scene, cur.cctv.feeds[0].camera));
+      }
+      renderer.setRenderTarget(previous);
+      fx.render(0, 0, camera);
+      cur.cctv.update(10);
+      if (cur.cctv.feeds.length) cur.cctv.renderPip(rects.pip);
+      minimap.update(player.position, cur.bounds, 10);
+      minimap.render(rects.map);
+      return Promise.all(jobs);
+    });
+  }
+
 
   function applyQuality(name) {
     state.quality = name;
@@ -437,8 +476,12 @@ async function start() {
       guests.root.visible = true;
     }
     for (const g of cur?.guards ?? []) {
-      g.torch.visible = mode !== 'gala';
-      g.torch.castShadow = mode !== 'gala' && state.quality === 'high';
+      const on = mode !== 'gala';
+      g.torch.userData.base ??= g.torch.intensity;
+      g.torch.intensity = on ? g.torch.userData.base : 0;
+      g.torch.userData.on = on;
+      g.torch.castShadow = state.quality === 'high';
+      g.torch.shadow.autoUpdate = on;
     }
     fx.setBloom({ threshold: mode === 'gala' ? 0.9 : 0.6, strength: mode === 'gala' ? 0.32 : 0.5 });
     ui.mode.dataset.mode = mode;
@@ -477,7 +520,7 @@ async function start() {
       if (player.position.z > -23) return 'Watch the beam cycle  ·  The side duct is slower but avoids the inner checkpoint';
       return state.hasStar ? 'Back to the marked staff fire door' : 'Stay behind the archive crates when Briggs passes  ·  G sonar reveals the room';
     }
-    if (!cur.flags.pastShutter) return 'Q record  →  hold E at the override for several seconds  →  Q rewind  →  walk through';
+    if (!cur.flags.pastShutter) return 'R record  →  hold E at the override for several seconds  →  R rewind  →  walk through';
     if (player.base < 10) return 'Click throw a decoy  ·  Z + E enter a duct  ·  The stairwell is north-east';
     if (!cur.flags.armed) return 'Record yourself waiting on one sensor; rewind and stand on the other';
     return cur.flags.hatch ? 'E clip onto the roof line  ·  A / D lean during the ride' : 'E hold the roof override';
@@ -728,7 +771,7 @@ async function start() {
     } else if (mode !== 'replaying') {
       resetEcho();
       echo.start(echoFrame());
-      hud.toast('RECORDING ECHO · Q TO REWIND');
+      hud.toast('RECORDING ECHO · R TO REWIND');
     }
   }
 
@@ -1203,6 +1246,15 @@ async function start() {
   let autoFrames = 0;
   let menuFrame = 0;
 
+  let shadowTick = 0;
+  function refreshStaticShadows(dt) {
+    if (QUALITY[state.quality].shadows) return;
+    shadowTick += dt;
+    if (shadowTick < 0.5) return;
+    shadowTick = 0;
+    renderer.shadowMap.needsUpdate = true;
+  }
+
   function autoQuality(dt) {
     if (!state.auto) return;
     autoTime += dt;
@@ -1357,6 +1409,7 @@ async function start() {
     }
     ui.feed.classList.toggle('is-hidden', cur.cctv.active < 0);
     autoQuality(wallDt);
+    refreshStaticShadows(wallDt);
     frames += 1;
     fpsTime += wallDt;
     if (fpsTime >= 0.5) {
@@ -1379,8 +1432,10 @@ async function start() {
       return;
     }
     if (state.ended) return;
+    if (e.code === 'KeyQ') { openPause(); return; }
+    if (e.code === 'Escape' && closeOverlay()) { e.preventDefault(); return; }
     if (cur.cctv.active >= 0) {
-      if (e.code === 'Tab' || e.code === 'KeyQ' || e.code === 'Backspace') {
+      if (e.code === 'Tab' || e.code === 'Backspace') {
         cur.cctv.exit();
         rects = layoutOverlays();
       } else if (/^Digit[1-4]$/.test(e.code)) {
@@ -1392,10 +1447,8 @@ async function start() {
       return;
     }
     if (e.code === 'KeyE') interact();
-    if (e.code === 'KeyQ' || e.code === 'Backspace') {
-      if (state.inSafe) { state.inSafe = false; hud.safe(false); }
-      else if (e.code === 'KeyQ') toggleEcho();
-    }
+    if (e.code === 'Backspace' && state.inSafe) { state.inSafe = false; hud.safe(false); }
+    if (e.code === 'KeyR' && !state.inSafe) toggleEcho();
     if (state.inSafe || state.zip || state.vent) return;
     if (e.code === 'Space' && player.y === 0 && player.profile.id !== 'crawl') { player.vy = 4.6; events.emit('player:jump', {}); }
     if (e.code === 'KeyG' && state.sonarCooldown <= 0) {
@@ -1414,10 +1467,22 @@ async function start() {
   window.addEventListener('blur', () => { for (const k of Object.keys(keys)) keys[k] = false; });
   canvas.addEventListener('mousedown', (e) => { if (e.button === 0) throwDecoy(); });
   canvas.addEventListener('click', () => { if (!state.locked && !screens.inMenu) canvas.requestPointerLock(); });
+  function closeOverlay() {
+    if (cur.cctv.active >= 0) { cur.cctv.exit(); rects = layoutOverlays(); return true; }
+    if (state.inSafe) { state.inSafe = false; hud.safe(false); return true; }
+    return false;
+  }
+  function openPause() {
+    state.pausing = true;
+    if (document.pointerLockElement) document.exitPointerLock();
+    else { state.pausing = false; screens.pause(); }
+  }
   document.addEventListener('pointerlockchange', () => {
     state.locked = document.pointerLockElement === canvas;
     if (!state.locked) for (const k of Object.keys(keys)) keys[k] = false;
-    screens.lockChanged(state.locked);
+    const soft = !state.locked && !state.pausing && screens.state === 'playing' && closeOverlay();
+    state.pausing = false;
+    screens.lockChanged(state.locked, { soft });
     rects = layoutOverlays();
   });
   document.addEventListener('mousemove', (e) => {

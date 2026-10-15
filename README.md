@@ -27,12 +27,13 @@ Open http://localhost:5173/. Press Play for the opening and click Enter the Gala
 | Hold E | Copy a stationary guard's badge (0.75 seconds), isolate a circuit, hold an override |
 | W / S inside a duct | Crawl forward / backward through the visible tunnel |
 | A / D on the zipline | Lean during the escape ride |
-| Q | Level 3 only: record your Echo, press again to rewind and replay it |
+| R | Level 3 only: record your Echo, press again to rewind and replay it |
 | Tab | Open/close the CCTV wall; all feeds remain visible |
 | 1–4 | Select a CCTV feed; E loops the selected feed for eight seconds |
 | F | Dampener (your rings stop being heard while it lasts) |
 | P / M | Toggle picture-in-picture / minimap. The map is local until sonar resolves the full floor |
-| Esc | Pause (resume, restart from checkpoint, options, quit to title) |
+| Esc | Close the camera feeds or step back from the safe |
+| Q | Pause menu (resume, restart from checkpoint, options, quit to title) |
 | R / N | After a capture: restart from checkpoint / back to title |
 
 ## The three levels

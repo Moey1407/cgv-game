@@ -97,8 +97,9 @@ export function createPostFX(renderer, scene, camera, { quality = 'medium' } = {
     settings = QUALITY[name];
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, settings.pixelRatio));
     renderer.setSize(size.x, size.y, false);
-    renderer.shadowMap.enabled = settings.shadows;
-    scene.traverse((o) => { if (o.material) o.material.needsUpdate = true; });
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.autoUpdate = settings.shadows;
+    renderer.shadowMap.needsUpdate = true;
     build();
   }
 

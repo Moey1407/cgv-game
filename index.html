@@ -32,8 +32,8 @@
   <div class="status-row items"><span id="item-keycard">BADGE —</span><span id="item-take">KESTREL STAR —</span><span id="item-evidence">EVIDENCE 0/3</span><span id="item-decoy">DECOY ×3</span></div>
   <div id="echo-state" class="echo-state is-hidden">
     <div class="echo-head"><strong id="echo-step">ECHO · READY</strong><span id="echo-time">20.0s MAX</span></div>
-    <b id="echo-action">Q · START RECORDING</b>
-    <p id="echo-help">Record a path, then press Q again to rewind and replay it.</p>
+    <b id="echo-action">R · START RECORDING</b>
+    <p id="echo-help">Record a path, then press R again to rewind and replay it.</p>
     <div class="echo-track"><i id="echo-fill"></i></div>
   </div>
 </div>
@@ -54,14 +54,14 @@
     <div class="cctv-cell" data-feed="3"><div><span class="rec">LIVE</span><b></b><small></small></div></div>
   </div>
   <div class="feed-console"><span>SECURITY DESK</span><b id="feed-name"></b><span id="feed-state"></span></div>
-  <div class="feed-keys">1–4 SELECT FEED · E LOOP 8s · TAB OR Q EXIT</div>
+  <div class="feed-keys">1–4 SELECT FEED · E LOOP 8s · ESC OR TAB EXIT</div>
 </div>
 <section id="safe" class="safe is-hidden" aria-label="Vault dial">
   <span class="safe-kicker">VAULT DIAL</span>
   <div class="safe-face"><div id="safe-dial" class="safe-dial"><i></i></div><b id="safe-number">00</b></div>
   <strong id="safe-tumbler">TUMBLER 1 / 3</strong>
   <div class="safe-signal-track"><i id="safe-signal"></i></div>
-  <p>Move the mouse slowly. Press E when the signal peaks. Fast turning is loud. Q to step back.</p>
+  <p>Move the mouse slowly. Press E when the signal peaks. Fast turning is loud. Esc to step back.</p>
 </section>
 <section id="end" class="end is-hidden">
   <span id="end-kicker" class="kicker"></span>
@@ -80,7 +80,7 @@
       <button type="button" data-action="options">OPTIONS</button>
       <button type="button" data-action="credits">CREDITS</button>
     </div>
-    <small class="home-foot">Best with headphones. The mouse locks when you enter, Esc frees it.</small>
+    <small class="home-foot">Best with headphones. The mouse locks when you enter. Q opens the menu.</small>
   </div>
 </section>
 <section id="briefing" class="page briefing is-hidden" aria-label="Briefing">
@@ -123,11 +123,19 @@
     <button type="button" class="primary cinematic-next" data-action="cinematic-next">NEXT</button>
   </div>
 </section>
+<section id="relock" class="screen relock is-hidden" aria-label="Click to continue">
+  <div class="screen-box">
+    <span class="kicker">BACK IN THE ROOM</span>
+    <button type="button" class="primary" data-action="resume">CLICK TO CONTINUE</button>
+    <p class="relock-keys">Q · MENU</p>
+    <p class="lock-note"></p>
+  </div>
+</section>
 <section id="pause" class="screen is-hidden" aria-label="Paused">
   <div class="screen-box">
     <span class="kicker">PAUSED</span>
     <div class="buttons column">
-      <button type="button" class="primary" data-action="resume">RESUME</button>
+      <button type="button" class="primary" data-action="resume">RESUME · Q</button>
       <button type="button" data-action="help">CONTROLS</button>
       <button type="button" data-action="restart">RESTART FROM CHECKPOINT</button>
       <button type="button" data-action="options">OPTIONS</button>

@@ -17,14 +17,15 @@ This document describes the current data-driven museum build. The older prototyp
 | Left click | Throw a decoy |
 | `E` | Interact or hold an override |
 | `F` | Toggle the sound dampener |
-| `Q` | Start/finish Echo recording in Level 3 |
+| `R` | Start/finish Echo recording in Level 3 |
 | `Tab` | Open/close the CCTV wall |
 | `P` / `M` | Toggle the last-feed view / tactical map |
-| `Esc` | Pause and release the mouse |
+| `Esc` | Close the camera feeds or step back from the safe |
+| `Q` | Pause menu (resume, controls, restart, options, quit). `Q` again resumes |
 
 ## CCTV wall
 
-All available feeds are shown together using Huzaifa's CRT camera renderer. `1–4` selects a feed and `E` loops the selected feed for eight seconds. `Tab`, `Q` or Backspace exits. Movement, jumping, sonar, dampener changes, Echo input and decoy throwing are blocked while the console is open.
+All available feeds are shown together using Huzaifa's CRT camera renderer. `1–4` selects a feed and `E` loops the selected feed for eight seconds. `Esc`, `Tab` or Backspace exits. Movement, jumping, sonar, dampener changes, Echo input and decoy throwing are blocked while the console is open.
 
 ## Tactical map and sonar
 
@@ -36,7 +37,7 @@ Left click throws a bouncing metal decoy. It emits up to three weakening impact 
 
 ## Level 3 Echo
 
-Press `Q` to begin recording. The HUD labels this as Step 1 and shows elapsed time. Press `Q` again to rewind and begin replay; the HUD changes to Step 2 and tells the player to move independently while the Echo repeats the route.
+Press `R` to begin recording. The HUD labels this as Step 1 and shows elapsed time. Press `R` again to rewind and begin replay; the HUD changes to Step 2 and tells the player to move independently while the Echo repeats the route.
 
 ## Reserved zipline controller
 

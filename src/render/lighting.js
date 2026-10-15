@@ -68,10 +68,19 @@ export function createLighting(scene, renderer, layout, materials) {
     pivot.add(spot, aim);
     spot.target = aim;
     group.add(pivot);
-    return { pivot, spot, phase: index * 1.7 };
+    return { pivot, spot, lamp, phase: index * 1.7 };
   });
 
   let mode = 'gala';
+
+  function switchLight(light, on, intensity) {
+    light.intensity = on ? intensity : 0;
+    light.userData.on = on;
+    if (light.castShadow) {
+      light.shadow.autoUpdate = on;
+      if (on) light.shadow.needsUpdate = true;
+    }
+  }
 
   function setMode(next) {
     mode = next;
@@ -88,13 +97,15 @@ export function createLighting(scene, renderer, layout, materials) {
     const gala = mode === 'gala';
     hemi.intensity = gala ? 0.35 : mode === 'night' ? 0.25 : 0.12;
     hemi.color.setHex(gala ? 0x5a4632 : mode === 'night' ? 0x22324a : 0x3a0a10);
-    key.visible = gala;
-    for (const light of chandeliers) light.visible = gala;
-    for (const light of pictures) light.visible = gala;
-    moon.visible = !gala;
-    moon.intensity = mode === 'night' ? 0.9 : 0.25;
-    for (const light of exits) light.visible = !gala;
-    for (const beacon of beacons) beacon.pivot.visible = mode === 'lockdown';
+    switchLight(key, gala, 260);
+    for (const light of chandeliers) switchLight(light, gala, 55);
+    for (const light of pictures) switchLight(light, gala, 28);
+    switchLight(moon, !gala, mode === 'night' ? 0.9 : 0.25);
+    for (const light of exits) switchLight(light, !gala, 2);
+    for (const beacon of beacons) {
+      beacon.lamp.visible = mode === 'lockdown';
+      switchLight(beacon.spot, mode === 'lockdown', 140);
+    }
     if (materials?.crystal) materials.crystal.emissiveIntensity = p.crystal;
   }
 

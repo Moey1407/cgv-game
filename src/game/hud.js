@@ -77,13 +77,13 @@ export function createHud(doc = document) {
     el.echo.classList.toggle('replaying', mode === 'replaying');
     let step = 'ECHO · READY';
     let time = '20.0s MAX';
-    let action = 'Q · START RECORDING';
-    let help = 'Record a path to the first task, then press Q again to rewind and replay it.';
+    let action = 'R · START RECORDING';
+    let help = 'Record a path to the first task, then press R again to rewind and replay it.';
     let progress = 0;
     if (mode === 'recording') {
       step = 'STEP 1 · RECORDING PATH';
       time = state.elapsed.toFixed(1) + ' / 20.0s';
-      action = 'Q · FINISH & REWIND';
+      action = 'R · FINISH & REWIND';
       help = 'Finish at the override or plate. You will return to your starting point.';
       progress = state.elapsed / 20;
     } else if (mode === 'replaying') {
@@ -95,12 +95,12 @@ export function createHud(doc = document) {
     } else if (mode === 'shattered') {
       step = 'ECHO · DISRUPTED';
       time = 'GUARD CONTACT';
-      action = 'Q · RECORD AGAIN';
+      action = 'R · RECORD AGAIN';
       help = 'Use a shorter route or keep the replay away from the sweep team.';
     } else if (mode === 'complete') {
       step = 'ECHO · PATH COMPLETE';
       time = state.duration.toFixed(1) + 's';
-      action = 'Q · RECORD AGAIN';
+      action = 'R · RECORD AGAIN';
       help = 'The replay finished. Record another route if the mechanism is still locked.';
       progress = 1;
     }

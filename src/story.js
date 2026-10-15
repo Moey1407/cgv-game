@@ -98,7 +98,7 @@ export const SCRIPT = {
         [DEX, 'Insurance pays better with a culprit. Sorry, Wren. Same as Marlowe.'],
         CUT,
         [WREN, 'Two-person interlock. My rig can replay the second operator’s signal. I can still reach my roof line.'],
-        [SYSTEM, 'Q records your movement and E input. Q again rewinds you; the Echo repeats the recording.'],
+        [SYSTEM, 'R records your movement and E input. R again rewinds you; the Echo repeats the recording.'],
       ],
     },
     'player:detected': { cooldown: 10, urgent: true, variants: [[WREN, 'Seen. Move!'], [WREN, 'Not now. Not now.']] },
