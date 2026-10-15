@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createEchoSystem } from '../src/gameplay/echo.js';
+import { createEchoSystem, lerpAngle } from '../src/gameplay/echo.js';
 
 test('Echo records at 20 Hz, rewinds, and interpolates the replay', () => {
   const echo = createEchoSystem({ sampleHz: 20, maxSeconds: 20 });
@@ -22,4 +22,15 @@ test('Echo caps recording duration and can be shattered once by a guard', () => 
   assert.ok(echo.snapshot().frameCount <= 21);
   assert.equal(echo.shatter('guard'), true);
   assert.equal(echo.shatter('guard'), false);
+});
+
+test('Echo turns the short way across the back of the circle', () => {
+  const echo = createEchoSystem({ sampleHz: 20, maxSeconds: 5 });
+  echo.start({ x: 0, z: 0, yaw: 3.0 });
+  echo.record(0.05, { x: 0, z: 0, yaw: -3.0, mode: 'crouch' });
+  echo.stop();
+  const frame = echo.replay(0.025);
+  assert.ok(Math.abs(Math.atan2(Math.sin(frame.yaw), Math.cos(frame.yaw))) > 3.0);
+  assert.ok(Math.abs(lerpAngle(3.0, -3.0, 0.5)) > 3.1);
+  assert.equal(echo.replay(0.02).mode, 'crouch');
 });

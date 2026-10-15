@@ -10,21 +10,50 @@
 <body>
 <canvas id="view"></canvas>
 <div id="loading" class="loading">LOADING THE VARGA MUSEUM</div>
-<div id="mode" class="mode">LEVEL 1 · THE GALA · 19:40</div>
+<div class="top-left">
+  <div id="mode" class="mode">LEVEL 1 · THE GALA · 19:40</div>
+  <div id="objective" class="objective">Lift Okafor's keycard</div>
+</div>
+<div id="alarm" class="alarm quiet">
+  <span class="alarm-name">ALARM</span><strong id="alarm-label">QUIET</strong>
+  <div class="alarm-track"><i id="alarm-fill"></i></div>
+  <span id="guard-state" class="guard-state">GUARDS · PATROL</span>
+</div>
+<div class="status">
+  <div class="status-row"><span id="movement">RUNNING</span><div class="stamina"><i id="stamina-fill"></i></div></div>
+  <div class="status-row items"><span id="item-keycard">KEYCARD —</span><span id="item-take">TAKE $0</span><span id="item-evidence">EVIDENCE 0/1</span></div>
+  <div id="echo-state" class="echo-state">ECHO READY · Q</div>
+</div>
 <div id="stats" class="stats"></div>
+<div id="toast" class="toast is-hidden" role="status"></div>
+<div id="prompt" class="prompt is-hidden"><span id="prompt-text"></span><div class="prompt-track"><i id="prompt-fill"></i></div></div>
 <div id="pip-frame" class="frame pip"><span>LAST CCTV FEED</span></div>
 <div id="map-frame" class="frame map"><span>TACTICAL MAP</span></div>
 <div id="feed" class="feed is-hidden">
   <div class="feed-top"><span class="rec">REC</span><span id="feed-name"></span></div>
   <div id="feed-state" class="feed-state"></div>
-  <div class="feed-keys">TAB NEXT · SHIFT+TAB PREVIOUS · L LOOP · Q BACK</div>
+  <div class="feed-keys">TAB NEXT · SHIFT+TAB PREVIOUS · E OR L LOOP · Q BACK</div>
 </div>
+<section id="safe" class="safe is-hidden" aria-label="Vault dial">
+  <span class="safe-kicker">VAULT DIAL</span>
+  <div class="safe-face"><div id="safe-dial" class="safe-dial"><i></i></div><b id="safe-number">00</b></div>
+  <strong id="safe-tumbler">TUMBLER 1 / 3</strong>
+  <div class="safe-signal-track"><i id="safe-signal"></i></div>
+  <p>Move the mouse slowly. Press E when the signal peaks. Fast turning is loud. Q to step back.</p>
+</section>
+<section id="end" class="end is-hidden">
+  <span id="end-kicker" class="kicker"></span>
+  <h2 id="end-title"></h2>
+  <p id="end-copy"></p>
+  <p id="end-stats" class="end-stats"></p>
+  <p class="end-keys">R restart from checkpoint · N new heist</p>
+</section>
 <div id="hint" class="hint">
-  <strong>CLICK TO LOOK AROUND</strong>
-  <span>WASD move · Shift run · C crouch · arrows look</span>
-  <span>1 gala · 2 night · 3 lockdown</span>
-  <span>Space sonar · Tab CCTV · F dampener · G glitch · H dissolve echo</span>
-  <span>P picture-in-picture · M map · K quality</span>
+  <strong>CLICK TO PLAY</strong>
+  <span>WASD move · Shift walk quietly · C crouch · Z crawl · X sprint · Space jump</span>
+  <span>G sonar · E interact (hold to pickpocket) · Tab CCTV · Q record Echo</span>
+  <span>1 gala · 2 night · 3 lockdown · F dampener · P picture-in-picture · M map · K quality</span>
+  <span>Lift the keycard, stand on both plates with your Echo, cross the lasers, crack the vault.</span>
   <button id="credits-button" class="credits-button" type="button">CREDITS</button>
 </div>
 <dialog id="credits" class="credits">

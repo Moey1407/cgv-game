@@ -37,7 +37,11 @@ This branch owns behaviour, not final art, dialogue, level dressing or deploymen
 
 Huzaifa can subscribe visual effects to these events. Teammate 3 can subscribe UI, radio and audio without importing or changing gameplay internals.
 
-## Current controls
+## Merged into the museum
+
+These systems now run in the new game in `src/main.js`: alarm, stamina and movement profiles, pickpocketing Okafor's keycard, pickups, CCTV detection and looping, the Echo with the two sync plates opening the vault wing shutter, safecracking at the vault, and checkpoints. Guard hearing, sight, pursuit and search live in `src/game/guardAI.js`. The Echo replay now turns the short way round (`lerpAngle`) and records the movement mode.
+
+## Original controls
 
 - `Shift`: quiet walk
 - `C`: crouch

@@ -167,22 +167,30 @@ export async function buildHall(scene, materials, renderer, { width, height }) {
   cCeil.position.set(0, CH, CZ);
   corridor.add(cCeil);
   const doorMaterial = new THREE.MeshStandardMaterial({ color: 0xb8c4cc, metalness: 1, roughness: 0.18 });
+  const vaultHinge = new THREE.Group();
+  vaultHinge.position.set(-1.8, 2, C1 + 0.3);
+  corridor.add(vaultHinge);
   const vaultDoor = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 1.8, 0.5, 64), doorMaterial);
   vaultDoor.rotation.x = Math.PI / 2;
-  vaultDoor.position.set(0, 2, C1 + 0.3);
+  vaultDoor.position.set(1.8, 0, 0);
   vaultDoor.castShadow = true;
-  corridor.add(vaultDoor);
+  vaultHinge.add(vaultDoor);
+  const dial = new THREE.Group();
+  dial.position.set(1.8, 0, 0.35);
+  vaultHinge.add(dial);
   const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.3, 32), materials.gold);
   hub.rotation.x = Math.PI / 2;
-  hub.position.set(0, 2, C1 + 0.65);
-  corridor.add(hub);
+  dial.add(hub);
   for (let i = 0; i < 3; i += 1) {
     const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.2, 0.08), materials.gold);
-    spoke.position.set(0, 2, C1 + 0.8);
+    spoke.position.z = 0.15;
     spoke.rotation.z = (i * Math.PI * 2) / 3;
     spoke.translateY(0.6);
-    corridor.add(spoke);
+    dial.add(spoke);
   }
+  const notch = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, 0.06), new THREE.MeshBasicMaterial({ color: 0xff3f62 }));
+  notch.position.set(0, 0.6, 0.18);
+  dial.add(notch);
   for (const s of [-1, 1]) box(corridor, 0.75, 6.2, 0.2, materials.steel, s * 2.78, 3.1, C0 - 0.12, false);
   box(corridor, 6.3, 2.0, 0.2, materials.steel, 0, CH + 1.0, C0 - 0.12, false);
   const backPlate = new THREE.Mesh(new THREE.PlaneGeometry(CW * 2, CH), materials.steel);
@@ -240,5 +248,5 @@ export async function buildHall(scene, materials, renderer, { width, height }) {
     return inHall || inDoor || inCorridor;
   }
 
-  return { world, ceilingGroup, layout, tables, setMode, setReflection, inside, vaultDoor };
+  return { world, ceilingGroup, layout, tables, setMode, setReflection, inside, vaultDoor, vaultHinge, dial };
 }
