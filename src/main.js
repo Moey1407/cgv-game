@@ -103,7 +103,7 @@ async function start() {
   const qa = new URLSearchParams(location.search).has('qa');
   const $ = (id) => document.getElementById(id);
   const ui = {
-    mode: $('mode'), timer: $('timer'), feed: $('feed'), feedName: $('feed-name'), feedState: $('feed-state'),
+    mode: $('mode'), timer: $('timer'), fade: $('fade'), feed: $('feed'), feedName: $('feed-name'), feedState: $('feed-state'),
     pip: $('pip-frame'), map: $('map-frame'), stats: $('stats'), loading: $('loading'),
     credits: $('credits'), closeCredits: $('close-credits')
   };
@@ -199,7 +199,7 @@ async function start() {
     damage: 0, locked: false, sonarCooldown: 0, laserCooldown: 0, exposure: 0,
     hasKeycard: false, inSafe: false, ended: null, detections: 0, time: 0,
     echoStep: 0, echoLast: new THREE.Vector3(), fadeEcho: 0, lastDt: 1 / 60, safeGlow: 0, safeNoise: 0,
-    zip: null, searchCooldown: 0, attract: 0
+    zip: null, vent: null, searchCooldown: 0, attract: 0
   };
   const tmp = { dir: new THREE.Vector3(), next: new THREE.Vector3(), probe: new THREE.Vector3(), up: new THREE.Vector3(0, 1, 0), look: new THREE.Vector3() };
 
@@ -425,6 +425,9 @@ async function start() {
     state.damage = 0;
     state.exposure = 0;
     state.zip = null;
+    state.vent = null;
+    ui.fade.classList.remove('is-on');
+    ui.fade.style.transition = '';
     state.dampen = false;
     hud.end(null);
     hud.safe(false);
@@ -643,8 +646,45 @@ async function start() {
     }
   }
 
+  function updateVent(dt, time) {
+    const v = state.vent;
+    v.t += dt;
+    const ease = (x) => x * x * (3 - 2 * x);
+    if (!v.moved) {
+      const k = ease(Math.min(1, v.t / 0.7));
+      player.yaw = v.startYaw + Math.atan2(Math.sin(v.enterYaw - v.startYaw), Math.cos(v.enterYaw - v.startYaw)) * k;
+      player.pitch = v.startPitch + (-0.12 - v.startPitch) * k;
+      player.height += (0.42 - player.height) * Math.min(1, dt * 8);
+      const push = k * 0.45;
+      camera.position.set(player.position.x - Math.sin(player.yaw) * push, player.base + player.height + Math.sin(time * 9) * 0.02 * k, player.position.z - Math.cos(player.yaw) * push);
+      camera.rotation.set(player.pitch, player.yaw, 0);
+      ui.fade.classList.toggle('is-on', v.t > 0.35);
+      if (v.t >= 1.3) {
+        v.moved = true;
+        cur.flags.vented = true;
+        placePlayer(v.to[0], 0, v.to[2], v.yaw);
+        player.height = 0.42;
+        player.pitch = -0.08;
+        emitNoise(player.position, RING_COLOURS.alert, 7, { source: 'vent', strength: 0.8, cause: 'footstep' });
+      }
+    } else {
+      ui.fade.classList.toggle('is-on', v.t < 1.75);
+      player.height += (0.58 - player.height) * Math.min(1, dt * 3);
+      camera.position.set(player.position.x, player.base + player.height + Math.sin(time * 9) * 0.015, player.position.z);
+      camera.rotation.set(player.pitch, player.yaw, 0);
+      if (v.t >= 2.4) {
+        state.vent = null;
+        ui.fade.style.transition = '';
+        hud.toast('THROUGH THE VENT · THE GRATE RATTLED');
+      }
+    }
+    playerMarker.position.copy(player.position);
+    playerMarker.rotation.y = player.yaw;
+  }
+
   function updatePlayer(dt, time) {
     if (state.zip) { updateZip(dt); return; }
+    if (state.vent) { updateVent(dt, time); return; }
     if (state.inSafe || state.ended) return;
     const stam = stamina.snapshot();
     let profile = movementProfile(keys, { damped: state.dampen });
@@ -737,7 +777,7 @@ async function start() {
   }
 
   function updateInteractions(dt) {
-    if (state.ended || state.inSafe || state.zip) { hud.prompt(null); return; }
+    if (state.ended || state.inSafe || state.zip || state.vent) { hud.prompt(null); return; }
     if (!state.hasKeycard && cur.okafor) {
       const r = pickpocket.update({
         dt,
@@ -770,7 +810,7 @@ async function start() {
   }
 
   function interact() {
-    if (state.ended || state.zip) return;
+    if (state.ended || state.zip || state.vent) return;
     if (state.inSafe) { safe.setTumbler(); return; }
     if (cur.cctv.active >= 0) {
       if (cur.cctv.loop()) cur.cctvSystem.loop(cur.cctv.active);
@@ -789,13 +829,16 @@ async function start() {
     if ((spot.id === 'vent_in' || spot.id === 'vent_out') && stance()) {
       const from = cur.use[spot.id];
       const to = spot.id === 'vent_in' ? from.to : cur.use.vent_in.usePos;
-      emitNoise(player.position, RING_COLOURS.alert, 6, { source: 'vent', strength: 0.7, cause: 'footstep' });
       const aim = spot.id === 'vent_in' ? cur.use.safe.usePos : [0, 0, -15];
-      placePlayer(to[0], 0, to[2], facing(aim[0] - to[0], aim[2] - to[2]));
-      cur.flags.vented = true;
-      state.damage = 0.6;
-      hud.toast('THROUGH THE VENT · THE GRATE RATTLED');
-      emitNoise(player.position, RING_COLOURS.alert, 7, { source: 'vent', strength: 0.8, cause: 'footstep' });
+      emitNoise(player.position, RING_COLOURS.alert, 6, { source: 'vent', strength: 0.7, cause: 'footstep' });
+      state.vent = {
+        t: 0, moved: false, to,
+        yaw: facing(aim[0] - to[0], aim[2] - to[2]),
+        enterYaw: facing(from.pos[0] - player.position.x, from.pos[2] - player.position.z),
+        startYaw: player.yaw, startPitch: player.pitch
+      };
+      hud.prompt(null);
+      ui.fade.style.transition = 'opacity 0.45s ease';
     }
     if (spot.id === 'safe') {
       const p = cur.use.safe.usePos;
@@ -1122,7 +1165,7 @@ async function start() {
       else if (cur.cctv.active >= 0) { cur.cctv.exit(); rects = layoutOverlays(); }
       else if (e.code === 'KeyQ') toggleEcho();
     }
-    if (state.inSafe || state.zip) return;
+    if (state.inSafe || state.zip || state.vent) return;
     if (e.code === 'Space' && player.y === 0 && player.profile.id !== 'crawl') { player.vy = 4.6; events.emit('player:jump', {}); }
     if (e.code === 'KeyG' && state.sonarCooldown <= 0) {
       state.sonarCooldown = 2.6;
@@ -1146,7 +1189,7 @@ async function start() {
     rects = layoutOverlays();
   });
   document.addEventListener('mousemove', (e) => {
-    if (!state.locked || cur.cctv.active >= 0 || state.zip) return;
+    if (!state.locked || cur.cctv.active >= 0 || state.zip || state.vent) return;
     if (state.inSafe) {
       safe.turn(e.movementX * 0.035 * screens.options.sensitivity, Math.max(state.lastDt, 1 / 240));
       return;

@@ -168,9 +168,30 @@ export function buildLevel(scene, materials, field, data, { roofRain = false } =
 
   const lights = new THREE.Group();
   group.add(lights);
+  const beacons = [];
+  const beaconMat = own(new THREE.MeshStandardMaterial({ color: 0x400608, emissive: 0xff2020, emissiveIntensity: 2.4, roughness: 0.4 }));
+  const housingMat = own(new THREE.MeshStandardMaterial({ color: 0x15181c, metalness: 0.6, roughness: 0.5 }));
+  function addBeacon(x, ceiling, z, glow) {
+    const rig = new THREE.Group();
+    rig.position.set(x, ceiling - 0.25, z);
+    const housing = new THREE.Mesh(geo(new THREE.CylinderGeometry(0.22, 0.26, 0.12, 20)), housingMat);
+    housing.position.y = 0.16;
+    const dome = new THREE.Mesh(geo(new THREE.SphereGeometry(0.18, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2)), own(beaconMat.clone()));
+    dome.rotation.x = Math.PI;
+    dome.position.y = 0.1;
+    const spin = new THREE.Group();
+    for (const side of [1, -1]) {
+      const spot = new THREE.SpotLight(0xff2a1a, 220, 22, 0.42, 0.5, 1.4);
+      spot.target.position.set(side * 6, -2.4, 0);
+      spin.add(spot, spot.target);
+    }
+    rig.add(housing, dome, spin);
+    lights.add(rig);
+    beacons.push({ spin, dome, glow, base: glow.intensity });
+  }
   for (const l of data.lights) {
     const colour = new THREE.Color(l.color);
-    if (l.type === 'ambient') lights.add(new THREE.HemisphereLight(colour, 0x050608, l.intensity));
+    if (l.type === 'ambient') lights.add(new THREE.HemisphereLight(colour, data.id === 3 ? 0x1a0606 : 0x050608, l.intensity * (data.id === 3 ? 2.6 : 1)));
     if (l.type === 'point') {
       const p = new THREE.PointLight(colour, l.intensity * 30, 18, 1.6);
       p.position.set(...l.pos);
@@ -183,6 +204,7 @@ export function buildLevel(scene, materials, field, data, { roofRain = false } =
     const p = new THREE.PointLight(data.id === 3 ? 0xff5a4a : 0xa8c8ff, data.id === 3 ? 14 : 30, Math.max(z.max[0] - z.min[0], z.max[2] - z.min[2]) * 1.1, 1.6);
     p.position.set(cx, z.min[1] + ROOM_HEIGHT - 0.4, cz);
     lights.add(p);
+    if (data.id === 3 && z.min[1] < 10) addBeacon(cx, z.min[1] + ROOM_HEIGHT, cz, p);
   }
 
   let rain = null;
@@ -219,6 +241,12 @@ export function buildLevel(scene, materials, field, data, { roofRain = false } =
         a.setY(i + 1, y - 0.45);
       }
       a.needsUpdate = true;
+    }
+    for (const [i, b] of beacons.entries()) {
+      b.spin.rotation.y = time * 3.2 + i * 1.7;
+      const pulse = 0.5 + 0.5 * Math.max(0, Math.sin(time * 6.4 + i));
+      b.glow.intensity = b.base * (0.7 + pulse * 1.3);
+      b.dome.material.emissiveIntensity = 1.2 + pulse * 2.4;
     }
     if (searchlight) {
       searchlight.target.position.set(Math.sin(time * 0.5) * 9, 20, -72 + Math.cos(time * 0.37) * 6);
