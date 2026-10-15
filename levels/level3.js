@@ -25,6 +25,7 @@ export default {
   ],
   spawn: [0, 0, -3],
   checkpoint: [0, 0, -3],
+  airlockIn: { pos: [0, 0, 8.1], yawDeg: 0 },
   goal: [0, 20, -78],
   lockdownSeconds: 360,
   alarmFloor: 'Alert', // the alarm is stuck at Alert for the whole level
@@ -48,7 +49,9 @@ export default {
     // Hold room
     wall('hold-west', [-5.1, 2, -10], [0.2, 4, 20.4]),
     wall('hold-east', [5.1, 2, -10], [0.2, 4, 20.4]),
-    wall('hold-back', [0, 2, 0.1], [10.4, 4, 0.2]),
+    wall('hold-back-west', [-3.15, 2, 0.1], [4.1, 4, 0.2]),
+    wall('hold-back-east', [3.15, 2, 0.1], [4.1, 4, 0.2]),
+    wall('hold-back-lintel', [0, 3.65, 0.1], [2.2, 0.7, 0.2]),
     wall('hold-front-west', [-3.5, 2, -20.1], [3, 4, 0.2]),
     wall('hold-front-east', [3.5, 2, -20.1], [3, 4, 0.2]),
     wall('passage-west', [-2.1, 2, -22.5], [0.2, 4, 5]),

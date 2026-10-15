@@ -4,11 +4,12 @@ import { missionPhase } from '../src/gameplay/mission.js';
 import { makeTraversalPath } from '../src/gameplay/traversal.js';
 import { createNavigation } from '../src/gameplay/navigation.js';
 
-test('gala requires copied access and reader authorisation before the lobby exit', () => {
-  assert.equal(missionPhase(1).id, 'badge');
-  assert.equal(missionPhase(1, { hasKeycard: true }).id, 'reader');
-  assert.equal(missionPhase(1, {}, { nightEntry: true }).exitReady, false);
-  assert.equal(missionPhase(1, { hasKeycard: true }, { nightEntry: true }).exitReady, true);
+test('gala requires the rig, copied access and reader authorisation before the lobby exit', () => {
+  assert.equal(missionPhase(1).id, 'rig');
+  assert.equal(missionPhase(1, {}, { rig: true }).id, 'badge');
+  assert.equal(missionPhase(1, { hasKeycard: true }, { rig: true }).id, 'reader');
+  assert.equal(missionPhase(1, {}, { rig: true, nightEntry: true }).exitReady, false);
+  assert.equal(missionPhase(1, { hasKeycard: true }, { rig: true, nightEntry: true }).exitReady, true);
 });
 
 test('opening the safe does not magically collect the Star or finish the vault', () => {

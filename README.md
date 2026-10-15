@@ -36,11 +36,17 @@ Open http://localhost:5173/. Press Play for the opening and click Enter the Gala
 | Q | Pause menu (resume, restart from checkpoint, options, quit to title) |
 | R / N | After a capture: restart from checkpoint / back to title |
 
+## Getting around
+
+A marker on screen always points at the next objective with its distance, and the object you need glows when you get close. If you stay stuck on one step for about 40 seconds, Dex (or Wren on Level 3) radios a hint. Levels are joined by short service passages: walk in, the door shuts behind you, and the next level loads while you walk to the far door.
+
+For testing, `npm run dev` and open `/?level=2` or `/?level=3`, press Play, and the briefing starts on that level. This only works in the dev server.
+
 ## The three levels
 
 Each stage has a clear objective chain. The Star and evidence carry across the run; the final grade and ending follow the escape. The optional files expose Dex, while unrelated theft pickups have been removed.
 
-1. **The Gala.** Dex has added Wren to the guest list. Loop the hall camera and copy Okafor's badge during a quiet inspection stop. Nearby witnesses and an extended close tail can spoil the attempt. Authorise the night entry at the staff reader, then return to the lobby and leave.
+1. **The Gala.** Dex has added Wren to the guest list. First slip through the staff door on the east wall into the security office, get past the officer, and hold E at the desk to plant the rig. That unlocks the cameras (Tab) and the office monitors, and the first evidence file is on the records cabinet. Then loop the hall camera and copy Okafor's badge during a quiet inspection stop. Nearby witnesses and an extended close tail can spoil the attempt. Authorise the night entry at the staff reader, then return to the lobby and leave.
 2. **The Vault.** Return at 01:30 on the same heist night. Crawl, jump and time the beams, then choose the inner checkpoint or the duct. Isolate the safe's tamper circuit, crack three tumblers while Briggs patrols, explicitly take the Star and return to the service fire door.
 3. **The Double-Cross.** Dex seals Wren into the service wing. Record the shutter override and cross with the Echo's help. Get past two patrols using cover, a distraction or the duct. Reach the roof landing, satisfy the two-operator sensors, release the hatch and ride Wren's pre-rigged line to the service roof. All three evidence files trigger an upload and the exposed-Dex ending. The current escape budget is six minutes, pending first-time playtests.
 

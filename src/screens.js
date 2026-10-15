@@ -435,6 +435,7 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
   }
 
   events?.on('level:complete', (p = {}) => {
+    if (p.seamless) return;
     const done = p.level ?? level;
     clearTimeout(resultsTimer);
     resultsTimer = setTimeout(() => {

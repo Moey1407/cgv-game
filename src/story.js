@@ -40,6 +40,15 @@ const ALARM_ORDER = ['quiet', 'suspicious', 'alert', 'lockdown'];
 // urgent (jumps the queue).
 export const SCRIPT = {
   any: {
+    'hint:rig': { cooldown: 45, say: [[DEX, 'East wall, past the shipwreck painting. Staff door. Wait for the officer to leave the passage, then get to the desk.']] },
+    'hint:badge': { cooldown: 45, say: [[DEX, 'Okafor stops on the west wall. Loop camera two, wait for his stop, come up behind him and hold E.']] },
+    'hint:reader': { cooldown: 45, say: [[DEX, 'The reader is at the end of the vault corridor. Through the gap in the rope at the back of the hall.']] },
+    'hint:lobby': { cooldown: 45, say: [[DEX, 'You are done here. Back to the lobby doors you came in through.']] },
+    'hint:circuit': { cooldown: 45, say: [[DEX, 'Through the lasers, then the panel on the west wall of the vault room. Hold E on it.']] },
+    'hint:safe': { cooldown: 45, say: [[DEX, 'Turn the dial slowly and press E when the signal peaks. Watch the timer for Briggs.']] },
+    'hint:star': { cooldown: 45, say: [[DEX, 'The safe is open. Walk up and take the Star.']] },
+    'hint:service-exit': { cooldown: 45, say: [[DEX, 'The fire door is in the narrow corridor between the lasers and the vault. Go.']] },
+    'door:security-desk': { say: [[DEX, 'We are in their system. Tab gives you every camera in the building. Now find Okafor.']] },
     'camera:loop': { say: [[DEX, "That feed's on a loop for eight seconds. Security is watching a very boring rerun."]] },
     'camera:detected': { cooldown: 12, urgent: true, variants: [[DEX, "Camera's got you. Loop it or get out of its view."], [DEX, "You're on camera, Wren. Smile, then move."]] },
     'player:detected': { cooldown: 10, urgent: true, variants: [[DEX, "He's seen you. Break line of sight!"], [DEX, 'Spotted! Get behind something solid.']] },
@@ -93,6 +102,10 @@ export const SCRIPT = {
 
   // Level 3, The Double-Cross: Dex betrays Wren, comms die, Wren talks to herself.
   3: {
+    'hint:shutter': { cooldown: 45, say: [[WREN, 'Stand at the override. R to record, hold E a few seconds, R again. Then walk while my Echo holds it.']] },
+    'hint:sensors': { cooldown: 45, say: [[WREN, 'Stairs in the north-east corner. Up top, record myself on one plate, rewind, take the other.']] },
+    'hint:hatch': { cooldown: 45, say: [[WREN, 'Both plates are locked. Hold the override by the hatch.']] },
+    'hint:zipline': { cooldown: 45, say: [[WREN, 'The line is at the far edge of the roof. Clip on.']] },
     'level:start': {
       say: [
         [DEX, 'Insurance pays better with a culprit. Sorry, Wren. Same as Marlowe.'],

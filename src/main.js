@@ -6,7 +6,10 @@ import {
   RING_COLOURS, LAYER_WORLD_ONLY, rendererStats
 } from './render/index.js';
 import { buildHall } from './world/hall.js';
-import { buildLevel } from './world/levelBuilder.js';
+import { buildLevel, createCollision } from './world/levelBuilder.js';
+import { buildSecurityWing } from './world/securityWing.js';
+import { createAirlock, AIRLOCK } from './world/airlock.js';
+import { createGuide } from './game/guide.js';
 import { buildProps } from './world/levelProps.js';
 import { LEVELS, EVIDENCE_TOTAL } from '../levels/index.js';
 import { surfaceAt } from '../levels/schema.js';
@@ -45,7 +48,6 @@ const LEVEL_LABEL = {
 const HEARING = { gala: 0.45, night: 1, lockdown: 1.15 };
 const RING_SCALE = 0.6;
 const USE_RANGE = 1.5;
-const HALL_BOUNDS = { minX: -13, maxX: 13, minZ: -62, maxZ: 8 };
 const HALL_CAMERAS = [
   { name: 'CAM 01 · ATRIUM', position: [-11.5, 8.5, 7], target: [2, 0, -8], sweep: 0.35 },
   { name: 'CAM 02 · GRAND HALL', position: [11.5, 8.5, -20], target: [-2, 0, -8], sweep: 0.3 },
@@ -181,6 +183,17 @@ async function start() {
   minimap.hideFromMap(skybox.mesh);
   minimap.hideFromMap(skybox.city);
   const fx = createPostFX(renderer, scene, camera, { quality: 'medium' });
+  const inLock = createAirlock(materials);
+  const outLock = createAirlock(materials);
+  scene.add(inLock.group, outLock.group);
+  minimap.hideFromMap(inLock.group);
+  minimap.hideFromMap(outLock.group);
+  const airScene = new THREE.Scene();
+  airScene.background = new THREE.Color(0x050505);
+  airScene.add(new THREE.HemisphereLight(0x9a948a, 0x161412, 0.6), outLock.twin);
+  const airCamera = camera.clone();
+  airCamera.rotation.order = 'YXZ';
+  const guide = createGuide({ scene, camera });
 
   // Xbot is kept for the Echo; the gala uses a purpose-built instanced crowd
   // so suits and dresses read clearly without fourteen skinned models.
@@ -230,7 +243,7 @@ async function start() {
     field.emit(tmp.next.set(position.x, y + 0.02, position.z), colour, radius, { speed: speed ?? Math.max(5, radius * 0.9), strength, source });
     if (damped || !cur) return;
     if (cur.n === 1 && source === 'player' && cause === 'footstep'
-      && galaCover({ z: player.position.z, movement: player.profile.id, gadgetHeat: state.socialHeat, compromised: cur.flags.coverBlown }).safe) return;
+      && galaCover({ x: player.position.x, z: player.position.z, movement: player.profile.id, gadgetHeat: state.socialHeat, compromised: cur.flags.coverBlown }).safe) return;
     const reach = radius * (HEARING[state.mode] ?? 1);
     let heard = false;
     for (const g of cur.guards) {
@@ -241,8 +254,8 @@ async function start() {
 
   function canStand(x, z, r = 0.35, y = player.base) {
     if (!cur) return false;
-    if (cur.built) return cur.built.inside(x, z, r, y);
-    return hall.inside(tmp.probe.set(x, 0, z), r);
+    if (state.transit?.sealed) return state.transit.lock.inside(x, z, r, y);
+    return cur.collision.inside(x, z, r, y) || inLock.inside(x, z, r, y) || outLock.inside(x, z, r, y);
   }
 
   function clearDecoys() {
@@ -343,6 +356,7 @@ async function start() {
     cur.lasers?.dispose();
     cur.props.dispose();
     cur.built?.dispose();
+    cur.wing?.dispose();
     cur = null;
   }
 
@@ -357,6 +371,11 @@ async function start() {
     const built = isHall ? null : buildLevel(scene, materials, field, data, { roofRain: n === 3 });
     if (built) minimap.hideFromMap(built.ceilings);
     const props = buildProps(scene, materials, field, data, { hall });
+    const wing = isHall ? buildSecurityWing(scene, materials, field, data) : null;
+    if (wing) minimap.hideFromMap(wing.ceilings);
+    inLock.place(data.airlockIn);
+    outLock.place(data.airlockOut);
+    hall.setLobbyDoors(0);
     const cameraDefs = isHall
       ? HALL_CAMERAS.map((c) => ({ ...c, position: v3(c.position), target: v3(c.target) }))
       : data.cameras.map(cameraFromData);
@@ -378,14 +397,17 @@ async function start() {
     }
     const plateDefs = data.interactables.filter((i) => i.type === 'plate').map((p) => ({ id: p.id, x: p.pos[0], z: p.pos[2], halfX: 0.8, halfZ: 0.8 }));
     cur = {
-      n, data, built, props, cctv, cctvSystem, cameraDefs, lasers,
+      n, data, built, props, wing, cctv, cctvSystem, cameraDefs, lasers,
+      collision: built ? built.collision : createCollision(data),
       plates: createPlateSystem(plateDefs, { events }),
       guards: [],
-      bounds: built ? built.collision.bounds() : HALL_BOUNDS,
+      bounds: null,
       use: Object.fromEntries(data.interactables.map((i) => [i.id, i])),
       flags: {}
     };
+    cur.bounds = cur.collision.bounds();
     cur.elapsed = 0;
+    cur.phase = { id: null, time: 0 };
     cur.navigation = createNavigation(cur.bounds, (x, z) => canStand(x, z, 0.4, 0));
     cur.guards = data.guards.map(makeGuard);
     state.mapReveal = 0;
@@ -512,6 +534,7 @@ async function start() {
     if (cur.n === 1) {
       if (cur.flags.coverBlown) return 'Guest cover blown  ·  Stay out of sight and complete the exit route';
       if (cur.elapsed < 8) return 'WASD move  ·  Mouse look  ·  Shift quiet walk';
+      if (!cur.flags.rig) return player.position.x > 11.4 ? 'Staff area  ·  Your guest cover does not work here  ·  Hold E at the desk' : 'Staff door on the east wall  ·  Wait for the officer to leave the passage';
       if (!state.hasKeycard) return 'Tab CCTV  ·  Select Grand Hall, E to loop  ·  Copy during an inspection stop';
       return cur.flags.nightEntry ? 'Return to the lobby  ·  E at the public exit' : 'Beyond the velvet rope, your guest cover no longer works';
     }
@@ -558,6 +581,7 @@ async function start() {
   }
 
   function restore(payload) {
+    state.transit = null;
     if (payload.level !== cur.n) loadLevel(payload.level);
     placePlayer(payload.player.x, payload.player.y ?? 0, payload.player.z, payload.player.yaw);
     state.hasKeycard = payload.hasKeycard;
@@ -576,6 +600,7 @@ async function start() {
     }
     if (cur.flags.sensorDisabled) cur.props.setPanel('tamper_panel', 0x23ff7a);
     if (cur.flags.nightEntry) cur.props.setPanel('reader', 0x23ff7a);
+    cur.wing?.setLive(cur.flags.rig ? cur.cctv.feeds : null);
     cur.plates.reset();
     cur.cctvSystem.reset();
     for (const g of cur.guards) g.reset();
@@ -614,14 +639,22 @@ async function start() {
     setMode(LEVEL_MODE[cur.n]);
   }
 
-  function enterLevel(n) {
-    for (const key of Object.keys(keys)) keys[key] = false;
+  function enterLevel(n, arrival = null) {
+    if (!arrival) for (const key of Object.keys(keys)) keys[key] = false;
+    if (!arrival) state.transit = null;
     loadLevel(n);
     state.hasKeycard = n > 1 || state.hasKeycard;
     const s = cur.data.spawn;
+    const spawn = { x: s[0], y: s[1], z: s[2], yaw: n === 1 ? Math.atan2(-6, 21) : 0 };
+    let start = spawn;
+    if (arrival) {
+      const t = inLock.transform;
+      const w = t.toWorld(arrival.x, arrival.z);
+      start = { x: w.x, y: t.y, z: w.z, yaw: arrival.yaw + t.yaw };
+    }
     const payload = {
       level: n,
-      player: { x: s[0], y: s[1], z: s[2], yaw: n === 1 ? Math.atan2(-6, 21) : 0 },
+      player: start,
       hasKeycard: state.hasKeycard,
       hasStar: state.hasStar,
       flags: {},
@@ -631,7 +664,10 @@ async function start() {
     };
     if (n === 2) state.safeCombo = randomCombination();
     restore(payload);
-    checkpoints.save(n === 1 ? 'start' : 'level-' + n, snapshotCheckpoint());
+    if (arrival) player.pitch = arrival.pitch;
+    const first = snapshotCheckpoint();
+    first.player = spawn;
+    checkpoints.save(n === 1 ? 'start' : 'level-' + n, first);
     story.setLevel(n);
     screens.setLevel(n);
     state.attract = 0;
@@ -661,6 +697,154 @@ async function start() {
       cur.flags.uploaded = true;
       events.emit('evidence:uploaded', {});
       hud.toast('EVIDENCE SENT · DEX’S ORDERS AND PAYMENT', 4);
+    }
+  }
+
+  function startPassage(level) {
+    if (state.transit) return;
+    state.transit = { stage: 'entering', lock: outLock, level, timer: 0, sealed: false };
+    outLock.setDoor('near', 1);
+    hud.prompt(null);
+    hud.toast(level === 1 ? 'SERVICE PASSAGE · WALK THROUGH' : 'SERVICE PASSAGE · KEEP MOVING', 2.5);
+  }
+
+  function beginNextLevel() {
+    const t = state.transit;
+    const local = outLock.local(player.position.x, player.position.z);
+    const arrival = { x: local.x, z: local.z, yaw: player.yaw - outLock.transform.yaw, pitch: player.pitch };
+    t.lock = inLock;
+    t.stage = 'loading';
+    t.sealed = true;
+    const next = t.level + 1;
+    enterLevel(next, arrival);
+    state.transit = t;
+    inLock.setDoor('near', 0, true);
+    inLock.setDoor('far', 0, true);
+    const loaded = cur;
+    cur.ready.then(() => {
+      if (state.transit !== t || cur !== loaded) return;
+      t.stage = 'arriving';
+      t.sealed = false;
+      inLock.setDoor('far', 1);
+      screens.showCard(next);
+    });
+  }
+
+  function updateTransit(dt) {
+    inLock.update(dt);
+    outLock.update(dt);
+    const t = state.transit;
+    if (!t) return false;
+    t.timer += dt;
+    if (t.stage === 'entering') {
+      if (t.level === 1) hall.setLobbyDoors(Math.min(1, t.timer * 1.6));
+      const p = outLock.local(player.position.x, player.position.z);
+      if (outLock.contains(player.position.x, player.position.z, player.base) && p.z < -AIRLOCK.length * 0.45) {
+        t.stage = 'sealing';
+        t.timer = 0;
+        t.sealed = true;
+        outLock.setDoor('near', 0);
+      }
+      return false;
+    }
+    if (t.stage === 'sealing') {
+      if (t.level === 1) hall.setLobbyDoors(Math.max(0, 1 - t.timer * 1.6));
+      if (outLock.doors.near.open > 0) return false;
+      events.emit('level:complete', { level: t.level, seamless: true });
+      beginNextLevel();
+      return true;
+    }
+    if (t.stage === 'arriving') {
+      if (!inLock.contains(player.position.x, player.position.z, player.base)) {
+        inLock.setDoor('far', 0);
+        state.transit = null;
+      }
+    }
+    return false;
+  }
+
+  function renderPassage(dt) {
+    const lock = state.transit.lock;
+    const local = lock.local(camera.position.x, camera.position.z);
+    airCamera.aspect = camera.aspect;
+    airCamera.fov = camera.fov;
+    airCamera.updateProjectionMatrix();
+    airCamera.position.set(local.x, camera.position.y - lock.transform.y, local.z);
+    airCamera.rotation.set(camera.rotation.x, camera.rotation.y - lock.transform.yaw, 0);
+    renderer.setRenderTarget(null);
+    renderer.render(airScene, airCamera);
+  }
+
+  function passageFrame(dt) {
+    const t = state.transit;
+    if (!screens.blocking) {
+      updatePlayer(dt, elapsed);
+      inLock.update(dt);
+      outLock.update(dt);
+    }
+    hud.objective('Walk through the service passage');
+    hud.prompt(null);
+    hud.hint('');
+    guide.update(dt, player.position, { hidden: true });
+    hud.update(dt);
+    story.update(state.locked ? dt : 0, { ...player, damped: state.dampen }, []);
+    screens.update(screens.blocking ? 0 : dt);
+    if (!state.skipRender) renderPassage(dt);
+    return t;
+  }
+
+  function guideTarget() {
+    if (state.transit) {
+      const lock = state.transit.lock;
+      const w = lock.transform.toWorld(0, -AIRLOCK.length - 1);
+      return { pos: new THREE.Vector3(w.x, lock.transform.y + 1.4, w.z), label: 'PASSAGE', glow: false };
+    }
+    const at = (p, label, glow = true) => ({ pos: new THREE.Vector3(p[0], p[1], p[2]), label, glow });
+    const phase = missionPhase(cur.n, state, cur.flags).id;
+    const u = cur.use;
+    if (cur.n === 1) {
+      if (phase === 'rig') return at(u.security_desk.pos, 'SECURITY DESK');
+      if (phase === 'badge' && cur.okafor) return { pos: cur.okafor.position.clone().setY(2.1), label: 'OKAFOR', glow: false };
+      if (phase === 'reader') return at([u.vault_door.usePos[0], 1.5, u.vault_door.usePos[2] - 0.4], 'STAFF READER');
+      return at(u.gala_exit.pos, 'LOBBY EXIT');
+    }
+    if (cur.n === 2) {
+      if (phase === 'circuit') return at(u.tamper_panel.pos, 'SERVICE PANEL');
+      if (phase === 'safe' || phase === 'star') return at(u.safe.pos, phase === 'star' ? 'THE STAR' : 'SAFE');
+      return at(u.service_exit.pos, 'FIRE DOOR');
+    }
+    if (phase === 'shutter') return at(u.shutter_hold.pos, 'OVERRIDE');
+    if (phase === 'sensors') {
+      if (player.base < 10) return at([u.stairs.usePos[0], 1.4, u.stairs.usePos[2]], 'STAIRWELL');
+      const free = cur.plates.plates.find((p) => !p.occupants.length) ?? cur.plates.plates[0];
+      return at([free.x, 20.3, free.z], 'SENSOR PLATE');
+    }
+    if (phase === 'hatch') return at(u.roof_override.pos, 'ROOF OVERRIDE');
+    return at(u.zip.pos, 'ZIPLINE');
+  }
+
+  function nearbyEvidence() {
+    let best = null;
+    for (const item of pickups.items) {
+      if (item.collected || item.stage !== cur.n || item.type !== 'evidence') continue;
+      const d = Math.hypot(item.x - player.position.x, item.z - player.position.z);
+      if (Math.abs(item.y - player.base) < 3 && d < 6 && (!best || d < best.d)) best = { d, item };
+    }
+    return best ? { pos: new THREE.Vector3(best.item.x, best.item.y + 0.25, best.item.z), label: 'EVIDENCE', glow: true } : null;
+  }
+
+  function updateGuide(dt) {
+    const busy = state.inSafe || state.vent || state.climb || state.zip || state.ended || cur.cctv.active >= 0;
+    guide.set(guideTarget());
+    guide.setExtra(nearbyEvidence());
+    guide.update(dt, player.position, { hidden: busy || screens.inMenu });
+    const phase = state.transit ? 'passage' : missionPhase(cur.n, state, cur.flags).id;
+    if (cur.phase.id !== phase) { cur.phase.id = phase; cur.phase.time = 0; return; }
+    if (state.ended || state.transit || screens.blocking) return;
+    cur.phase.time += dt;
+    if (cur.phase.time > 40) {
+      cur.phase.time = 0;
+      story.trigger('hint:' + phase);
     }
   }
 
@@ -967,7 +1151,9 @@ async function start() {
 
   function interactionAt() {
     if (cur.n === 1) {
-      if (near(player.position, cur.use.gala_exit.usePos, 2)) return { id: 'gala_exit', text: cur.flags.nightEntry ? 'E · LEAVE THE GALA' : 'NIGHT ENTRY NOT READY · COMPLETE THE RECON' };
+      if (!state.transit && near(player.position, cur.use.gala_exit.usePos, 2)) return { id: 'gala_exit', text: cur.flags.nightEntry ? 'E · LEAVE THE GALA' : 'NIGHT ENTRY NOT READY · COMPLETE THE RECON' };
+      const desk = cur.use.security_desk;
+      if (!cur.flags.rig && near(player.position, desk.usePos, 1.4)) return { id: 'security_desk', text: 'HOLD E · PLANT THE RIG', progress: (cur.flags.rigProgress ?? 0) / desk.holdSeconds };
       const door = cur.use.vault_door;
       if (near(player.position, door.usePos, 1.9)) return { id: 'vault_door', text: cur.flags.nightEntry ? 'NIGHT ENTRY BOOKED · RETURN TO THE LOBBY' : state.hasKeycard ? 'E · AUTHORISE 01:30 STAFF ENTRY' : 'STAFF READER · COPY OKAFOR’S BADGE FIRST' };
     }
@@ -980,7 +1166,7 @@ async function start() {
       const panel = cur.use.tamper_panel;
       if (!cur.flags.sensorDisabled && near(player.position, panel.usePos, 1.4)) return { id: 'tamper_panel', text: 'HOLD E · ISOLATE TAMPER CIRCUIT', progress: (cur.flags.panelProgress ?? 0) / panel.holdSeconds };
       if (cur.props.safe.open === 0 && near(player.position, cur.use.safe.usePos, 1.6)) return { id: 'safe', text: cur.flags.sensorDisabled ? 'E · CRACK THE SAFE' : 'TAMPER SENSOR LIVE · ISOLATE WEST SERVICE PANEL' };
-      if (near(player.position, cur.use.service_exit.usePos, 1.25)) return { id: 'service_exit', text: state.hasStar ? 'E · TAKE THE SERVICE FIRE DOOR' : 'SERVICE FIRE DOOR · RECOVER THE STAR FIRST' };
+      if (!state.transit && near(player.position, cur.use.service_exit.usePos, 1.25)) return { id: 'service_exit', text: state.hasStar ? 'E · TAKE THE SERVICE FIRE DOOR' : 'SERVICE FIRE DOOR · RECOVER THE STAR FIRST' };
     }
     if (cur.n === 3) {
       const f = cur.flags;
@@ -1025,6 +1211,17 @@ async function start() {
     if (item && Math.abs(item.y - player.base) < 3) { hud.prompt('E · TAKE ' + item.label.toUpperCase() + (item.value ? ' · $' + item.value.toLocaleString('en-US') : '')); return; }
     const spot = interactionAt();
     if (spot) {
+      if (spot.id === 'security_desk') {
+        cur.flags.rigProgress = keys.KeyE && state.locked ? (cur.flags.rigProgress ?? 0) + dt : 0;
+        if (cur.flags.rigProgress >= cur.use.security_desk.holdSeconds) {
+          cur.flags.rig = true;
+          cur.wing.setLive(cur.cctv.feeds);
+          events.emit('door:opened', { id: 'security-desk' });
+          hud.toast('CAMERAS ONLINE · TAB TO WATCH', 3.5);
+          emitNoise(player.position, RING_COLOURS.player, 3, { source: 'panel', damped: true, strength: 0.4 });
+          checkpoints.save('level-1-rig', snapshotCheckpoint());
+        }
+      }
       if (spot.id === 'tamper_panel') {
         cur.flags.panelProgress = keys.KeyE ? (cur.flags.panelProgress ?? 0) + dt : 0;
         if (cur.flags.panelProgress >= cur.use.tamper_panel.holdSeconds) {
@@ -1052,6 +1249,7 @@ async function start() {
     }
     hud.prompt(null);
     if (cur.n === 2) cur.flags.panelProgress = 0;
+    if (cur.n === 1) cur.flags.rigProgress = 0;
   }
 
   function nearbyPickup() {
@@ -1076,8 +1274,8 @@ async function start() {
       hud.toast('01:30 ENTRY AUTHORISED · LEAVE VIA THE LOBBY', 4);
       checkpoints.save('level-1-entry-ready', snapshotCheckpoint());
     }
-    if (spot.id === 'gala_exit' && missionPhase(1, state, cur.flags).exitReady) complete(1, 'RECON COMPLETE · LEAVING THE GALA');
-    if (spot.id === 'service_exit' && missionPhase(2, state, cur.flags).exitReady) complete(2, 'SERVICE DOOR · SOMETHING IS WRONG');
+    if (spot.id === 'gala_exit' && missionPhase(1, state, cur.flags).exitReady) startPassage(1);
+    if (spot.id === 'service_exit' && missionPhase(2, state, cur.flags).exitReady) startPassage(2);
     if ((spot.id === 'vent_in' || spot.id === 'vent_out') && stance()) {
       const from = cur.use[spot.id];
       emitNoise(player.position, RING_COLOURS.alert, 6, { source: 'vent', strength: 0.7, cause: 'footstep' });
@@ -1340,7 +1538,11 @@ async function start() {
       if (!qa) requestAnimationFrame(frame);
       return;
     }
-    if (cur.warming) { if (!qa) requestAnimationFrame(frame); return; }
+    if (cur.warming) {
+      if (state.transit) passageFrame(raw);
+      if (!qa) requestAnimationFrame(frame);
+      return;
+    }
     renderer.info.reset();
     const menu = screens.inMenu;
     const dt = screens.blocking ? 0 : raw;
@@ -1366,6 +1568,7 @@ async function start() {
       cur.lasers?.update(elapsed);
       fx.set({ alarm: state.mode === 'lockdown' ? 0.6 : 0, glitch: 0, dampen: 0, damage: 0 });
       fx.render(menuDt, elapsed, camera);
+      guide.update(0, player.position, { hidden: true });
       story.update(0, player, cur.guards);
       screens.update(0);
       if (!qa) requestAnimationFrame(frame);
@@ -1375,13 +1578,14 @@ async function start() {
     const playing = !state.ended;
     if (playing) { state.time += dt; cur.elapsed += dt; }
     updatePlayer(dt, elapsed);
+    if (updateTransit(dt)) { if (!qa) requestAnimationFrame(frame); return; }
     document.body.dataset.traversal = state.zip ? 'zipline' : state.vent ? 'vent' : state.climb ? 'stairs' : '';
     updateExposure(dt);
     state.socialHeat = Math.max(0, state.socialHeat - dt);
     state.witnessCooldown = Math.max(0, state.witnessCooldown - dt);
     state.spawnGrace = Math.max(0, state.spawnGrace - dt);
     const cover = cur.n === 1
-      ? galaCover({ z: player.position.z, movement: player.profile.id, gadgetHeat: state.socialHeat, lifting: state.lifting, compromised: cur.flags.coverBlown })
+      ? galaCover({ x: player.position.x, z: player.position.z, movement: player.profile.id, gadgetHeat: state.socialHeat, lifting: state.lifting, compromised: cur.flags.coverBlown })
       : { safe: false, reason: '' };
     document.body.dataset.cover = cover.safe ? 'safe' : 'broken';
     const alarmSnap = alarm.update(playing ? dt : 0, { canDecay: cur.guards.every((g) => g.state !== 'pursue') });
@@ -1390,8 +1594,8 @@ async function start() {
       time: elapsed,
       alarm: alarmSnap,
       canStand: (x, z) => canStand(x, z, 0.4, 0),
-      clearView: cur.built ? cur.built.collision.clearView : null,
-      player: { position: player.position, crouching: stance(), blending: cover.safe || state.ended || Boolean(state.vent || state.climb) || player.base > 10 || state.spawnGrace > 0, visible: state.exposure > 0 && !state.ended && player.base < 10 && !cover.safe },
+      clearView: cur.collision.clearView,
+      player: { position: player.position, crouching: stance(), blending: cover.safe || state.ended || Boolean(state.vent || state.climb || state.transit) || player.base > 10 || state.spawnGrace > 0, visible: state.exposure > 0 && !state.ended && !state.transit && player.base < 10 && !cover.safe },
       onPulse: (g) => field.emit(tmp.next.set(g.position.x, 0.02, g.position.z), RING_COLOURS.guard, 6, { speed: 4.5, strength: 0.9, source: 'guard' })
     };
     if (playing && dt > 0) for (const g of cur.guards) g.update(dt, ctx);
@@ -1408,6 +1612,8 @@ async function start() {
     updateCrowd(dt);
     cur.props.update(dt, elapsed);
     cur.built?.update(dt, elapsed);
+    cur.wing?.update(elapsed);
+    if (cur.wing?.live && player.position.x > 16 && !state.skipRender) cur.cctv.refresh(0.25);
     field.update(dt);
     lighting.update(dt, elapsed);
     skybox.update(dt, elapsed, cur.cctv.active >= 0 ? cur.cctv.feeds[cur.cctv.active].camera : camera);
@@ -1444,6 +1650,7 @@ async function start() {
     hud.decoy(state.decoyCharges, Math.max(0, state.decoyRecharge));
     hud.objective(objectiveText());
     hud.hint(controlHint());
+    updateGuide(dt);
     hud.update(dt);
     story.update(state.locked ? dt : 0, { ...player, damped: state.dampen }, cur.guards);
     screens.update(dt);
@@ -1519,6 +1726,7 @@ async function start() {
       if (cur.n === 1) state.socialHeat = 4;
       emitNoise(player.position, RING_COLOURS.player, 16, { source: 'player', damped: state.dampen, speed: 14, strength: 1, cause: 'sonar' });
     }
+    if (e.code === 'Tab' && cur.n === 1 && !cur.flags.rig) { hud.toast('NO CAMERA ACCESS · PLANT THE RIG AT THE SECURITY DESK', 3); return; }
     if (e.code === 'Tab') {
       if (cur.cctv.feeds.length) { cur.cctv.enter(); rects = layoutOverlays(); } else hud.toast('NO CAMERAS ON THIS FLOOR');
     }
@@ -1569,6 +1777,10 @@ async function start() {
 
   applyQuality('medium');
   await newHeist();
+  const devLevel = import.meta.env.DEV ? Number(new URLSearchParams(location.search).get('level')) : 0;
+  if (devLevel === 2 || devLevel === 3) await enterLevel(devLevel);
+  airCamera.position.set(0, 1.6, -2);
+  renderer.render(airScene, airCamera);
   rects = layoutOverlays();
   ui.loading.classList.add('is-hidden');
   screens.ready();
@@ -1601,6 +1813,7 @@ async function start() {
       okafor: () => cur.okafor && ({ x: cur.okafor.position.x, z: cur.okafor.position.z, yaw: cur.okafor.yaw, state: cur.okafor.state }),
       guards: () => cur.guards.map((g) => ({ id: g.id, state: g.state, suspicion: g.suspicion, x: g.position.x, z: g.position.z, heading: g.yaw })),
       render(on = true) { state.skipRender = !on; },
+      passageView() { if (state.transit) renderPassage(0); return Boolean(state.transit); },
       freezeGuards(on = true) { for (const g of cur.guards) g.speed = on ? 0 : g.def.speed; },
       state: () => ({
         level: cur.n,
@@ -1608,7 +1821,8 @@ async function start() {
         alarm: alarm.snapshot().value, alarmLevel: alarm.snapshot().level.id, hasKeycard: state.hasKeycard, hasStar: state.hasStar, flags: { ...cur.flags },
         inSafe: state.inSafe, ended: state.ended, echo: echo.snapshot().mode, take: pickups.snapshot().cash,
         evidence: pickups.snapshot().evidence.length, safe: safe.snapshot(), mode: state.mode, timeLeft: cur.timeLeft,
-        shutter: cur.props.shutter?.lift, zip: state.zip?.t, screen: screens.state
+        shutter: cur.props.shutter?.lift, zip: state.zip?.t, screen: screens.state,
+        transit: state.transit?.stage ?? null, guide: guide.target?.label ?? null, ready: !cur.warming
       })
     };
     window.__ready = true;

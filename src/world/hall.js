@@ -4,6 +4,7 @@ import { chandelier, framedPainting, cocktailTable, velvetRope, column, bannerTe
 
 export const HALL = { halfWidth: 13, front: 8, back: -40, height: 10 };
 export const CORRIDOR = { halfWidth: 2.4, front: -40, back: -62, height: 4.2 };
+export const STAFF_DOOR = { z: -19.5, width: 2, height: 2.9 };
 
 const PAINTINGS = [
   { file: 'starry-night.jpg', width: 3.4, side: -1, z: -6.5 },
@@ -56,14 +57,40 @@ export async function buildHall(scene, materials, renderer, { width, height }) {
     world.add(edge);
   }
 
+  const doorFront = STAFF_DOOR.z + STAFF_DOOR.width / 2;
+  const doorBack = STAFF_DOOR.z - STAFF_DOOR.width / 2;
+  const wallRuns = (s) => s < 0 ? [[Z0, Z1]] : [[Z0, doorFront], [doorBack, Z1]];
   for (const s of [-1, 1]) {
-    const wall = new THREE.Mesh(new THREE.PlaneGeometry(L, HT), materials.damaskWall);
-    wall.position.set(s * HW, HT / 2, ZC);
-    wall.rotation.y = -s * Math.PI / 2;
-    wall.receiveShadow = true;
-    world.add(wall);
-    box(world, 0.12, 1.3, L, materials.cream, s * (HW - 0.06), 0.65, ZC);
-    box(world, 0.16, 0.08, L, materials.gold, s * (HW - 0.08), 1.32, ZC, false);
+    for (const [a, b] of wallRuns(s)) {
+      const len = a - b;
+      const mid = (a + b) / 2;
+      const wall = new THREE.Mesh(new THREE.PlaneGeometry(len, HT), materials.damaskWall);
+      wall.position.set(s * HW, HT / 2, mid);
+      wall.rotation.y = -s * Math.PI / 2;
+      wall.receiveShadow = true;
+      world.add(wall);
+      box(world, 0.12, 1.3, len, materials.cream, s * (HW - 0.06), 0.65, mid);
+      box(world, 0.16, 0.08, len, materials.gold, s * (HW - 0.08), 1.32, mid, false);
+    }
+    if (s > 0) {
+      const over = new THREE.Mesh(new THREE.PlaneGeometry(STAFF_DOOR.width, HT - STAFF_DOOR.height), materials.damaskWall);
+      over.position.set(HW, STAFF_DOOR.height + (HT - STAFF_DOOR.height) / 2, STAFF_DOOR.z);
+      over.rotation.y = -Math.PI / 2;
+      world.add(over);
+      const jambDepth = HW - 11.3;
+      for (const z of [doorFront + 0.1, doorBack - 0.1]) box(world, jambDepth, STAFF_DOOR.height + 0.2, 0.2, materials.cream, 11.3 + jambDepth / 2, (STAFF_DOOR.height + 0.2) / 2, z);
+      box(world, jambDepth, 0.2, STAFF_DOOR.width + 0.4, materials.cream, 11.3 + jambDepth / 2, STAFF_DOOR.height + 0.1, STAFF_DOOR.z, false);
+      for (const z of [doorFront, doorBack]) {
+        const side = new THREE.Mesh(new THREE.PlaneGeometry(jambDepth, STAFF_DOOR.height), materials.cream);
+        side.position.set(11.3 + jambDepth / 2, STAFF_DOOR.height / 2, z);
+        side.rotation.y = z === doorFront ? Math.PI : 0;
+        world.add(side);
+      }
+      const staffSign = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.38), new THREE.MeshBasicMaterial({ map: bannerTexture('STAFF ONLY', 'SECURITY'), side: THREE.DoubleSide }));
+      staffSign.position.set(11.28, STAFF_DOOR.height + 0.5, STAFF_DOOR.z);
+      staffSign.rotation.y = -Math.PI / 2;
+      world.add(staffSign);
+    }
     box(world, 0.3, 0.6, L, materials.cream, s * (HW - 0.15), HT - 0.3, ZC, false);
     for (let z = Z0 - 6.5; z > Z1 + 2; z -= 7) {
       const win = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.4), new THREE.MeshBasicMaterial({ color: 0x2a3f66, fog: false }));
@@ -93,10 +120,15 @@ export async function buildHall(scene, materials, renderer, { width, height }) {
     frontWall.position.set(x, y, Z0); frontWall.rotation.y = Math.PI; world.add(frontWall);
   }
   const oak = new THREE.MeshStandardMaterial({ color: 0x654c35, roughness: 0.56 });
+  const lobbyDoors = [];
   for (const side of [-1, 1]) {
-    box(world, 1.25, 3.05, 0.15, oak, -4.2 + side * 0.64, 1.525, 7.94);
-    box(world, 0.045, 2.8, 0.04, materials.brass, -4.2 + side * 0.64, 1.52, 7.84);
-    box(world, 0.42, 0.07, 0.1, materials.brass, -4.2 + side * 0.32, 1.12, 7.78);
+    const leaf = new THREE.Group();
+    leaf.position.set(-4.2 + side * 0.64, 0, 7.94);
+    world.add(leaf);
+    box(leaf, 1.25, 3.05, 0.15, oak, 0, 1.525, 0);
+    box(leaf, 0.045, 2.8, 0.04, materials.brass, 0, 1.52, -0.1);
+    box(leaf, 0.42, 0.07, 0.1, materials.brass, -side * 0.32, 1.12, -0.16);
+    lobbyDoors.push({ leaf, side, closedX: leaf.position.x });
     box(world, 0.16, 3.3, 0.26, materials.cream, -4.2 + side * 1.4, 1.65, 7.94);
   }
   box(world, 3, 0.2, 0.26, materials.cream, -4.2, 3.25, 7.94);
@@ -270,5 +302,9 @@ export async function buildHall(scene, materials, renderer, { width, height }) {
     return inHall || inDoor || inCorridor;
   }
 
-  return { world, ceilingGroup, layout, tables, setMode, setReflection, inside, vaultDoor, vaultHinge, dial };
+  function setLobbyDoors(open) {
+    for (const d of lobbyDoors) d.leaf.position.x = d.closedX + d.side * open * 1.22;
+  }
+
+  return { world, ceilingGroup, layout, tables, setMode, setReflection, inside, vaultDoor, vaultHinge, dial, setLobbyDoors };
 }

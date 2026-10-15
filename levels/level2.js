@@ -28,6 +28,8 @@ export default {
   ],
   spawn: [0, 0, 0],
   checkpoint: [0, 0, 0],
+  airlockIn: { pos: [0, 0, 10.1], yawDeg: 0 },
+  airlockOut: { pos: [1.6, 0, -25.7], yawDeg: -90 },
   goal: [0.1, 0, -25.7],
 
   floors: [
@@ -45,11 +47,15 @@ export default {
   walls: [
     wall('corridor-west', [-3.1, 2, -10], [0.2, 4, 24]),
     wall('corridor-east', [3.1, 2, -10], [0.2, 4, 24]),
-    wall('corridor-back', [0, 2, 2.1], [6.4, 4, 0.2]),
+    wall('corridor-back-west', [-2.2, 2, 2.1], [2.2, 4, 0.2]),
+    wall('corridor-back-east', [2.2, 2, 2.1], [2.2, 4, 0.2]),
+    wall('corridor-back-lintel', [0, 3.65, 2.1], [2.2, 0.7, 0.2]),
     wall('corridor-end-west', [-2.3, 2, -22], [1.6, 4, 0.2]),
     wall('corridor-end-east', [2.3, 2, -22], [1.6, 4, 0.2]),
     wall('guarded-west', [-1.6, 2, -24.5], [0.2, 4, 5]),
-    wall('guarded-east', [1.6, 2, -24.5], [0.2, 4, 5]),
+    wall('guarded-east-north', [1.6, 2, -23.3], [0.2, 4, 2.6]),
+    wall('guarded-east-south', [1.6, 2, -26.9], [0.2, 4, 0.2]),
+    wall('guarded-east-lintel', [1.6, 3.65, -25.7], [0.2, 0.7, 2.2]),
     wall('vault-front-west', [-4.3, 2, -26.9], [5.6, 4, 0.2]),
     wall('vault-front-east', [4.3, 2, -26.9], [5.6, 4, 0.2]),
     wall('vault-west', [-7.1, 2, -34], [0.2, 4, 14.2]),

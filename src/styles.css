@@ -342,3 +342,13 @@ body[data-traversal="vent"] .frame { display: none; }
 .relock { background: rgba(3, 6, 10, 0.35); }
 .relock .screen-box { width: min(320px, calc(100vw - 32px)); align-items: center; text-align: center; }
 .relock-keys { margin: 0; font: 12px ui-monospace, monospace; letter-spacing: 3px; color: #9fb7bd; }
+
+.guide-marker { position: fixed; left: 0; top: 0; width: 0; height: 0; z-index: 4; pointer-events: none; transition: opacity 0.2s; }
+.guide-marker > * { position: absolute; left: 0; top: 0; }
+.guide-diamond { width: 14px; height: 14px; margin: -7px 0 0 -7px; border: 2px solid #9ff8ff; background: rgba(114, 239, 255, 0.18); box-shadow: 0 0 12px rgba(114, 239, 255, 0.55); box-sizing: border-box; }
+.guide-label { transform: translate(-50%, -34px); white-space: nowrap; font: 600 11px ui-monospace, monospace; letter-spacing: 3px; color: #e6f2f5; text-shadow: 0 1px 3px #000; }
+.guide-distance { transform: translate(-50%, 14px); white-space: nowrap; font: 600 11px ui-monospace, monospace; color: #9ff8ff; text-shadow: 0 1px 3px #000; }
+.guide-marker.edge .guide-diamond { border-color: #ffd166; background: rgba(255, 209, 102, 0.25); border-top-color: transparent; border-left-color: transparent; }
+.guide-marker.edge .guide-label { color: #ffd166; }
+.guide-marker.near .guide-label, .guide-marker.near .guide-distance { opacity: 0; }
+body.in-menu .guide-marker, body[data-traversal="zipline"] .guide-marker { display: none !important; }

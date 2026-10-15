@@ -103,6 +103,10 @@ export function createCCTV(renderer, scene, cameras, { feedWidth = 480, feedHeig
     return true;
   }
 
+  function refresh(interval = 0.25) {
+    for (const feed of feeds) renderFeed(feed, interval);
+  }
+
   function isLooped(index) {
     return (feeds[index]?.loopTimer ?? 0) > 0;
   }
@@ -218,6 +222,7 @@ export function createCCTV(renderer, scene, cameras, { feedWidth = 480, feedHeig
     renderPip,
     canSee,
     dispose,
+    refresh,
     setRate(value) { feedRate = value; },
     setQuality({ rate = feedRate, width = feedWidth, height = feedHeight } = {}) {
       feedRate = rate;

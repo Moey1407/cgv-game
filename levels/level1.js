@@ -29,6 +29,7 @@ export default {
   name: 'The Gala',
   objective: 'Copy a staff badge, authorise the night entry, and leave through the lobby',
   objectives: [
+    { id: 'rig', text: 'Slip into the staff wing and plant the rig at the security desk', marker: [24.1, 1, -19.5] },
     { id: 'cctv', text: "Hack a camera and watch Okafor's patrol" },
     { id: 'keycard', text: 'Copy Okafor’s badge during an inspection stop', follow: 'Okafor' },
     { id: 'vault_door', text: 'Register the copied badge at the staff reader', marker: [0, 2, -61.7] },
@@ -45,6 +46,8 @@ export default {
     floor('marble', [0, -0.1, -16], [26, 0.2, 48]),
     floor('carpet', [0, -0.1, -15], [3.2, 0.2, 42]),
     floor('steel', [0, -0.1, -51], [4.8, 0.2, 22]),
+    floor('concrete', [14.15, -0.1, -19.5], [5.7, 0.2, 2]),
+    floor('carpet', [21, -0.1, -19.5], [8, 0.2, 11]),
   ],
 
   zones: [
@@ -52,14 +55,30 @@ export default {
     { id: 'grand-hall', min: [-13, 0, -30], max: [13, 10, -2] },
     { id: 'vault-approach', min: [-13, 0, -40], max: [13, 10, -30] },
     { id: 'vault-corridor', min: [-2.4, 0, -62], max: [2.4, 4.2, -40] },
+    { id: 'staff-wing', min: [11.3, 0, -25], max: [25, 3.2, -14] },
   ],
 
   // Solid boxes. The two side boxes are 2.1 m thick on purpose: columns and trim
   // push the walkable area in to x +-11.3, exactly as hall.inside() does.
   walls: [
     box('shell', 'west-wall', [-12.35, 5, -16], [2.1, 10, 48]),
-    box('shell', 'east-wall', [12.35, 5, -16], [2.1, 10, 48]),
-    box('shell', 'front-wall', [0, 5, 8.2], [26.8, 10, 0.4]),
+    box('shell', 'east-wall-front', [12.35, 5, -5.25], [2.1, 10, 26.5]),
+    box('shell', 'east-wall-back', [12.35, 5, -30.25], [2.1, 10, 19.5]),
+    box('shell', 'front-wall-west', [-9.35, 5, 8.2], [8.1, 10, 0.4]),
+    box('shell', 'front-wall-east', [5.15, 5, 8.2], [16.5, 10, 0.4]),
+    box('shell', 'front-wall-lintel', [-4.2, 6.65, 8.2], [2.2, 6.7, 0.4]),
+    box('prop', 'vault-door', [0, 2, -61.7], [3.6, 3.6, 0.5]),
+    wall('wing-passage-north', [15.2, 1.6, -18.4], [3.6, 3.2, 0.2]),
+    wall('wing-passage-south', [15.2, 1.6, -20.6], [3.6, 3.2, 0.2]),
+    wall('office-west-north', [17, 1.6, -16.25], [0.2, 3.2, 4.5]),
+    wall('office-west-south', [17, 1.6, -22.75], [0.2, 3.2, 4.5]),
+    wall('office-east', [25.1, 1.6, -19.5], [0.2, 3.2, 11.2]),
+    wall('office-north', [21, 1.6, -13.9], [8.4, 3.2, 0.2]),
+    wall('office-south', [21, 1.6, -25.1], [8.4, 3.2, 0.2]),
+    box('prop', 'security-desk', [24.25, 0.45, -19.5], [1.3, 0.9, 4.2]),
+    box('prop', 'records-cabinet', [23.8, 0.55, -14.4], [1.8, 1.1, 0.7]),
+    box('prop', 'staff-lockers', [18.1, 1, -24.4], [1.8, 2, 0.7]),
+    box('prop', 'office-sofa', [20.6, 0.4, -14.5], [2.4, 0.8, 0.9]),
     box('shell', 'back-wall-left', [-7.9, 5, -40.2], [11, 10, 0.4]),
     box('shell', 'back-wall-right', [7.9, 5, -40.2], [11, 10, 0.4]),
     wall('corridor-west', [-2.6, 2.1, -51], [0.4, 4.2, 22]),
@@ -79,7 +98,6 @@ export default {
     { type: 'table', pos: [4.2, 0, -16] },
     { type: 'table', pos: [-1.6, 0, -22] },
     { type: 'table', pos: [6.5, 0, -8] },
-    { type: 'desk', pos: [-10.5, 0, -38] }, // placeholder: holds evidence_1
   ],
 
   guards: [
@@ -96,6 +114,12 @@ export default {
       route: [[9, 0, -24], [9, 0, -4], [-8, 0, -4], [-8, 0, -24]],
       speed: 1.35,
     },
+    {
+      name: 'Hale',
+      route: [[21, 0, -16.5], [21, 0, -22.5], [15.2, 0, -19.5], [21, 0, -22.5]],
+      speed: 0.9,
+      pauseSeconds: 4.5,
+    },
   ],
 
   // The four cameras already in main.js, as yaw and sweep. Camera 4 used to watch
@@ -111,15 +135,16 @@ export default {
   // Placeholder positions and cash values. Items sit on table tops and beside
   // walls, never inside a wall box, so the XZ access check does not block pickup.
   pickups: [
-    // The plan puts evidence 1 in a security office. This map has no side rooms,
-    // so it sits on a guard desk in the vault wing until we decide to add one.
-    { id: 'evidence_1', kind: 'evidence', evidenceIndex: 1, pos: [-10.5, 1.0, -37.5], label: 'Security log' },
+    { id: 'evidence_1', kind: 'evidence', evidenceIndex: 1, pos: [23.8, 1.12, -14.4], usePos: [23.8, 0, -15.4], label: 'Security log' },
   ],
 
   interactables: [
     { id: 'vault_door', type: 'keycard_door', pos: [0, 2, -61.7], size: [3.6, 3.6, 0.5], usePos: [0, 0, -60.6], requires: 'keycard' },
-    { id: 'gala_exit', type: 'door', pos: [-4.2, 1.2, 7.8], usePos: [-4.2, 0, 5], requires: 'night_entry' },
+    { id: 'gala_exit', type: 'door', pos: [-4.2, 1.2, 7.8], usePos: [-4.2, 0, 6.6], requires: 'night_entry' },
+    { id: 'security_desk', type: 'override', pos: [24.1, 1.1, -19.5], usePos: [23.0, 0, -19.5], holdSeconds: 2.5 },
   ],
+
+  airlockOut: { pos: [-4.2, 0, 8], yawDeg: 180 },
 
   // From the old main.js (3 charges, one back every 6 s). throwing.js is not in the
   // current tree, so Teammate 2 has to restore it from commit b797c86.
