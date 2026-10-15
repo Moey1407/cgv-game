@@ -98,6 +98,7 @@ export function createGuardAI({ id, actor, torch, waypoints, speed, events }) {
       const range = sight.range * crouchFactor;
       sees = inCone(root.position, root.rotation.y, ctx.player.position, range, sight.fov);
       if (!sees && torch?.visible && inCone(root.position, root.rotation.y, ctx.player.position, 14, 0.6)) sees = true;
+      if (sees && ctx.clearView && !ctx.clearView(root.position, ctx.player.position)) sees = false;
     }
     if (sees) {
       guard.suspicion = Math.min(1, guard.suspicion + dt * (guard.state === 'investigate' ? 1.8 : 1.1));

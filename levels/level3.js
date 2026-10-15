@@ -38,6 +38,7 @@ export default {
   zones: [
     { id: 'hold-room', min: [-5, 0, -20], max: [5, 4, 0] },
     { id: 'gallery', min: [-10, 0, -45], max: [10, 4, -25] },
+    { id: 'landing', min: [-7, 20, -67], max: [7, 24, -53] },
     { id: 'roof', min: [-7, 20, -80], max: [7, 26, -67] },
   ],
   walls: [
@@ -62,6 +63,7 @@ export default {
     wall('landing-back', [0, 22, -52.9], [14.4, 4, 0.2]),
     wall('landing-front-west', [-4.3, 22, -67], [5.6, 4, 0.2]),
     wall('landing-front-east', [4.3, 22, -67], [5.6, 4, 0.2]),
+    wall('landing-lintel', [0, 23.2, -67], [3, 1.6, 0.2]),
     // Roof parapet
     parapet('roof-west', [-7.1, 20.6, -73.5], [0.2, 1.2, 13]),
     parapet('roof-east', [7.1, 20.6, -73.5], [0.2, 1.2, 13]),

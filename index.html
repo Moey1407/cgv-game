@@ -7,7 +7,7 @@
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="./src/styles.css">
 </head>
-<body>
+<body class="in-menu">
 <canvas id="view"></canvas>
 <div id="loading" class="loading">
   <div class="loading-box">
@@ -19,6 +19,7 @@
 </div>
 <div class="top-left">
   <div id="mode" class="mode">LEVEL 1 · THE GALA · 19:40</div>
+  <div id="timer" class="timer is-hidden"></div>
   <div id="objective" class="objective">Lift Okafor's keycard</div>
 </div>
 <div id="alarm" class="alarm quiet">
@@ -56,31 +57,36 @@
   <h2 id="end-title"></h2>
   <p id="end-copy"></p>
   <p id="end-stats" class="end-stats"></p>
-  <p class="end-keys">R restart from checkpoint · N new heist</p>
+  <p class="end-keys">R restart from checkpoint · N back to title</p>
 </section>
-<div id="hint" class="hint">
-  <strong>CLICK TO PLAY</strong>
-  <span>WASD move · Shift walk quietly · C crouch · Z crawl · X sprint · Space jump</span>
-  <span>G sonar · E interact (hold to pickpocket) · Tab CCTV · Q record Echo</span>
-  <span>1 gala · 2 night · 3 lockdown · F dampener · P picture-in-picture · M map · K quality</span>
-  <span>Lift the keycard, stand on both plates with your Echo, cross the lasers, crack the vault.</span>
-  <button id="credits-button" class="credits-button" type="button">CREDITS</button>
-</div>
-<section id="briefing" class="screen is-hidden" aria-label="Briefing">
-  <div class="screen-box wide">
-    <span class="kicker">A HEIST IN THREE NIGHTS</span>
-    <b class="logo">SIGNAL</b>
-    <h2 class="briefing-title"></h2>
-    <div class="briefing-body"></div>
-    <ul class="controls">
-      <li><b>WASD</b> move</li><li><b>Shift</b> walk quietly</li><li><b>C</b> crouch</li><li><b>Z</b> crawl</li>
-      <li><b>X</b> sprint</li><li><b>Space</b> jump</li><li><b>G</b> sonar</li><li><b>E</b> interact, hold to pickpocket</li>
-      <li><b>Tab</b> cameras</li><li><b>Q</b> record your Echo</li><li><b>F</b> dampener</li><li><b>Esc</b> pause</li>
-    </ul>
-    <div class="buttons">
-      <button type="button" class="primary" data-action="start">START THE HEIST</button>
+<section id="home" class="page home is-hidden" aria-label="Title">
+  <div class="home-panel">
+    <span class="kicker">THE VARGA MUSEUM · CLOSING NIGHT</span>
+    <b class="logo home-logo">SIGNAL</b>
+    <p class="home-tag">You hear the building. It hears you back. One safecracker, one rig that turns sound into light, and three chances to get out with the Kestrel Star.</p>
+    <div class="buttons column home-buttons">
+      <button type="button" class="primary" data-action="play">PLAY</button>
       <button type="button" data-action="options">OPTIONS</button>
       <button type="button" data-action="credits">CREDITS</button>
+    </div>
+    <small class="home-foot">Best with headphones. The mouse locks when you enter, Esc frees it.</small>
+  </div>
+</section>
+<section id="briefing" class="page briefing is-hidden" aria-label="Briefing">
+  <div class="briefing-panel">
+    <div class="briefing-steps"></div>
+    <span class="kicker briefing-kicker"></span>
+    <h2 class="briefing-title"></h2>
+    <span class="briefing-place"></span>
+    <div class="briefing-body"></div>
+    <h3>Tonight</h3>
+    <ol class="briefing-objectives"></ol>
+    <h3>Controls</h3>
+    <ul class="controls"></ul>
+    <div class="buttons">
+      <button type="button" class="primary" data-action="enter">ENTER THE MUSEUM</button>
+      <button type="button" data-action="options">OPTIONS</button>
+      <button type="button" data-action="home">TITLE</button>
     </div>
     <p class="lock-note"></p>
   </div>
@@ -91,9 +97,8 @@
     <div class="buttons column">
       <button type="button" class="primary" data-action="resume">RESUME</button>
       <button type="button" data-action="restart">RESTART FROM CHECKPOINT</button>
-      <button type="button" data-action="new-heist">NEW HEIST</button>
       <button type="button" data-action="options">OPTIONS</button>
-      <button type="button" data-action="credits">CREDITS</button>
+      <button type="button" data-action="new-heist">QUIT TO TITLE</button>
     </div>
     <p class="lock-note"></p>
   </div>
@@ -112,18 +117,19 @@
 </section>
 <section id="results" class="screen is-hidden" aria-label="Results">
   <div class="screen-box">
-    <span class="kicker">VAULT OPEN</span>
-    <h2>The Kestrel Star is yours.</h2>
+    <span class="kicker">OFF THE ROOF</span>
+    <h2>The Kestrel Star is out of the building.</h2>
     <div class="results-grade"></div>
     <p class="results-score"></p>
     <dl class="results-stats"></dl>
     <p class="results-ending is-hidden"></p>
     <div class="buttons">
-      <button type="button" class="primary" data-action="new-heist">NEW HEIST</button>
+      <button type="button" class="primary" data-action="new-heist">BACK TO TITLE</button>
       <button type="button" data-action="credits">CREDITS</button>
     </div>
   </div>
 </section>
+<div id="fade" class="fade"></div>
 <div id="card" class="card is-hidden"><b class="card-title"></b><span class="card-text"></span></div>
 <dialog id="credits" class="credits">
   <h2>Credits</h2>

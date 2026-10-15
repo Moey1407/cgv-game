@@ -52,7 +52,7 @@ export default {
   ],
 
   lasers: [
-    { id: 'laser_crawl', a: [-3, 0.35, -4], b: [3, 0.35, -4], pattern: 'static', teaches: 'crawl' },
+    { id: 'laser_crawl', a: [-3, 0.55, -4], b: [3, 0.55, -4], pattern: 'static', teaches: 'crawl' },
     { id: 'laser_jump', a: [-3, 0.3, -10], b: [3, 0.3, -10], pattern: 'static', teaches: 'jump' },
     { id: 'laser_timing', a: [-3, 1.0, -16], b: [3, 1.0, -16], pattern: 'rise_fall', period: 4, amplitude: 0.9, teaches: 'timing' },
   ],
@@ -79,6 +79,7 @@ export default {
   lights: [
     { type: 'ambient', color: '#3a4a5c', intensity: 0.4 },
     { type: 'point', pos: [0, 3.5, -34], color: '#9fc4ff', intensity: 1.2, shadow: true },
+    { type: 'point', pos: [0, 2.8, -38.2], color: '#ffd59a', intensity: 0.6 },
   ],
 
   dex: [

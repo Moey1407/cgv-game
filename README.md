@@ -9,7 +9,7 @@ npm ci
 npm run dev
 ```
 
-Open http://localhost:5173/ and click the screen to look around.
+Open http://localhost:5173/. The title page runs a slow camera through the museum. Press Play, read the briefing for the level, then press Enter the Museum to lock the mouse and start.
 
 | Key | Action |
 | --- | --- |
@@ -20,23 +20,22 @@ Open http://localhost:5173/ and click the screen to look around.
 | Space | Jump |
 | Mouse or arrow keys | Look |
 | G | Sonar pulse |
-| E | Interact: take loot, swipe the vault, set a tumbler, loop a CCTV feed |
-| Hold E | Pickpocket from behind a guard |
-| Q | Record your Echo, press again to rewind and replay it |
+| E | Interact: take loot, swipe the keycard, use a vent or the stairs, set a tumbler, loop a CCTV feed |
+| Hold E | Pickpocket from behind a guard, hold an override |
+| Q | Level 3 only: record your Echo, press again to rewind and replay it |
 | Tab, Shift+Tab | Cycle CCTV cameras, Q to leave |
 | F | Dampener (your rings stop being heard while it lasts) |
-| 1 / 2 / 3 | Gala / night / lockdown lighting |
 | P / M | Toggle picture-in-picture / minimap |
-| K | Cycle quality (low, medium, high) |
-| R / N | After a capture or win: restart from checkpoint / new heist |
+| Esc | Pause (resume, restart from checkpoint, options, quit to title) |
+| R / N | After a capture: restart from checkpoint / back to title |
 
-## The heist so far
+## The three levels
 
-1. Lift Okafor's keycard by holding E behind him while he patrols the west wall.
-2. Optional: take the three valuables on the cocktail tables and the evidence file on the security desk.
-3. The shutter to the vault wing opens only while both pressure plates are held. Stand on one, record an Echo with Q, rewind, then walk to the other plate while your Echo holds the first.
-4. Cross the laser corridor: jump the low beam, crawl or time the moving ones.
-5. Swipe the keycard at the vault and crack the three tumblers by ear. Turning fast is loud.
+Each level has its own briefing page. Finishing one loads the next and shows its briefing. Cash and evidence carry across the whole run, and the grade and ending come at the end of Level 3.
+
+1. **The Gala.** The Grand Hall during the party. Use the cameras (Tab) to watch Okafor, lift his keycard by holding E behind him, grab what you can from the tables, then swipe the keycard at the vault wing door at the end of the corridor.
+2. **The Vault.** The next night, in the dark. Crawl under the first laser, jump the second, time the third, or crouch into the vent on the west wall to skip most of it. Briggs loops the vault room. Crack the three tumblers by ear. Turning fast is loud.
+3. **The Double-Cross.** Dex sells you out and the building starts sealing (four minutes). The Echo comes online: record yourself holding the shutter override, rewind, and walk through while your Echo holds it. Lure the sweep team away from the stairwell, then put you and your Echo on both plates on the top floor to arm the roof override. Hold it to open the hatch and take the zipline.
 
 Footsteps, sonar, lasers, cameras and the safe all raise the alarm. It climbs from Quiet to Suspicious, Alert and Lockdown, and guards get faster as it rises. Guards hear rings, see you when you are lit and inside their view cone, then investigate, pursue and search. Getting caught sends you back to the last checkpoint.
 
@@ -55,7 +54,11 @@ Zip the contents of `dist/` so `index.html` sits at the top of the archive. All 
 | Path | What it is |
 | --- | --- |
 | `index.html`, `src/main.js`, `src/styles.css` | The game page, the game loop and controls |
-| `src/world/hall.js`, `src/world/objects.js` | The Grand Hall, laser corridor, vault, loot, plates and shutter |
+| `src/world/hall.js` | The Grand Hall and vault corridor (Level 1) |
+| `src/world/levelBuilder.js` | Builds Levels 2 and 3 from their data files: floors, walls, ceilings, lights, rain, collision and line of sight |
+| `src/world/levelProps.js` | Per-level props: loot, keycard reader, safe and dial, vents, shutter, plates, hatch, zipline |
+| `levels/` | Level data (teammate 3), with `levels/index.js` gathering all three |
+| `src/screens.js`, `src/story.js`, `src/audio.js` | Title page, briefings, pause, results, Dex's radio and sound (teammate 3) |
 | `src/render/` | The rendering layer (Huzaifa) |
 | `src/gameplay/`, `src/core/` | Gameplay systems and the event bus (teammate 2) |
 | `src/game/guardAI.js`, `src/game/hud.js` | Guard behaviour and the HUD that connect the two |

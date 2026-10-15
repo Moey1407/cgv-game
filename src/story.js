@@ -132,6 +132,28 @@ export const BRIEFING = {
   ],
 };
 
+export const NIGHTS = {
+  1: { time: '19:40', place: 'Closing-night gala', lines: BRIEFING.lines },
+  2: {
+    time: '01:30',
+    place: 'The next night, after hours',
+    lines: [
+      'The guests are gone and the museum is dark. Only Briggs walks the vault level now, one slow loop every forty seconds.',
+      'Three laser lines guard the corridor: one you crawl under, one you jump, one you time. A maintenance vent skips most of it, if you stay low.',
+      'The safe has three tumblers. Turn the dial slowly and listen for the click. Fast turning carries down the hall.',
+    ],
+  },
+  3: {
+    time: '01:58',
+    place: 'Same night, minutes later',
+    lines: [
+      'The safe is open and the wing is sealing. Dex has gone quiet on the radio.',
+      'You have one tool left: the Echo. Record yourself, rewind, and your recording walks the same path again while you do something else.',
+      'Get to the roof before the building locks down. The zipline is the only way out.',
+    ],
+  },
+};
+
 export const TRANSITIONS = {
   1: { title: 'Level 1 · The Gala', text: 'Closing night at the Varga Museum. Get in, lift a keycard, reach the vault wing.' },
   2: { title: 'Level 2 · The Vault', text: 'The next night. Under the lasers, into the vault, and crack the safe by ear.' },

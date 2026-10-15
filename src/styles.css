@@ -136,3 +136,43 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #000; color:
 .card-text { max-width: 460px; color: #c9dde3; font-size: 14px; }
 @keyframes card-in { from { opacity: 0; letter-spacing: 12px; } to { opacity: 1; } }
 @media (max-width: 600px) { .logo { font-size: 40px; letter-spacing: 10px; } .loading-track { width: 70vw; } }
+
+body.in-menu .top-left, body.in-menu .alarm, body.in-menu .status, body.in-menu .stats, body.in-menu .toast, body.in-menu .prompt,
+body.in-menu .radio, body.in-menu .bark, body.in-menu .evidence-card, body.in-menu .frame, body.in-menu .feed, body.in-menu .safe, body.in-menu .end, body.in-menu .card { display: none !important; }
+.timer { padding: 6px 14px; font: 600 18px ui-monospace, monospace; letter-spacing: 3px; color: #ff6b80; background: rgba(20, 2, 6, 0.7); border-left: 3px solid #ff3f62; }
+.timer.low { animation: radio-flicker 0.5s steps(2) infinite; }
+.fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity 0.6s ease; z-index: 30; }
+.fade.is-on { opacity: 1; }
+
+.page { position: fixed; inset: 0; z-index: 15; display: flex; align-items: stretch; }
+.page .kicker { letter-spacing: 6px; font-weight: 700; font-size: 12px; color: #72efff; }
+.page button { padding: 12px 22px; background: transparent; color: #e6f2f5; border: 1px solid rgba(114, 239, 255, 0.45); font: 600 13px "Segoe UI", system-ui, sans-serif; letter-spacing: 4px; cursor: pointer; text-align: left; }
+.page button:hover, .page button:focus-visible { background: rgba(114, 239, 255, 0.14); outline: none; }
+.page button.primary { background: #72efff; color: #041018; border-color: #72efff; }
+.page button.primary:hover { background: #a6f6ff; }
+
+.home { background: linear-gradient(90deg, rgba(2, 4, 8, 0.96) 0%, rgba(2, 4, 8, 0.82) 34%, rgba(2, 4, 8, 0.15) 70%, rgba(2, 4, 8, 0.35) 100%); }
+.home-panel { display: flex; flex-direction: column; justify-content: center; gap: 18px; width: min(540px, calc(100vw - 32px)); padding: 0 0 0 clamp(16px, 7vw, 110px); box-sizing: border-box; }
+.home-logo { font-size: clamp(56px, 9vw, 112px); letter-spacing: 0.22em; margin: 0 0 4px -4px; animation: home-glow 4s ease-in-out infinite; }
+.home-tag { margin: 0; color: #c9dde3; line-height: 1.6; font-size: 15px; max-width: 380px; }
+.home-buttons { width: 240px; margin-top: 10px; }
+.home-foot { color: #6f8a92; letter-spacing: 1px; font-size: 12px; }
+@keyframes home-glow { 50% { text-shadow: 0 0 40px rgba(114, 239, 255, 0.75), 0 0 2px #fff; } }
+
+.briefing { background: linear-gradient(90deg, rgba(2, 4, 8, 0.97) 0%, rgba(2, 4, 8, 0.9) 46%, rgba(2, 4, 8, 0.25) 78%, rgba(2, 4, 8, 0.45) 100%); }
+.briefing-panel { display: flex; flex-direction: column; gap: 9px; width: min(720px, 100vw); padding: clamp(24px, 6vh, 64px) 32px clamp(24px, 6vh, 64px) clamp(16px, 7vw, 110px); box-sizing: border-box; overflow-y: auto; }
+.briefing-steps { display: flex; gap: 6px; }
+.briefing-steps i { width: 48px; height: 4px; background: rgba(255, 255, 255, 0.15); }
+.briefing-steps i.done { background: #e8c46a; }
+.briefing-steps i.now { background: #72efff; }
+.briefing-title { margin: 0; font-size: clamp(30px, 4.4vw, 48px); letter-spacing: 2px; }
+.briefing-place { color: #e8c46a; letter-spacing: 3px; font-size: 13px; text-transform: uppercase; }
+.briefing h3 { margin: 6px 0 0; font-size: 12px; letter-spacing: 5px; color: #9fb7bd; font-weight: 600; text-transform: uppercase; }
+.briefing-objectives { margin: 0; padding-left: 22px; color: #e6f2f5; line-height: 1.6; }
+.briefing .briefing-body p { font-size: 14px; margin: 0 0 6px; line-height: 1.5; }
+.briefing .controls { padding: 8px 0; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.briefing .controls b { min-width: 58px; }
+.briefing .controls { margin: 0; }
+.briefing[data-level="3"] .briefing-place, .briefing[data-level="3"] .briefing-steps i.now { color: #ff6b80; background: #ff3f62; }
+.briefing[data-level="3"] .briefing-place { background: none; }
+@media (max-width: 700px) { .home, .briefing { background: rgba(2, 4, 8, 0.9); } .home-buttons { width: 100%; } }

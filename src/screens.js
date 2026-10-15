@@ -2,8 +2,8 @@
 // Owner: Teammate 3. Reads gameplay only through the event bus; main.js hands
 // it a few actions (start, restart, new heist, quality) to call back into.
 import * as THREE from 'three';
-import { BRIEFING, TRANSITIONS, endingFor } from './story.js';
-import { LOOT } from './world/objects.js';
+import { NIGHTS, TRANSITIONS, endingFor } from './story.js';
+import { LEVELS, ALL_LOOT } from '../levels/index.js';
 
 const OPTIONS_KEY = 'signal.options.v1';
 export const DEFAULT_OPTIONS = Object.freeze({ sensitivity: 1, master: 0.7, music: 0.6, quality: 'auto' });
@@ -28,7 +28,7 @@ export function gradeRun({ time = 0, par = 300, take = 0, takeTotal = 0, detecti
 }
 
 // Run statistics, collected from events only.
-export function createRunTracker({ events, loot = LOOT } = {}) {
+export function createRunTracker({ events, loot = ALL_LOOT } = {}) {
   const takeTotal = loot.filter((i) => i.type !== 'evidence').reduce((sum, i) => sum + (i.value || 0), 0);
   const evidenceTotal = loot.filter((i) => i.type === 'evidence').length;
   let run;
@@ -36,7 +36,7 @@ export function createRunTracker({ events, loot = LOOT } = {}) {
   reset();
   const id = (l) => (typeof l === 'string' ? l : l?.id);
   const offs = events ? [
-    events.on('checkpoint:save', ({ id: cp } = {}) => { if (cp === 'start') reset(); }),
+    events.on('checkpoint:save', ({ id: cp } = {}) => { if (cp === 'start') reset(); else if (String(cp).startsWith('level-')) run.running = true; }),
     events.on('checkpoint:restore', () => { run.running = true; }),
     events.on('item:picked', (item = {}) => { if (item.type === 'evidence') run.evidence += 1; else run.take += item.value || 0; }),
     events.on('player:detected', () => { run.detections += 1; }),
@@ -79,15 +79,36 @@ const clock = (seconds) => {
 };
 const money = (n) => '$' + Math.round(n).toLocaleString('en-US');
 
+
+const CONTROLS = {
+  1: [['WASD', 'move'], ['Mouse', 'look'], ['Shift', 'walk quietly'], ['C', 'crouch'], ['Z', 'crawl'], ['X', 'sprint'], ['G', 'sonar pulse'], ['Tab', 'security cameras'], ['L', 'loop a camera'], ['E', 'interact, hold to pickpocket'], ['F', 'dampener'], ['Esc', 'pause']],
+  2: [['WASD', 'move'], ['Z', 'crawl under a beam'], ['Space', 'jump a beam'], ['C', 'crouch, fits the vent'], ['Shift', 'walk quietly'], ['G', 'sonar pulse'], ['E', 'vent, safe, loot'], ['Mouse', 'turn the dial slowly'], ['Tab', 'security cameras'], ['Esc', 'pause']],
+  3: [['WASD', 'move'], ['Q', 'record your Echo, Q again to rewind'], ['E', 'hold an override'], ['G', 'sonar, lures the sweep team'], ['Shift', 'walk quietly'], ['C', 'crouch'], ['Z', 'crawl'], ['X', 'sprint'], ['Esc', 'pause']],
+};
+
+export function briefingFor(n) {
+  const level = LEVELS[n];
+  const night = NIGHTS[n];
+  return {
+    kicker: 'LEVEL ' + n + ' OF 3 · ' + night.time,
+    title: level.name,
+    place: night.place,
+    lines: night.lines,
+    objectives: level.objectives.map((o) => o.text),
+    controls: CONTROLS[n],
+  };
+}
+
 export function createScreens({ events, audio, actions = {}, doc = document, storage = safeStorage(), qa = false } = {}) {
   const $ = (id) => doc.getElementById(id);
   const el = {
     loading: $('loading'), loadingFill: $('loading-fill'), loadingTip: $('loading-tip'),
-    briefing: $('briefing'), pause: $('pause'), options: $('options'), results: $('results'), card: $('card'),
-    hint: $('hint'), credits: $('credits'), lockNote: doc.querySelectorAll('.lock-note'),
+    home: $('home'), briefing: $('briefing'), pause: $('pause'), options: $('options'), results: $('results'), card: $('card'),
+    hint: $('hint'), credits: $('credits'), lockNote: doc.querySelectorAll('.lock-note'), fade: $('fade'),
   };
   const tracker = createRunTracker({ events });
   const options = loadOptions(storage);
+  const MENUS = ['loading', 'home', 'briefing', 'results'];
   let state = 'loading';
   let optionsFrom = 'pause';
   let cardLeft = 0;
@@ -97,7 +118,6 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
 
   el.hint?.classList.add('is-hidden');
 
-  // Loading progress from every Three.js loader that uses the default manager.
   let tip = 0;
   const tipTimer = setInterval(() => {
     tip = (tip + 1) % TIPS.length;
@@ -108,21 +128,41 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
     if (el.loadingFill) el.loadingFill.style.width = Math.round((loaded / Math.max(1, total)) * 100) + '%';
   };
 
-  // Briefing copy comes from story.js.
-  const briefTitle = el.briefing?.querySelector('.briefing-title');
-  if (briefTitle) briefTitle.textContent = BRIEFING.title;
-  const briefBody = el.briefing?.querySelector('.briefing-body');
-  if (briefBody) briefBody.replaceChildren(...BRIEFING.lines.map((line) => Object.assign(doc.createElement('p'), { textContent: line })));
+  const make = (tag, props = {}, children = []) => {
+    const node = Object.assign(doc.createElement(tag), props);
+    node.append(...children);
+    return node;
+  };
 
-  function show(name) {
-    for (const key of ['briefing', 'pause', 'options', 'results']) el[key]?.classList.toggle('is-hidden', key !== name);
-    audio?.duck(name !== null);
+  function fillBriefing(n) {
+    const b = briefingFor(n);
+    const root = el.briefing;
+    if (!root) return;
+    root.dataset.level = String(n);
+    root.querySelector('.briefing-kicker').textContent = b.kicker;
+    root.querySelector('.briefing-title').textContent = b.title;
+    root.querySelector('.briefing-place').textContent = b.place;
+    root.querySelector('.briefing-body').replaceChildren(...b.lines.map((line) => make('p', { textContent: line })));
+    root.querySelector('.briefing-objectives').replaceChildren(...b.objectives.map((text) => make('li', { textContent: text })));
+    root.querySelector('.controls').replaceChildren(...b.controls.map(([key, text]) => make('li', {}, [make('b', { textContent: key }), ' ' + text])));
+    const steps = root.querySelector('.briefing-steps');
+    if (steps) steps.replaceChildren(...[1, 2, 3].map((i) => make('i', { className: i < n ? 'done' : i === n ? 'now' : '' })));
   }
 
-  const PANEL = { briefing: 'briefing', paused: 'pause', options: 'options', results: 'results' };
+  function show(name) {
+    for (const key of ['home', 'briefing', 'pause', 'options', 'results']) el[key]?.classList.toggle('is-hidden', key !== name);
+    doc.body?.classList.toggle('in-menu', inMenu());
+    audio?.duck(name !== null && name !== 'home' && name !== 'briefing');
+  }
+
+  const PANEL = { home: 'home', briefing: 'briefing', paused: 'pause', options: 'options', results: 'results' };
   function setState(next) {
     state = next;
     show(PANEL[next] ?? null);
+  }
+
+  function inMenu() {
+    return MENUS.includes(state) || (state === 'options' && MENUS.includes(optionsFrom));
   }
 
   function showCard(n) {
@@ -142,13 +182,20 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
     } catch { /* older browsers throw instead of rejecting */ }
   }
 
+  function unlock() {
+    try { doc.exitPointerLock?.(); } catch { /* not locked */ }
+  }
+
+  function fade(on) {
+    el.fade?.classList.toggle('is-on', on);
+  }
+
   function applyOptions() {
     audio?.setVolume(options.master);
     audio?.setMusicVolume(options.music);
     saveOptions(storage, options);
   }
 
-  // Options panel controls.
   const form = el.options;
   const field = (name) => form?.querySelector(`[name="${name}"]`);
   function syncForm() {
@@ -171,12 +218,24 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
     syncForm();
   });
 
-  // Every button carries data-action.
+  function goHome() {
+    clearTimeout(resultsTimer);
+    actions.newHeist?.();
+    level = 1;
+    started = false;
+    fillBriefing(1);
+    setState('home');
+    unlock();
+  }
+
   const ACTIONS = {
+    play: () => { fillBriefing(level); setState('briefing'); },
+    enter: () => lock(),
     start: () => lock(),
     resume: () => lock(),
     restart: () => { actions.restart?.(); lock(); },
-    'new-heist': () => { clearTimeout(resultsTimer); actions.newHeist?.(); setState('briefing'); started = false; },
+    'new-heist': () => goHome(),
+    home: () => goHome(),
     options: () => { optionsFrom = state; syncForm(); setState('options'); },
     back: () => setState(optionsFrom),
     credits: () => { try { el.credits?.showModal(); } catch { /* dialog already open */ } },
@@ -190,7 +249,7 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
 
   function showResults() {
     const run = tracker.snapshot();
-    const g = gradeRun({ time: run.time, take: run.take, takeTotal: run.takeTotal, detections: run.detections, cameras: run.cameras, maxAlarm: run.maxAlarm });
+    const g = gradeRun({ time: run.time, par: 600, take: run.take, takeTotal: run.takeTotal, detections: run.detections, cameras: run.cameras, maxAlarm: run.maxAlarm });
     const r = el.results;
     if (!r) return;
     r.querySelector('.results-grade').textContent = g.grade;
@@ -205,43 +264,57 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
       ['Highest alarm', run.maxAlarm.toUpperCase()],
     ];
     r.querySelector('.results-stats').replaceChildren(...rows.flatMap(([k, v]) => [
-      Object.assign(doc.createElement('dt'), { textContent: k }),
-      Object.assign(doc.createElement('dd'), { textContent: v }),
+      make('dt', { textContent: k }),
+      make('dd', { textContent: v }),
     ]));
     const ending = r.querySelector('.results-ending');
-    if (level === 3) {
-      const e = endingFor(run.evidence);
-      ending.textContent = e.title + '. ' + e.text;
-      ending.classList.remove('is-hidden');
-    } else {
-      ending.classList.add('is-hidden');
-    }
+    const e = endingFor(run.evidence);
+    ending.textContent = e.title + '. ' + e.text;
+    ending.classList.remove('is-hidden');
     setState('results');
-    try { doc.exitPointerLock?.(); } catch { /* not locked */ }
+    unlock();
+  }
+
+  function advance(next) {
+    fade(true);
+    setTimeout(() => {
+      actions.loadLevel?.(next);
+      level = next;
+      started = false;
+      fillBriefing(next);
+      setState('briefing');
+      unlock();
+      fade(false);
+    }, 700);
   }
 
   events?.on('level:complete', (p = {}) => {
-    level = p.level ?? level;
+    const done = p.level ?? level;
     clearTimeout(resultsTimer);
-    resultsTimer = setTimeout(showResults, 2600);
+    resultsTimer = setTimeout(() => {
+      if (qa) return;
+      if (done >= 3) showResults();
+      else advance(done + 1);
+    }, 2600);
   });
 
+  fillBriefing(1);
   applyOptions();
 
   return {
     get blocking() { return state !== 'playing'; },
+    get inMenu() { return inMenu(); },
     get state() { return state; },
+    get level() { return level; },
     get options() { return options; },
     tracker,
-    // Call once everything has loaded.
     ready() {
       clearInterval(tipTimer);
       el.loading?.classList.add('is-hidden');
       if (options.quality !== 'auto') actions.quality?.(options.quality);
       if (qa) { state = 'playing'; show(null); return; }
-      setState('briefing');
+      setState('home');
     },
-    // Call from the pointerlockchange handler.
     lockChanged(locked) {
       if (locked && (state === 'briefing' || state === 'paused')) {
         setState('playing');
@@ -250,8 +323,11 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
         setState('paused');
       }
     },
-    setLevel(n) { level = n; showCard(n); },
+    setLevel(n) { level = n; fillBriefing(n); },
+    show: (name) => { if (name === 'briefing') fillBriefing(level); setState(name); },
     showResults,
+    showCard,
+    home: () => goHome(),
     update(dt) {
       tracker.update(dt);
       if (cardLeft > 0) {
