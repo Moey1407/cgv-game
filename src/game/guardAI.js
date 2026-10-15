@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 
 export const GUARD_STATES = ['patrol', 'investigate', 'pursue', 'search'];
+export const INVESTIGATE_GIVE_UP = 12; // seconds of walking toward a noise before giving up
+export const INVESTIGATE_NO_PROGRESS = 3; // seconds without getting closer before giving up
 
 const SIGHT = {
   gala: { range: 10, fov: Math.PI * 0.55 },
@@ -50,7 +52,9 @@ export function createGuardAI({ id, actor, torch, waypoints, speed, pauseSeconds
     proximityTime: 0,
     checkingGuest: 0,
     get position() { return root.position; },
-    get yaw() { return root.rotation.y; }
+    get yaw() { return root.rotation.y; },
+    // Where an investigating guard is heading (read by the dial countdown).
+    get target() { return target; }
   };
 
   function setState(next) {
@@ -65,10 +69,24 @@ export function createGuardAI({ id, actor, torch, waypoints, speed, pauseSeconds
     if (guard.state === 'pursue') return false;
     target.set(position.x, 0, position.z);
     guard.timer = 0;
+    guard.seeking = 0;
+    guard.freshNoise = true;
     guard.suspicion = Math.min(0.6, guard.suspicion + 0.15 * strength);
     setState('investigate');
     actor.play('Walk');
     return true;
+  }
+
+  // Move a point to the closest spot within 4 m where a guard can stand (spiral search).
+  function nearestStandable(point, canStand) {
+    for (let r = 0.5; r <= 4; r += 0.5) {
+      for (let a = 0; a < 16; a += 1) {
+        const x = point.x + Math.cos((a / 16) * Math.PI * 2) * r;
+        const z = point.z + Math.sin((a / 16) * Math.PI * 2) * r;
+        if (canStand(x, z)) { point.x = x; point.z = z; return true; }
+      }
+    }
+    return false;
   }
 
   function moveToward(point, pace, dt, canStand, findPath) {
@@ -155,9 +173,23 @@ export function createGuardAI({ id, actor, torch, waypoints, speed, pauseSeconds
         guard.timer -= dt;
         root.rotation.y += Math.sin(ctx.time * 1.4) * dt * 0.9;
         if (guard.timer <= 0) { setState('patrol'); actor.play('Walk'); }
-      } else if (moveToward(target, pace, dt, ctx.canStand, ctx.findPath)) {
-        guard.timer = 3;
-        actor.play('Idle');
+      } else {
+        // A noise behind a wall (the vent duct, a corridor he cannot reach) or on top
+        // of a crate has no walkable spot. Aim at the nearest spot he can stand on, and
+        // if he stops getting closer, stop and look around instead of pushing at a wall.
+        if (guard.freshNoise) {
+          guard.freshNoise = false;
+          if (ctx.canStand && !ctx.canStand(target.x, target.z)) nearestStandable(target, ctx.canStand);
+          guard.bestDistance = Infinity;
+          guard.noProgress = 0;
+        }
+        guard.seeking = (guard.seeking ?? 0) + dt;
+        const d = Math.hypot(target.x - root.position.x, target.z - root.position.z);
+        if (d < guard.bestDistance - 0.25) { guard.bestDistance = d; guard.noProgress = 0; } else guard.noProgress += dt;
+        if (moveToward(target, pace, dt, ctx.canStand, ctx.findPath) || guard.seeking > INVESTIGATE_GIVE_UP || guard.noProgress > INVESTIGATE_NO_PROGRESS) {
+          guard.timer = 3;
+          actor.play('Idle');
+        }
       }
     } else if (guard.state === 'pursue') {
       moveToward(lastSeen, pace * 1.75, dt, ctx.canStand, ctx.findPath);

@@ -17,14 +17,18 @@ const TIPS = [
   'The alarm cools down if you stay out of sight.',
 ];
 
-// Grade out of 100: stealth 50, greed 30, speed 20. S 90+, A 75+, B 60+, C 40+, else D.
-export function gradeRun({ time = 0, par = 300, take = 0, takeTotal = 0, detections = 0, cameras = 0, maxAlarm = 'quiet' } = {}) {
+// Grade out of 100: stealth 50, evidence 30, speed 20. S 90+, A 75+, B 60+, C 40+, else D.
+// The Kestrel Star is required to finish, so it earns nothing extra; the optional evidence
+// files are what reward exploring. Par is a full three-level run (the plan targets
+// 13 to 19 minutes); speed points reach zero at twice par.
+export const RUN_PAR_SECONDS = 960;
+export function gradeRun({ time = 0, par = RUN_PAR_SECONDS, evidence = 0, evidenceTotal = 0, detections = 0, cameras = 0, maxAlarm = 'quiet' } = {}) {
   const stealth = Math.max(0, 50 - detections * 10 - cameras * 5 - (ALARM_PENALTY[maxAlarm] ?? 0));
-  const greed = takeTotal > 0 ? Math.round(30 * Math.min(1, take / takeTotal)) : 0;
+  const files = evidenceTotal > 0 ? Math.round(30 * Math.min(1, evidence / evidenceTotal)) : 0;
   const speed = time <= par ? 20 : Math.max(0, Math.round(20 * (1 - (time - par) / par)));
-  const score = stealth + greed + speed;
+  const score = stealth + files + speed;
   const grade = score >= 90 ? 'S' : score >= 75 ? 'A' : score >= 60 ? 'B' : score >= 40 ? 'C' : 'D';
-  return { grade, score, stealth, greed, speed };
+  return { grade, score, stealth, files, speed };
 }
 
 // Run statistics, collected from events only.
@@ -388,15 +392,15 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
 
   function showResults() {
     const run = tracker.snapshot();
-    const g = gradeRun({ time: run.time, par: 600, take: run.take, takeTotal: run.takeTotal, detections: run.detections, cameras: run.cameras, maxAlarm: run.maxAlarm });
+    const g = gradeRun({ time: run.time, evidence: run.evidence, evidenceTotal: run.evidenceTotal, detections: run.detections, cameras: run.cameras, maxAlarm: run.maxAlarm });
     const r = el.results;
     if (!r) return;
     r.querySelector('.results-grade').textContent = g.grade;
     r.querySelector('.results-grade').dataset.grade = g.grade;
-    r.querySelector('.results-score').textContent = g.score + ' / 100 · stealth ' + g.stealth + ' · take ' + g.greed + ' · speed ' + g.speed;
+    r.querySelector('.results-score').textContent = g.score + ' / 100 · stealth ' + g.stealth + ' · evidence ' + g.files + ' · speed ' + g.speed + ' (par ' + clock(RUN_PAR_SECONDS) + ')';
     const rows = [
       ['Time', clock(run.time)],
-      ['Take', money(run.take) + ' of ' + money(run.takeTotal)],
+      ['Kestrel Star', run.take > 0 ? 'Secured · ' + money(run.take) : 'Not taken'],
       ['Evidence', run.evidence + ' / ' + run.evidenceTotal],
       ['Spotted by guards', String(run.detections)],
       ['Seen on camera', String(run.cameras)],

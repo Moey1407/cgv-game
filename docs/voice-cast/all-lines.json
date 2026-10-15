@@ -80,6 +80,14 @@
     "direction": ""
   },
   {
+    "id": "dex-2-door-tamper-circuit-2",
+    "who": "DEX",
+    "text": "He checks the safe once a lap. Need longer? Bounce a decoy into the archive.",
+    "level": "2",
+    "key": "door:tamper-circuit",
+    "direction": ""
+  },
+  {
     "id": "dex-2-hazard-trip-1",
     "who": "DEX",
     "text": "Are you trying to set them off? Watch the pattern!",

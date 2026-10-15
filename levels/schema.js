@@ -49,6 +49,8 @@
  * @property {number} [range]       view distance in metres
  * @property {boolean} [hasKeycard] pickpocket target (L1)
  * @property {number} [pickpocketSeconds] hold-E time (1.5 in the plan)
+ * @property {number} [pauseSeconds]  pause at each waypoint
+ * @property {number} [watchWaypoint] the dial countdown counts to this waypoint (L2 Briggs)
  *
  * @typedef {Object} Camera
  * @property {string} id
@@ -83,6 +85,7 @@
  * @property {Vec3} [size]
  * @property {Vec3} [usePos]         where the player stands to use it
  * @property {Vec3} [to]             vents and stairs: where using it puts the player
+ * @property {Vec3[]} [path]         vents and stairs: the visible route walked between usePos and to
  * @property {'keycard'} [requires]
  * @property {number} [holdSeconds]  override hold time (3.5 in L3)
  * @property {string} [group]        e.g. two plates share a group

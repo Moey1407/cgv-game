@@ -52,6 +52,12 @@ Context: door:tamper-circuit · level 2.
 
 Tamper circuit isolated. Now the dial. Briggs is still making rounds.
 
+## dex-2-door-tamper-circuit-2.mp3
+
+Context: door:tamper-circuit · level 2.
+
+He checks the safe once a lap. Need longer? Bounce a decoy into the archive.
+
 ## dex-2-hazard-trip-1.mp3
 
 Context: hazard:trip · level 2.

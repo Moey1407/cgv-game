@@ -31,6 +31,7 @@ import { createScreens } from './screens.js';
 import { createPerson } from './render/people.js';
 import { missionPhase } from './gameplay/mission.js';
 import { makeTraversalPath } from './gameplay/traversal.js';
+import { patrolEta, etaText } from './gameplay/patrolEta.js';
 import { createZiplineRig } from './render/ziplineRig.js';
 import { createNavigation } from './gameplay/navigation.js';
 
@@ -124,7 +125,7 @@ async function start() {
   const ui = {
     mode: $('mode'), timer: $('timer'), fade: $('fade'), feed: $('feed'), feedName: $('feed-name'), feedState: $('feed-state'),
     pip: $('pip-frame'), map: $('map-frame'), stats: $('stats'), loading: $('loading'),
-    credits: $('credits'), closeCredits: $('close-credits')
+    credits: $('credits'), closeCredits: $('close-credits'), guardEta: $('guard-eta')
   };
   ui.feedCells = [...document.querySelectorAll('.cctv-cell')];
   ui.mapLabel = ui.map.querySelector('span');
@@ -262,7 +263,7 @@ async function start() {
       throwCooldown: state.throwCooldown,
       cctvActive: cur.cctv.active >= 0,
       safeActive: state.inSafe
-    }) || state.decoyCharges <= 0 || state.zip || state.vent) return false;
+    }) || state.decoyCharges <= 0 || state.zip || state.vent || state.climb) return false;
     const forward = tmp.dir.set(-Math.sin(player.yaw), 0, -Math.cos(player.yaw)).normalize();
     const mesh = new THREE.Mesh(decoyGeometry, decoyMaterial);
     mesh.castShadow = true;
@@ -507,7 +508,7 @@ async function start() {
   }
 
   function controlHint() {
-    if (state.ended || state.inSafe || state.vent || state.zip || cur.cctv.active >= 0) return '';
+    if (state.ended || state.inSafe || state.vent || state.climb || state.zip || cur.cctv.active >= 0) return '';
     if (cur.n === 1) {
       if (cur.flags.coverBlown) return 'Guest cover blown  ·  Stay out of sight and complete the exit route';
       if (cur.elapsed < 8) return 'WASD move  ·  Mouse look  ·  Shift quiet walk';
@@ -518,7 +519,7 @@ async function start() {
       if (player.position.z > -7) return 'Z crawl under the high beam  ·  Hold Shift for quiet footsteps';
       if (player.position.z > -13) return 'Space jump the low beam  ·  Release Z before jumping';
       if (player.position.z > -23) return 'Watch the beam cycle  ·  The side duct is slower but avoids the inner checkpoint';
-      return state.hasStar ? 'Back to the marked staff fire door' : 'Stay behind the archive crates when Briggs passes  ·  G sonar reveals the room';
+      return state.hasStar ? 'Back to the marked staff fire door' : 'Click throws a decoy · one in the archive pulls Briggs from the safe  ·  Crates hide you when he checks it';
     }
     if (!cur.flags.pastShutter) return 'R record  →  hold E at the override for several seconds  →  R rewind  →  walk through';
     if (player.base < 10) return 'Click throw a decoy  ·  Z + E enter a duct  ·  The stairwell is north-east';
@@ -594,13 +595,15 @@ async function start() {
     zipRig.hide();
     camera.fov = 68; camera.updateProjectionMatrix();
     state.vent = null;
+    state.climb = null;
     ui.fade.classList.remove('is-on');
     ui.fade.style.transition = '';
     state.dampen = false;
     hud.end(null);
     hud.safe(false);
     hud.clearTransient();
-    if (cur.n === 2) safe = createSafecrackSystem({ combination: randomCombination(), events });
+    // Same combination after a retry, so a caught player can find the tumblers again.
+    if (cur.n === 2) safe = createSafecrackSystem({ combination: (state.safeCombo ??= randomCombination()), events });
     if (cur.n === 3) {
       cur.timeLeft = Math.max(payload.timeLeft || cur.data.lockdownSeconds, 90);
       alarm.setFloor(55, 'lockdown');
@@ -626,6 +629,7 @@ async function start() {
       alarm: 0,
       timeLeft: cur.data.lockdownSeconds ?? 0
     };
+    if (n === 2) state.safeCombo = randomCombination();
     restore(payload);
     checkpoints.save(n === 1 ? 'start' : 'level-' + n, snapshotCheckpoint());
     story.setLevel(n);
@@ -763,6 +767,7 @@ async function start() {
       echoActor.root.visible = true;
       echoMarker.mesh.visible = true;
       hologram.setDissolve(0);
+      if (state.climb) { state.climb = null; cur.props.setStairDoors(false); }
       echoActor.root.position.set(rewind.x, rewind.y ?? 0, rewind.z);
       state.echoLast.copy(echoActor.root.position);
       placePlayer(rewind.x, rewind.y ?? 0, rewind.z, rewind.yaw);
@@ -858,9 +863,43 @@ async function start() {
     playerMarker.rotation.y = player.yaw;
   }
 
+  // The Level 3 stairwell: W climbs and S goes back down, along the path in the level data.
+  const CLIMB_SPEED = 3.4;
+  function updateClimb(dt, time) {
+    const c = state.climb;
+    const movement = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0);
+    c.distance = THREE.MathUtils.clamp(c.distance + movement * dt * CLIMB_SPEED, 0, c.path.length);
+    const pose = c.path.sample(c.distance);
+    player.position.set(pose.x, pose.y, pose.z); player.base = pose.y;
+    player.yaw += Math.atan2(Math.sin(pose.yaw - player.yaw), Math.cos(pose.yaw - player.yaw)) * Math.min(1, dt * 6);
+    player.height += (1.62 - player.height) * Math.min(1, dt * 10);
+    player.profile = MOVEMENT.walk; player.moving = movement !== 0;
+    const rising = c.path.sample(c.distance + 0.3).y - pose.y;
+    camera.position.set(pose.x, pose.y + player.height + (movement ? Math.sin(time * 9) * 0.03 : 0), pose.z);
+    camera.rotation.set(rising > 0.05 ? 0.18 : -0.04, player.yaw, 0);
+    c.step += Math.abs(movement) * dt * CLIMB_SPEED;
+    if (c.step > 0.8) { c.step = 0; emitNoise(player.position, RING_COLOURS.player, 2.4, { source: 'player', damped: state.dampen, strength: 0.5 }); }
+    playerMarker.position.copy(player.position);
+    playerMarker.rotation.y = player.yaw;
+    if (c.distance >= c.path.length) {
+      const to = cur.use.stairs.to;
+      state.climb = null;
+      cur.props.setStairDoors(false);
+      placePlayer(to[0], to[1], to[2], facing(-to[0], -60 - to[2]));
+      hud.toast('STAIRWELL · TOP FLOOR');
+      checkpoints.save('level-3-roof', snapshotCheckpoint());
+    } else if (c.distance <= 0 && movement < 0) {
+      const from = cur.use.stairs.usePos;
+      state.climb = null;
+      cur.props.setStairDoors(false);
+      placePlayer(from[0], from[1], from[2] + 0.6, Math.PI);
+    } else hud.prompt('W CLIMB  ·  S BACK DOWN', c.distance / c.path.length);
+  }
+
   function updatePlayer(dt, time) {
     if (state.zip) { updateZip(dt); return; }
     if (state.vent) { updateVent(dt, time); return; }
+    if (state.climb) { updateClimb(dt, time); return; }
     if (state.inSafe || state.ended || cur.cctv.active >= 0) return;
     const stam = stamina.snapshot();
     let profile = movementProfile(keys, { damped: state.dampen });
@@ -957,7 +996,7 @@ async function start() {
 
   function updateInteractions(dt) {
     state.lifting = false;
-    if (state.vent) return;
+    if (state.vent || state.climb) return;
     if (state.ended || state.inSafe || state.zip || cur.cctv.active >= 0) { hud.prompt(null); return; }
     if (!state.hasKeycard && cur.okafor) {
       const target = { position: cur.okafor.position, yaw: cur.okafor.yaw, state: cur.okafor.state, stationary: cur.okafor.pauseTimer > 0.5 && cur.okafor.checkingGuest <= 0, id: 'okafor' };
@@ -1020,7 +1059,7 @@ async function start() {
   }
 
   function interact() {
-    if (state.ended || state.zip || state.vent) return;
+    if (state.ended || state.zip || state.vent || state.climb) return;
     if (state.inSafe) { safe.setTumbler(); return; }
     if (cur.cctv.active >= 0) {
       if (cur.cctv.loop()) cur.cctvSystem.loop(cur.cctv.active);
@@ -1057,10 +1096,18 @@ async function start() {
       hud.toast('LISTEN FOR THE CLICK');
     }
     if (spot.id === 'stairs') {
-      const to = cur.use.stairs.to;
-      placePlayer(to[0], to[1], to[2], facing(-to[0], -60 - to[2]));
-      hud.toast('STAIRWELL · TOP FLOOR');
-      checkpoints.save('level-3-roof', snapshotCheckpoint());
+      const def = cur.use.stairs;
+      if (def.path) {
+        state.climb = { distance: 0, step: 0, path: makeTraversalPath(def.path) };
+        cur.props.setStairDoors(true);
+        hud.prompt(null);
+        hud.toast('STAIRWELL · W TO CLIMB');
+      } else {
+        const to = def.to;
+        placePlayer(to[0], to[1], to[2], facing(-to[0], -60 - to[2]));
+        hud.toast('STAIRWELL · TOP FLOOR');
+        checkpoints.save('level-3-roof', snapshotCheckpoint());
+      }
     }
     if (spot.id === 'zip') {
       state.zip = { t: 0, elapsed: 0, done: false, lean: 0, from: camera.position.clone() };
@@ -1086,6 +1133,21 @@ async function start() {
     const fb = safe.feedback();
     hud.safe(true, { ...snap, strength: fb.strength });
     state.safeGlow = fb.strength > 0.9 ? 0.35 : 0;
+  }
+
+  // At the Level 2 dial: how long until Briggs checks the safe, or how long a decoy holds him.
+  function updateGuardEta() {
+    const el = ui.guardEta;
+    if (!el) return;
+    const watcher = cur.n === 2 && !cur.flags.safeOpened && !state.ended ? cur.guards.find((g) => g.def.watchWaypoint !== undefined) : null;
+    // Shown at the dial and from the cover around it, so a hiding player can time the return.
+    const show = Boolean(watcher) && (state.inSafe || near(player.position, cur.use.safe.usePos, 8));
+    el.classList.toggle('is-hidden', !show);
+    if (!show) return;
+    const eta = patrolEta(watcher, { watchIndex: watcher.def.watchWaypoint, pace: watcher.speed * alarm.snapshot().guardSpeed });
+    const { text, level } = etaText(watcher.def.name, eta);
+    if (el.textContent !== text) el.textContent = text;
+    if (el.dataset.level !== level) el.dataset.level = level;
   }
 
   function updateDoors(dt) {
@@ -1313,7 +1375,7 @@ async function start() {
     const playing = !state.ended;
     if (playing) { state.time += dt; cur.elapsed += dt; }
     updatePlayer(dt, elapsed);
-    document.body.dataset.traversal = state.zip ? 'zipline' : state.vent ? 'vent' : '';
+    document.body.dataset.traversal = state.zip ? 'zipline' : state.vent ? 'vent' : state.climb ? 'stairs' : '';
     updateExposure(dt);
     state.socialHeat = Math.max(0, state.socialHeat - dt);
     state.witnessCooldown = Math.max(0, state.witnessCooldown - dt);
@@ -1329,7 +1391,7 @@ async function start() {
       alarm: alarmSnap,
       canStand: (x, z) => canStand(x, z, 0.4, 0),
       clearView: cur.built ? cur.built.collision.clearView : null,
-      player: { position: player.position, crouching: stance(), blending: cover.safe || state.ended || Boolean(state.vent) || player.base > 10 || state.spawnGrace > 0, visible: state.exposure > 0 && !state.ended && player.base < 10 && !cover.safe },
+      player: { position: player.position, crouching: stance(), blending: cover.safe || state.ended || Boolean(state.vent || state.climb) || player.base > 10 || state.spawnGrace > 0, visible: state.exposure > 0 && !state.ended && player.base < 10 && !cover.safe },
       onPulse: (g) => field.emit(tmp.next.set(g.position.x, 0.02, g.position.z), RING_COLOURS.guard, 6, { speed: 4.5, strength: 0.9, source: 'guard' })
     };
     if (playing && dt > 0) for (const g of cur.guards) g.update(dt, ctx);
@@ -1341,6 +1403,7 @@ async function start() {
     if (playing) updateDoors(dt);
     updateInteractions(dt);
     updateSafe(dt);
+    updateGuardEta();
     if (playing) updateLevelClock(dt);
     updateCrowd(dt);
     cur.props.update(dt, elapsed);
@@ -1449,7 +1512,7 @@ async function start() {
     if (e.code === 'KeyE') interact();
     if (e.code === 'Backspace' && state.inSafe) { state.inSafe = false; hud.safe(false); }
     if (e.code === 'KeyR' && !state.inSafe) toggleEcho();
-    if (state.inSafe || state.zip || state.vent) return;
+    if (state.inSafe || state.zip || state.vent || state.climb) return;
     if (e.code === 'Space' && player.y === 0 && player.profile.id !== 'crawl') { player.vy = 4.6; events.emit('player:jump', {}); }
     if (e.code === 'KeyG' && state.sonarCooldown <= 0) {
       state.sonarCooldown = 2.6;
@@ -1486,7 +1549,7 @@ async function start() {
     rects = layoutOverlays();
   });
   document.addEventListener('mousemove', (e) => {
-    if (!state.locked || cur.cctv.active >= 0 || state.zip || state.vent) return;
+    if (!state.locked || cur.cctv.active >= 0 || state.zip || state.vent || state.climb) return;
     if (state.inSafe) {
       safe.turn(e.movementX * 0.035 * screens.options.sensitivity, Math.max(state.lastDt, 1 / 240));
       return;
@@ -1581,7 +1644,7 @@ async function start() {
         'Crawl duct': () => { prepare(3); game.view(-9, -32.5, Math.PI / 2); keys.KeyZ = true; simulate(0.1); interact(); keys.KeyW = true; simulate(10.5); keys.KeyW = false; keys.KeyZ = false;
           return check(cur.flags.vented && !state.vent, 'duct crossed along its visible bends'); },
         'Duct interior': () => { prepare(3); game.view(-9, -32.5, Math.PI / 2); keys.KeyZ = true; simulate(0.1); interact(); keys.KeyW = true; simulate(4); keys.KeyW = false; simulate(0.1); return check(Boolean(state.vent), 'view is inside the physical duct'); },
-        'Stairwell': () => { useAt(8, -43.5); return check(player.base === 20, 'stairwell leads to the roof landing'); },
+        'Stairwell': () => { useAt(6, -43.5); keys.KeyW = true; simulate(16); keys.KeyW = false; simulate(0.1); return check(player.base === 20 && !state.climb, 'climbed the stairwell to the roof landing'); },
         'Two sensors': () => { game.view(-3, -60, 0, 0, 20); resetEcho(); toggleEcho(); simulate(4); toggleEcho(); game.view(3, -60, 0, 0, 20); simulate(0.2);
           return check(cur.flags.armed, 'player and replay satisfy the two-operator interlock'); },
         'Open hatch': () => { game.view(0, -65.8, 0, 0, 20); keys.KeyE = true; simulate(3.7); keys.KeyE = false;

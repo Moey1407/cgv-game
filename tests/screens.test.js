@@ -11,18 +11,27 @@ const LOOT = [
   { id: 'e', type: 'evidence', value: 0 },
 ];
 
-test('a clean, fast, greedy run is an S; a messy one is a D', () => {
-  assert.equal(gradeRun({ time: 240, take: 4000, takeTotal: 4000 }).grade, 'S');
-  assert.equal(gradeRun({ time: 900, take: 0, takeTotal: 4000, detections: 4, cameras: 2, maxAlarm: 'lockdown' }).grade, 'D');
+test('a clean run under par with every file is an S; a messy one is a D', () => {
+  assert.equal(gradeRun({ time: 900, evidence: 3, evidenceTotal: 3 }).grade, 'S');
+  assert.equal(gradeRun({ time: 1900, evidence: 0, evidenceTotal: 3, detections: 4, cameras: 2, maxAlarm: 'lockdown' }).grade, 'D');
 });
 
 test('grade bands sit where the results screen says', () => {
-  // stealth 50 + greed 15 + speed 20 = 85 -> A
-  assert.equal(gradeRun({ time: 100, take: 2000, takeTotal: 4000 }).grade, 'A');
-  // one detection and a suspicious alarm: 35 + 15 + 20 = 70 -> B
-  assert.equal(gradeRun({ time: 100, take: 2000, takeTotal: 4000, detections: 1, maxAlarm: 'suspicious' }).grade, 'B');
-  // speed falls to zero at twice par
-  assert.equal(gradeRun({ time: 600 }).speed, 0);
+  // stealth 50 + evidence 20 (2 of 3) + speed 20 = 90 -> S
+  assert.equal(gradeRun({ time: 800, evidence: 2, evidenceTotal: 3 }).grade, 'S');
+  // stealth 50 + evidence 10 + speed 20 = 80 -> A
+  assert.equal(gradeRun({ time: 800, evidence: 1, evidenceTotal: 3 }).grade, 'A');
+  // one detection and a suspicious alarm: 35 + 10 + 20 = 65 -> B
+  assert.equal(gradeRun({ time: 800, evidence: 1, evidenceTotal: 3, detections: 1, maxAlarm: 'suspicious' }).grade, 'B');
+  // speed falls to zero at twice par (16 minutes)
+  assert.equal(gradeRun({ time: 1920 }).speed, 0);
+  assert.equal(gradeRun({ time: 960 }).speed, 20);
+});
+
+test('the Star alone earns no points: it is required to finish', () => {
+  const g = gradeRun({ time: 900, evidence: 0, evidenceTotal: 3 });
+  assert.equal(g.files, 0);
+  assert.equal(g.score, 70);
 });
 
 test('the run tracker counts only what the events report', () => {

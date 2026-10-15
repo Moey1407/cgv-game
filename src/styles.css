@@ -196,6 +196,10 @@ body.in-menu .top-left, body.in-menu .alarm, body.in-menu .status, body.in-menu 
 body.in-menu .radio, body.in-menu .bark, body.in-menu .evidence-card, body.in-menu .frame, body.in-menu .feed, body.in-menu .safe, body.in-menu .end, body.in-menu .card { display: none !important; }
 .timer { padding: 6px 14px; font: 600 18px ui-monospace, monospace; letter-spacing: 3px; color: #ff6b80; background: rgba(20, 2, 6, 0.7); border-left: 3px solid #ff3f62; }
 .timer.low { animation: radio-flicker 0.5s steps(2) infinite; }
+/* Level 2 dial countdown: when Briggs next checks the safe (main.js updateGuardEta). */
+.guard-eta { position: fixed; left: 50%; top: 150px; transform: translateX(-50%); z-index: 6; padding: 8px 16px; font: 600 15px ui-monospace, monospace; letter-spacing: 2px; color: #c7fbff; background: rgba(5, 8, 13, 0.82); border-left: 3px solid #72efff; pointer-events: none; white-space: nowrap; }
+.guard-eta[data-level="warn"] { color: #ffd166; border-color: #ffd166; }
+.guard-eta[data-level="danger"] { color: #ff6b80; border-color: #ff3f62; animation: radio-flicker 0.5s steps(2) infinite; }
 .fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity 0.6s ease; z-index: 30; }
 .fade.is-on { opacity: 1; }
 

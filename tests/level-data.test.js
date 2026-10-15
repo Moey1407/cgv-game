@@ -158,3 +158,59 @@ test('a blocked doorway is caught', () => {
   const plugged = { ...level1, walls: [...level1.walls, { name: 'plug', pos: [0, 2, -40.2], size: [5, 4, 0.4] }] };
   assert.equal(reachable(plugged, ground(level1.spawn), [0, 0, -60.6], PLAYER_RADIUS), false);
 });
+
+// Shortest distance from a point to a patrol loop (all its legs).
+function distanceToRoute(route, [px, , pz]) {
+  let best = Infinity;
+  for (let i = 0; i < route.length; i += 1) {
+    const [ax, , az] = route[i], [bx, , bz] = route[(i + 1) % route.length];
+    const dx = bx - ax, dz = bz - az;
+    const t = Math.max(0, Math.min(1, ((px - ax) * dx + (pz - az) * dz) / (dx * dx + dz * dz || 1)));
+    best = Math.min(best, Math.hypot(px - (ax + dx * t), pz - (az + dz * t)));
+  }
+  return best;
+}
+
+test('level 2: Briggs never walks through the safe, the panel or the vent exit', () => {
+  const briggs = level2.guards.find((g) => g.name === 'Briggs');
+  const use = Object.fromEntries(level2.interactables.map((i) => [i.id, i.usePos]));
+  // He used to pass 0.4 m from the dial and catch anyone cracking it.
+  assert.ok(distanceToRoute(briggs.route, use.safe) > 4, 'route passes too close to the safe dial');
+  // Night sight is 6.5 m: the west half is the player's side of the room.
+  assert.ok(distanceToRoute(briggs.route, use.tamper_panel) > 6.5, 'route passes within sight range of the tamper panel');
+  assert.ok(distanceToRoute(briggs.route, use.vent_out) > 6.5, 'route passes within sight range of the vent exit');
+});
+
+test('level 2: the watched leg faces the safe from within sight range, and the loop takes about 40 s', () => {
+  const briggs = level2.guards.find((g) => g.name === 'Briggs');
+  const r = briggs.route;
+  const from = r[briggs.watchWaypoint], to = r[(briggs.watchWaypoint + 1) % r.length];
+  const safe = level2.interactables.find((i) => i.id === 'safe').usePos;
+  const heading = Math.atan2(to[0] - from[0], to[2] - from[2]);
+  const bearing = Math.atan2(safe[0] - to[0], safe[2] - to[2]);
+  const off = Math.abs(Math.atan2(Math.sin(bearing - heading), Math.cos(bearing - heading)));
+  assert.ok(off < 0.3, 'the check leg should point at the safe (torch cone is 0.3 rad either side)');
+  assert.ok(Math.hypot(safe[0] - to[0], safe[2] - to[2]) < 6.5, 'the check point should be within night sight range of the dial');
+  let length = 0;
+  for (let i = 0; i < r.length; i += 1) length += Math.hypot(r[(i + 1) % r.length][0] - r[i][0], r[(i + 1) % r.length][2] - r[i][2]);
+  const seconds = length / briggs.speed;
+  assert.ok(seconds > 35 && seconds < 48, `loop takes ${seconds.toFixed(1)} s`);
+});
+
+test('level 3: the stairwell climb runs from the gallery door to the landing inside the shaft', () => {
+  const stairs = level3.interactables.find((i) => i.type === 'stairs');
+  assert.deepEqual(stairs.path[0], stairs.usePos);
+  assert.deepEqual(stairs.path.at(-1), stairs.to);
+  for (const [x, y, z] of stairs.path.slice(2, -2)) {
+    assert.ok(x > 4 && x < 8 && z > -53 && z < -45, `climb point ${x},${y},${z} leaves the shaft`);
+  }
+  const rises = stairs.path.slice(1).map((p, i) => p[1] - stairs.path[i][1]).filter((d) => d > 0);
+  assert.equal(rises.length, 5, 'five flights');
+  assert.ok(rises.every((d) => d <= 4), 'no flight climbs more than one storey');
+});
+
+test('level 3: the third evidence file is in the security office side room', () => {
+  const office = level3.zones.find((z) => z.id === 'security-office');
+  const [x, , z] = level3.pickups.find((p) => p.kind === 'evidence').pos;
+  assert.ok(x > office.min[0] && x < office.max[0] && z > office.min[2] && z < office.max[2]);
+});

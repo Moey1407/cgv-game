@@ -280,6 +280,49 @@ export function buildProps(scene, shared, field, level, { hall } = {}) {
     const topDoor = exitDoor.clone();
     topDoor.position.set(stairs.to[0], 21.15, -53.0 + 0.06);
     group.add(topDoor);
+    // Both doors slide aside while Wren is in the shaft (main.js calls setStairDoors).
+    api.stairDoors = [exitDoor, topDoor].map((mesh) => ({ mesh, x: mesh.position.x }));
+
+    // The shaft's flights and landings, built from the climb path in the level data.
+    // Every rising leg of the path gets 14 steps; one instanced mesh draws all of them.
+    if (stairs.path) {
+      const flights = [];
+      for (let i = 1; i < stairs.path.length; i += 1) {
+        const a = stairs.path[i - 1], b = stairs.path[i];
+        if (b[1] - a[1] > 0.5) flights.push([a, b]);
+      }
+      const STEPS = 14;
+      const steps = new THREE.InstancedMesh(t.g(new THREE.BoxGeometry(1.9, 0.12, 0.44)), steel, flights.length * STEPS);
+      const m = new THREE.Matrix4();
+      let k = 0;
+      for (const [a, b] of flights) {
+        for (let s = 0; s < STEPS; s += 1) {
+          const f = (s + 1) / STEPS;
+          m.makeTranslation(a[0], a[1] + (b[1] - a[1]) * f - 0.06, a[2] + (b[2] - a[2]) * (s + 0.5) / STEPS);
+          steps.setMatrixAt(k, m);
+          k += 1;
+        }
+      }
+      steps.receiveShadow = true;
+      group.add(steps);
+      // A landing slab at the top of every flight, plus the shaft floor.
+      const slab = (y, z, depth) => {
+        const mesh = new THREE.Mesh(t.g(new THREE.BoxGeometry(3.9, 0.14, depth)), dark);
+        mesh.position.set(6, y - 0.07, z);
+        mesh.receiveShadow = true;
+        group.add(mesh);
+      };
+      slab(0, -49, 7.9);
+      for (const [, b] of flights) {
+        if (b[1] >= 20) continue; // the top flight ends on the landing floor itself
+        slab(b[1], b[2] < -49 ? -52.15 : -45.85, b[2] < -49 ? 1.6 : 1.4);
+      }
+      for (const y of [5.5, 15.5]) {
+        const lamp = new THREE.PointLight(0xffd59a, 8, 11, 1.8);
+        lamp.position.set(6, y, -49);
+        group.add(lamp);
+      }
+    }
 
     const zip = level.interactables.find((i) => i.type === 'zipline');
     const start = new THREE.Vector3(zip.pos[0], 23.2, zip.pos[2]);
@@ -312,6 +355,10 @@ export function buildProps(scene, shared, field, level, { hall } = {}) {
     p.ring.material.color.setHex(locked ? 0x23ff7a : active ? 0xc7fbff : 0x72efff);
     p.mesh.material.emissive.setHex(locked ? 0x0a6a30 : active ? 0x72efff : 0x000000);
     p.mesh.material.emissiveIntensity = active || locked ? 0.6 : 0;
+  }
+
+  function setStairDoors(open) {
+    for (const d of api.stairDoors ?? []) d.mesh.position.x = d.x + (open ? 1.35 : 0);
   }
 
   function setPanel(id, colour) {
@@ -347,6 +394,7 @@ export function buildProps(scene, shared, field, level, { hall } = {}) {
     }
     for (const id of api.panels.keys()) setPanel(id, 0xffb020);
     api.vents.forEach(({ mesh }) => { mesh.visible = true; });
+    setStairDoors(false);
     if (api.reader) setPanel('reader', 0xff3048);
     if (hall && level.id === 1) hall.vaultHinge.rotation.y = 0;
   }
@@ -354,9 +402,9 @@ export function buildProps(scene, shared, field, level, { hall } = {}) {
   function dispose() {
     api.keycard?.removeFromParent();
     scene.remove(group);
-    group.traverse((c) => c.shadow?.map?.dispose());
+    group.traverse((c) => { c.shadow?.map?.dispose(); if (c.isInstancedMesh) c.dispose(); });
     t.dispose();
   }
 
-  return Object.assign(api, { setPlate, setPanel, update, reset, dispose });
+  return Object.assign(api, { setPlate, setPanel, setStairDoors, update, reset, dispose });
 }

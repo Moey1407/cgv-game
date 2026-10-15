@@ -79,7 +79,7 @@ export const SCRIPT = {
   // Level 2, The Vault: Dex is impatient.
   2: {
     'level:start': { say: [[DEX, 'One-thirty. Same night. The badge got you inside; your donor cover is finished.'], [DEX, 'Cross the security corridor. Isolate the safe’s tamper circuit at the west service panel before touching the dial.']] },
-    'door:tamper-circuit': { say: [[DEX, 'Tamper circuit isolated. Now the dial. Briggs is still making rounds.']] },
+    'door:tamper-circuit': { say: [[DEX, 'Tamper circuit isolated. Now the dial. Briggs is still making rounds.'], [DEX, 'He checks the safe once a lap. Need longer? Bounce a decoy into the archive.']] },
     'hazard:trip': { cooldown: 8, variants: [[DEX, 'Are you trying to set them off? Watch the pattern!'], [DEX, "Again? Crawl, jump or wait. It's not complicated."]] },
     'player:detected': { cooldown: 10, urgent: true, variants: [[DEX, 'Briggs has you! Move!'], [DEX, 'Seen. Of course. Hide, then hurry.']] },
     'safe:tumbler-1': { say: [[DEX, 'One. Faster.']] },

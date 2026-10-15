@@ -151,7 +151,9 @@ export async function buildHall(scene, materials, renderer, { width, height }) {
   world.add(velvetRope(materials, [3, 7, 11].map((x) => new THREE.Vector3(x, 0, -30))));
   const restrictedSign = new THREE.Mesh(
     new THREE.PlaneGeometry(2.2, 0.55),
-    new THREE.MeshBasicMaterial({ map: bannerTexture('PRIVATE', 'STAFF ONLY'), transparent: true, side: THREE.DoubleSide, depthWrite: false })
+    // Opaque on purpose: as a transparent, non-depth-writing plane, the see-through
+    // marble floor (drawn later) painted over its lower half.
+    new THREE.MeshBasicMaterial({ map: bannerTexture('PRIVATE', 'STAFF ONLY'), side: THREE.DoubleSide })
   );
   restrictedSign.position.set(0, 1.15, -30);
   world.add(restrictedSign);
