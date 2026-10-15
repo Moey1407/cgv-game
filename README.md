@@ -1,6 +1,8 @@
 # SIGNAL
 
-A Three.js heist game for COMS3006A / COMS3025A. Wren, a safecracker who works by ear, hits the Varga Museum over three visits: the closing-night gala, a return at night, and a lockdown escape. Sound shows up as rings of light on the floor, and the same rings are how guards notice you.
+A Three.js heist game for COMS3006A / COMS3025A. Wren, a safecracker who works by ear, prepares access during the Varga Museum gala, returns after closing, and survives a double-cross. Three stages follow one heist night. Sound shows up as rings of light on the floor, and guards hear the noise you make.
+
+Current integration notes: [story and mission flow](docs/HEIST_FLOW.md), [continuation handoff](docs/REZEFA_HANDOFF.md), [all six voice scripts](docs/voice-cast/README.md).
 
 ## Run it
 
@@ -9,7 +11,7 @@ npm ci
 npm run dev
 ```
 
-Open http://localhost:5173/. The title page runs a slow camera through the museum. Press Play, read the briefing for the level, then press Enter the Museum to lock the mouse and start.
+Open http://localhost:5173/. Press Play for the opening and click Enter the Gala to lock the mouse. Nearby prompts teach the relevant controls. Full controls are optional at entry or from Pause → Controls. Normal level changes use a short fade and retain the mouse lock.
 
 | Key | Action |
 | --- | --- |
@@ -21,8 +23,10 @@ Open http://localhost:5173/. The title page runs a slow camera through the museu
 | Mouse or arrow keys | Look |
 | G | Sonar pulse; briefly reveals the complete tactical map |
 | Left click | Throw a decoy (three charges, one restored every six seconds) |
-| E | Interact: take loot, swipe the keycard, use a vent or the stairs, set a tumbler, loop the selected CCTV feed |
-| Hold E | Pickpocket from behind a guard, hold an override |
+| E | Take evidence/the Star, authorise night entry, use a vent or the stairs, set a tumbler, loop the selected CCTV feed |
+| Hold E | Copy a stationary guard's badge (0.75 seconds), isolate a circuit, hold an override |
+| W / S inside a duct | Crawl forward / backward through the visible tunnel |
+| A / D on the zipline | Lean during the escape ride |
 | Q | Level 3 only: record your Echo, press again to rewind and replay it |
 | Tab | Open/close the CCTV wall; all feeds remain visible |
 | 1–4 | Select a CCTV feed; E loops the selected feed for eight seconds |
@@ -33,15 +37,15 @@ Open http://localhost:5173/. The title page runs a slow camera through the museu
 
 ## The three levels
 
-Each level has its own briefing page. Finishing one loads the next and shows its briefing. Cash and evidence carry across the whole run, and the grade and ending come at the end of Level 3.
+Each stage has a clear objective chain. The Star and evidence carry across the run; the final grade and ending follow the escape. The optional files expose Dex, while unrelated theft pickups have been removed.
 
-1. **The Gala.** The Grand Hall during the party. Use the cameras (Tab) to watch Okafor, lift his keycard by holding E behind him, grab what you can from the tables, then swipe the keycard at the vault wing door at the end of the corridor.
-2. **The Vault.** The next night, in the dark. Crawl under the first laser, jump the second, time the third, or crouch into the vent on the west wall to skip most of it. Briggs loops the vault room. Crack the three tumblers by ear. Turning fast is loud.
-3. **The Double-Cross.** Dex sells you out and the building starts sealing (four minutes). The Echo comes online: record yourself holding the shutter override, rewind, and walk through while your Echo holds it. Lure the sweep team away from the stairwell, then put you and your Echo on both plates on the top floor to arm the roof override. Hold it to open the hatch and take the zipline.
+1. **The Gala.** Dex has added Wren to the guest list. Loop the hall camera and copy Okafor's badge during a quiet inspection stop. Nearby witnesses and an extended close tail can spoil the attempt. Authorise the night entry at the staff reader, then return to the lobby and leave.
+2. **The Vault.** Return at 01:30 on the same heist night. Crawl, jump and time the beams, then choose the inner checkpoint or the duct. Isolate the safe's tamper circuit, crack three tumblers while Briggs patrols, explicitly take the Star and return to the service fire door.
+3. **The Double-Cross.** Dex seals Wren into the service wing. Record the shutter override and cross with the Echo's help. Get past two patrols using cover, a distraction or the duct. Reach the roof landing, satisfy the two-operator sensors, release the hatch and ride Wren's pre-rigged line to the service roof. All three evidence files trigger an upload and the exposed-Dex ending. The current escape budget is six minutes, pending first-time playtests.
 
 Footsteps, sonar, lasers, cameras and the safe all raise the alarm. It climbs from Quiet to Suspicious, Alert and Lockdown, and guards get faster as it rises. Guards hear rings, see you when you are lit and inside their view cone, then investigate, pursue and search. Getting caught sends you back to the last checkpoint.
 
-The game starts on medium quality and drops to low by itself if it runs under 40 FPS. The FPS counter is in the bottom-left corner.
+Auto quality starts on medium and drops if actual frame rate falls below 48 FPS. Low disables expensive post-processing and reduces auxiliary rendering. The FPS/call counter is in the bottom-left corner. Validate performance on the target laptop and lab PC before shipping.
 
 ## Build for the LAMP server
 

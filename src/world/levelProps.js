@@ -79,6 +79,7 @@ export function buildProps(scene, shared, field, level, { hall } = {}) {
 
   const loot = new Map();
   for (const item of level.pickups) {
+    if (item.id === 'kestrel_star') continue; // the stone is physically inside the safe
     const mesh = lootMesh(item, shared, t);
     group.add(mesh);
     loot.set(item.id, mesh);
@@ -89,8 +90,8 @@ export function buildProps(scene, shared, field, level, { hall } = {}) {
   if (level.id === 1) {
     for (const d of level.decor ?? []) {
       if (d.type !== 'desk') continue;
-      const desk = new THREE.Mesh(t.g(new THREE.BoxGeometry(1.4, 0.8, 0.7)), wood);
-      desk.position.set(d.pos[0], 0.4, d.pos[2] + 0.5);
+      const desk = new THREE.Mesh(t.g(new THREE.BoxGeometry(1.4, 1.02, 0.7)), wood);
+      desk.position.set(d.pos[0], 0.51, d.pos[2] + 0.5);
       desk.castShadow = desk.receiveShadow = true;
       const lamp = new THREE.PointLight(0xffd59a, 3, 3, 2);
       lamp.position.set(d.pos[0], 1.4, d.pos[2] + 0.5);
@@ -146,9 +147,22 @@ export function buildProps(scene, shared, field, level, { hall } = {}) {
     gemLight.position.set(def.pos[0], 1.2, front + 0.4);
     group.add(gem, gemLight);
     api.safe = { hinge, dial, gem, gemLight, open: 0 };
+    loot.set('kestrel_star', gem);
+    const breaker = level.interactables.find((i) => i.id === 'tamper_panel');
+    const p = panel(t, 0xffb020);
+    p.position.set(...breaker.pos); p.rotation.y = Math.PI / 2;
+    group.add(p); api.panels.set('tamper_panel', p);
+    const exit = new THREE.Mesh(t.g(new THREE.BoxGeometry(0.09, 2.4, 1.25)), steel);
+    exit.position.set(1.44, 1.2, -25.7); group.add(exit);
+    const pushbar = new THREE.Mesh(t.g(new THREE.BoxGeometry(0.14, 0.07, 0.8)), shared.brass);
+    pushbar.position.set(1.35, 1.08, -25.7); group.add(pushbar);
+  }
+
+  // Vents have real, lit interiors in both the vault and the escape gallery.
+  if (level.id >= 2) {
     for (const v of level.interactables.filter((i) => i.type === 'vent')) {
       const grate = new THREE.Group();
-      const frame = new THREE.Mesh(t.g(new THREE.BoxGeometry(0.9, 0.6, 0.06)), dark);
+      const frame = new THREE.Mesh(t.g(new THREE.BoxGeometry(0.86, 0.78, 0.06)), dark);
       grate.add(frame);
       for (let i = 0; i < 5; i += 1) {
         const bar = new THREE.Mesh(t.g(new THREE.BoxGeometry(0.8, 0.04, 0.05)), steel);
@@ -156,16 +170,54 @@ export function buildProps(scene, shared, field, level, { hall } = {}) {
         grate.add(bar);
       }
       grate.position.set(v.pos[0], v.pos[1], v.pos[2]);
-      if (v.id === 'vent_in') {
-        grate.position.x = -2.97;
-        grate.rotation.y = Math.PI / 2;
-      } else {
-        grate.position.z = -27.03;
-        grate.rotation.y = Math.PI;
-      }
+      grate.rotation.y = THREE.MathUtils.degToRad(v.rotYDeg ?? 0);
       group.add(grate);
       api.vents.push({ id: v.id, mesh: grate });
     }
+    const points = level.interactables.find((i) => i.type === 'vent' && i.path)?.path ?? [];
+    const duct = t.m(new THREE.MeshStandardMaterial({ color: 0x617582, metalness: 0.35, roughness: 0.74, side: THREE.DoubleSide }));
+    const strip = t.m(new THREE.MeshBasicMaterial({ color: 0xb8d5c0 }));
+    for (let i = 1; i < points.length; i++) {
+      const a = new THREE.Vector3(...points[i - 1]), b = new THREE.Vector3(...points[i]);
+      const length = a.distanceTo(b), center = a.clone().add(b).multiplyScalar(0.5);
+      const span = new THREE.Group(); span.position.copy(center); span.rotation.y = Math.atan2(b.x - a.x, b.z - a.z);
+      for (const side of [-1, 1]) {
+        const wall = new THREE.Mesh(t.g(new THREE.BoxGeometry(0.04, 1, Math.max(0.02, length - 1.1))), duct);
+        wall.position.set(side * 0.55, 0.5, 0); span.add(wall);
+      }
+      for (const y of [0, 1]) {
+        const slab = new THREE.Mesh(t.g(new THREE.BoxGeometry(1.14, 0.04, Math.max(0.02, length - 1.1))), duct);
+        slab.position.y = y; span.add(slab);
+      }
+      for (let z = -length / 2; z < length / 2; z += 1.4) {
+        const rib = new THREE.Mesh(t.g(new THREE.BoxGeometry(1.1, 0.025, 0.035)), steel);
+        rib.position.set(0, 0.96, z); span.add(rib);
+      }
+      const lamp = new THREE.Mesh(t.g(new THREE.BoxGeometry(0.2, 0.02, Math.min(0.7, length))), strip);
+      lamp.position.set(0, 0.95, 0); span.add(lamp);
+      const fill = new THREE.PointLight(0xc1dfd0, 2.2, 6, 1.3);
+      fill.position.set(0, 0.7, 0); span.add(fill);
+      group.add(span);
+    }
+    // Open elbows join the straight spans. Extending four full side walls
+    // across a corner would visibly clip through a crawling player's view.
+    points.forEach((point, index) => {
+      const connected = new Set();
+      for (const next of [points[index - 1], points[index + 1]].filter(Boolean)) {
+        const dx = next[0] - point[0], dz = next[2] - point[2];
+        connected.add(Math.abs(dx) > Math.abs(dz) ? (dx > 0 ? '+x' : '-x') : (dz > 0 ? '+z' : '-z'));
+      }
+      if (connected.size === 1) { const only = [...connected][0]; connected.add((only[0] === '+' ? '-' : '+') + only[1]); }
+      for (const y of [0, 1]) {
+        const slab = new THREE.Mesh(t.g(new THREE.BoxGeometry(1.14, 0.04, 1.14)), duct);
+        slab.position.set(point[0], point[1] + y, point[2]); group.add(slab);
+      }
+      for (const side of ['+x', '-x', '+z', '-z']) if (!connected.has(side)) {
+        const alongX = side[1] === 'x', offset = side[0] === '+' ? 0.55 : -0.55;
+        const wall = new THREE.Mesh(t.g(new THREE.BoxGeometry(alongX ? 0.04 : 1.14, 1, alongX ? 1.14 : 0.04)), duct);
+        wall.position.set(point[0] + (alongX ? offset : 0), point[1] + 0.5, point[2] + (alongX ? 0 : offset)); group.add(wall);
+      }
+    });
   }
 
   if (level.id === 3) {
@@ -241,6 +293,15 @@ export function buildProps(scene, shared, field, level, { hall } = {}) {
     const beacon = new THREE.Mesh(t.g(new THREE.SphereGeometry(0.08, 12, 8)), t.m(new THREE.MeshBasicMaterial({ color: 0xff3048 })));
     beacon.position.copy(start).add(new THREE.Vector3(0, 0.25, 0));
     group.add(post, cable, beacon);
+    // The pre-rigged line ends on a real service roof rather than empty space.
+    const landing = new THREE.Mesh(t.g(new THREE.BoxGeometry(7, 0.3, 8)), dark);
+    landing.position.set(end.x, end.y - 2.55, end.z - 1.4); group.add(landing);
+    for (const x of [-3.4, 3.4]) {
+      const rail = new THREE.Mesh(t.g(new THREE.BoxGeometry(0.08, 1.1, 8)), steel);
+      rail.position.set(x, end.y - 1.85, end.z - 1.4); group.add(rail);
+    }
+    const arrivalLight = new THREE.PointLight(0xffdb9f, 20, 14, 1.5);
+    arrivalLight.position.set(2.5, end.y + 0.5, end.z - 2); group.add(arrivalLight);
     api.zip = { start, end, beacon };
   }
 
@@ -285,6 +346,7 @@ export function buildProps(scene, shared, field, level, { hall } = {}) {
       api.hatch.mesh.position.y = api.hatch.base;
     }
     for (const id of api.panels.keys()) setPanel(id, 0xffb020);
+    api.vents.forEach(({ mesh }) => { mesh.visible = true; });
     if (api.reader) setPanel('reader', 0xff3048);
     if (hall && level.id === 1) hall.vaultHinge.rotation.y = 0;
   }

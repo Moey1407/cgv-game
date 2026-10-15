@@ -34,7 +34,7 @@ If the hosted page is blank, it is almost always one of these:
 
 | Check | Where it is covered | Owner | Status |
 | --- | --- | --- | --- |
-| Three levels, playable start to finish | Level data in `levels/`; a level loader still needs to load them | Teammate 2 + 3 | Open |
+| Three levels, playable start to finish | Level loader, mission gates and short transitions integrated; see `REZEFA_HANDOFF.md` | Teammate 2 + 3 | Development checks pass; manual campaign playtest still required |
 | Each level introduces something new, in one sentence | L1: CCTV, pickpocketing, alarm. L2: crawl, jump, lasers, safecracking by ear. L3: the Echo and a timed escape | All | Ready |
 | Keyboard and mouse both work | Controls on the briefing screen; sensitivity in Options | Teammate 2 | Ready |
 | At least one custom shader every member can explain | Ring, CRT, laser, hologram, alarm post-processing | Huzaifa | Ready: each member must rehearse one |
@@ -51,7 +51,7 @@ If the hosted page is blank, it is almost always one of these:
 | Devlog video submitted (final only) | Section 6 | Teammate 3 | Open |
 | Every member submitted a contribution report | Section 7 | Everyone | Open |
 
-Before the final build, ask the owner of `main.js` to remove the debug keys (`1`, `2`, `3` lighting modes and `K` quality, which Options now covers). The `?qa` test hooks only exist with `?qa` in the URL, so they can stay.
+Production input has no global lighting/debug keys; `1–4` only select CCTV feeds while the console is open. The explicit `?qa=review` panel is development-only and is removed by the production build.
 
 ## 4. Playtests (end of every phase)
 
@@ -129,67 +129,10 @@ Keep one line per piece of work, so the Moodle report writes itself.
 | 15 Oct | Loading, briefing, level cards, pause, options, results and grades | `src/screens.js`, `index.html`, `src/styles.css`, `tests/screens.test.js` |
 | 15 Oct | Shipping guide, playtest sheet, trailer plan | `docs/SHIPPING.md` |
 
-## 8. Recording Dex and Wren
+## 8. Final voice recording pack
 
-Every line has an id. Record each as `public/audio/voice/<id>.ogg` (mono, 44.1 kHz, short silence trimmed), then add the id to `RECORDED_CLIPS` in `src/story.js`. Only listed clips are loaded, so a missing recording never causes a 404. Record in a quiet room, phone about 20 cm away. Dex: warm in Level 1, impatient in Level 2, flat and final in Level 3.
+Use [the six-role recording pack](voice-cast/README.md), generated from the current game. It contains Dex, Wren, Okafor, Briggs, the sweep team and Control, including the intro and betrayal. Generate one clean named MP3 per line; the game adds the earpiece filter for Dex and Control.
 
-| Clip id | Who | Level | Line |
-| --- | --- | --- | --- |
-| `dex-1-level-start-1` | DEX | 1 | Evening, Wren. You clean up nicely. Nobody at this party knows your face. |
-| `dex-1-level-start-2` | DEX | 1 | Quick refresher, since it's been two years. Shift walks soft, C crouches, Z puts you on the floor. |
-| `dex-1-level-start-3` | DEX | 1 | Your rig turns sound into rings. Carpet swallows them, marble shouts. Guards hear the same rings you see. |
-| `dex-1-level-start-4` | DEX | 1 | Tab puts you on the cameras. Find Okafor. The keycard is on his belt. |
-| `dex-1-pickpocket-complete-1` | DEX | 1 | Smooth. Two years and you've still got the hands. Vault wing is at the back of the hall. |
-| `wren-1-evidence-1` | WREN | 1 | A security roster. Dex is on it. Why would Dex be on it? |
-| `dex-1-evidence-2` | DEX | 1 | Wren? You've gone quiet. Keep moving. |
-| `dex-1-level-complete-1` | DEX | 1 | Lovely work. Get some sleep. The vault won't open itself tomorrow. |
-| `dex-2-level-start-1` | DEX | 2 | Lasers are on a cycle. Watch, then move. |
-| `dex-2-level-start-2` | DEX | 2 | And quicker than last night, please. We're on a clock. |
-| `dex-2-hazard-trip-1` | DEX | 2 | Are you trying to set them off? Watch the pattern! |
-| `dex-2-hazard-trip-2` | DEX | 2 | Again? Crawl, jump or wait. It's not complicated. |
-| `dex-2-player-detected-1` | DEX | 2 | Briggs has you! Move! |
-| `dex-2-player-detected-2` | DEX | 2 | Seen. Of course. Hide, then hurry. |
-| `dex-2-safe-tumbler-1-1` | DEX | 2 | One. Faster. |
-| `dex-2-safe-tumbler-2-1` | DEX | 2 | Two. Come on, come on. |
-| `dex-2-safe-miss-1` | DEX | 2 | You're turning it like a radio dial. Slow. Down. |
-| `dex-2-safe-noise-1` | DEX | 2 | That's loud. Briggs will hear that. |
-| `wren-2-evidence-1` | WREN | 2 | A radio intercept on the guard channel. That's Dex's voice. |
-| `dex-2-evidence-2` | DEX | 2 | Leave the paperwork. We didn't come for paperwork. |
-| `dex-2-safe-opened-1` | DEX | 2 | There she is. The Kestrel Star. Hold her up for me. Beautiful. |
-| `dex-3-level-start-1` | DEX | 3 | Sorry, Wren. Same as Marlowe. |
-| `wren-3-level-start-3` | WREN | 3 | Fine. I'll be my own crew. |
-| `system-3-level-start-4` | SYSTEM | 3 | Press Q to record your Echo. Press Q again to rewind and work alongside it. |
-| `wren-3-player-detected-1` | WREN | 3 | Seen. Move! |
-| `wren-3-player-detected-2` | WREN | 3 | Not now. Not now. |
-| `wren-3-alarm-alert-1` | WREN | 3 | Keep breathing. Find the quiet route. |
-| `wren-3-echo-start-1` | WREN | 3 | Recording. Show me how it's done. |
-| `wren-3-echo-replay-1` | WREN | 3 | There I am. Still better company than Dex. |
-| `wren-3-echo-shattered-1` | WREN | 3 | They broke my Echo. Again, then. |
-| `wren-3-evidence-1` | WREN | 3 | "Leave the safecracker inside." Got you, Dex. |
-| `wren-3-level-complete-1` | WREN | 3 | One stone, one safecracker, no handler. Time to go. |
-| `dex-any-camera-loop-1` | DEX | Any | That feed's on a loop for eight seconds. Security is watching a very boring rerun. |
-| `dex-any-camera-detected-1` | DEX | Any | Camera's got you. Loop it or get out of its view. |
-| `dex-any-camera-detected-2` | DEX | Any | You're on camera, Wren. Smile, then move. |
-| `dex-any-player-detected-1` | DEX | Any | He's seen you. Break line of sight! |
-| `dex-any-player-detected-2` | DEX | Any | Spotted! Get behind something solid. |
-| `dex-any-player-caught-1` | DEX | Any | Wren? Wren. Okay. Back to the checkpoint. Deep breath. |
-| `dex-any-checkpoint-restore-1` | DEX | Any | Again. Slower this time. |
-| `dex-any-alarm-suspicious-1` | DEX | Any | Easy. Somebody's twitchy. Find a quiet corner and let it settle. |
-| `dex-any-alarm-alert-1` | DEX | Any | They're actively looking for you now. Get out of sight. |
-| `dex-any-alarm-lockdown-1` | DEX | Any | That's lockdown. Well. That's the noisy version of the plan. |
-| `dex-any-pickpocket-complete-1` | DEX | Any | Smooth. Two years and you've still got the hands. |
-| `dex-any-loot-1` | DEX | Any | Ooh, shiny. Pockets are free real estate. |
-| `dex-any-loot-2` | DEX | Any | Bonus. Just don't get greedy. |
-| `dex-any-loot-3` | DEX | Any | I'll pretend I didn't see that. Half is mine. |
-| `wren-any-evidence-1` | WREN | Any | Why is Dex's name on this? |
-| `dex-any-hazard-trip-1` | DEX | Any | That beam was not a suggestion. |
-| `dex-any-hazard-trip-2` | DEX | Any | Under, over or wait. Pick one. |
-| `dex-any-safe-noise-1` | DEX | Any | Too fast. The clicks are carrying. |
-| `dex-any-safe-miss-1` | DEX | Any | Missed it. Slow the dial right down. |
-| `dex-any-safe-tumbler-1-1` | DEX | Any | One down. |
-| `dex-any-safe-tumbler-2-1` | DEX | Any | Two. One more. |
-| `dex-any-safe-opened-1` | DEX | Any | There she is. The Kestrel Star. |
-| `dex-any-door-vault-wing-1` | DEX | Any | Vault wing's open. Corridor's next. Mind the lasers. |
-| `wren-any-echo-start-1` | WREN | Any | Recording. Remember this, rig. |
-| `wren-any-echo-replay-1` | WREN | Any | There I am. |
-| `wren-any-echo-shattered-1` | WREN | Any | They got my Echo. Again, then. |
+`npm run voice:script` refreshes the sheets after dialogue edits. `npm run voice:import -- <approved-folder> --check` checks filenames; omit `--check` to import after listening. Previous audio is backed up locally. The exact spoken text is indexed with the clip, so rewritten captions never play an obsolete recording. Missing approved lines remain captioned; browser-native narration is no longer used.
+
+See [the continuity handoff](REZEFA_HANDOFF.md) for what is implemented, what still needs live testing, and the final art/animation work.

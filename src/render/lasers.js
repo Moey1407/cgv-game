@@ -55,9 +55,9 @@ function beamMaterial(colour, core) {
 }
 
 export function distanceToSegment(point, a, b) {
-  const ab = new THREE.Vector3().subVectors(b, a);
-  const t = THREE.MathUtils.clamp(new THREE.Vector3().subVectors(point, a).dot(ab) / Math.max(ab.lengthSq(), 1e-6), 0, 1);
-  return point.distanceTo(a.clone().addScaledVector(ab, t));
+  const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
+  const t = THREE.MathUtils.clamp(((point.x - a.x) * dx + (point.y - a.y) * dy + (point.z - a.z) * dz) / Math.max(dx * dx + dy * dy + dz * dz, 1e-6), 0, 1);
+  return Math.hypot(point.x - a.x - dx * t, point.y - a.y - dy * t, point.z - a.z - dz * t);
 }
 
 export function createLaserSystem(scene, { colour = 0xff2a4d } = {}) {
@@ -67,15 +67,25 @@ export function createLaserSystem(scene, { colour = 0xff2a4d } = {}) {
   const lasers = [];
   const emitterMaterial = new THREE.MeshStandardMaterial({ color: 0x2a1016, emissive: 0xff2a4d, emissiveIntensity: 0.6, roughness: 0.4 });
   const up = new THREE.Vector3(0, 1, 0);
+  const probe = new THREE.Vector3();
+  const mounts = [];
+  const casing = new THREE.MeshStandardMaterial({ color: 0x87939f, metalness: 0.65, roughness: 0.5 });
 
   function add({ start, end, pattern = 'static', amplitude = 0.6, speed = 1, phase = 0, period = 4 }) {
     const core = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 1, 8, 1, true), beamMaterial(colour, true));
     const glow = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 1, 16, 1, true), beamMaterial(colour, false));
     const emitters = [start, end].map(() => {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.2, 0.14), emitterMaterial);
+      const m = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.16, 0.14), emitterMaterial);
       group.add(m);
       return m;
     });
+    for (const point of [start, end]) {
+      const vertical = pattern === 'rise' || pattern === 'sweep';
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.08, vertical ? amplitude * 2 + 0.35 : 0.36, 0.26), casing);
+      rail.position.copy(point); group.add(rail); mounts.push(rail);
+      const bracket = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.26, 0.3), casing);
+      bracket.position.copy(point); group.add(bracket); mounts.push(bracket);
+    }
     group.add(core, glow);
     const laser = {
       base: { start: start.clone(), end: end.clone() },
@@ -124,6 +134,7 @@ export function createLaserSystem(scene, { colour = 0xff2a4d } = {}) {
       }
       for (const mesh of [laser.core, laser.glow]) mesh.material.uniforms.uTime.value = time;
       place(laser);
+      laser.emitters.forEach((emitter) => { emitter.visible = laser.active; });
     }
   }
 
@@ -133,6 +144,14 @@ export function createLaserSystem(scene, { colour = 0xff2a4d } = {}) {
 
   function hits(point, radius = 0.25) {
     return lasers.some((laser) => laser.active && distanceToSegment(point, laser.a, laser.b) <= radius);
+  }
+
+  function hitsBody(position, { height = 1.68, jump = 0, base = 0, radius = 0.15 } = {}) {
+    const low = base + jump + radius;
+    const high = Math.max(low, base + jump + height - radius + 0.05);
+    const steps = Math.max(1, Math.ceil((high - low) / (radius * 1.5)));
+    for (let i = 0; i <= steps; i++) if (hits(probe.set(position.x, low + (high - low) * i / steps, position.z), radius)) return true;
+    return false;
   }
 
   function setVisible(visible) {
@@ -147,9 +166,10 @@ export function createLaserSystem(scene, { colour = 0xff2a4d } = {}) {
       }
     }
     emitterMaterial.dispose();
+    casing.dispose(); mounts.forEach((mesh) => mesh.geometry.dispose());
     scene.remove(group);
     lasers.length = 0;
   }
 
-  return { group, lasers, add, update, segments, hits, setVisible, dispose };
+  return { group, lasers, add, update, segments, hits, hitsBody, setVisible, dispose };
 }

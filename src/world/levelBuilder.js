@@ -153,17 +153,50 @@ export function buildLevel(scene, materials, field, data, { roofRain = false } =
     }
   }
 
+  function wallPiece(pos, size, prop = false) {
+    if (size.some((n) => n <= 0.005)) return;
+    const mesh = new THREE.Mesh(geo(new THREE.BoxGeometry(...size)), prop ? mats.prop : wallMaterial);
+    mesh.position.set(...pos); mesh.castShadow = prop; mesh.receiveShadow = true; group.add(mesh);
+  }
   for (const w of data.walls) {
-    const mesh = new THREE.Mesh(geo(new THREE.BoxGeometry(...w.size)), w.kind === 'prop' ? mats.prop : wallMaterial);
-    mesh.position.set(...w.pos);
-    mesh.castShadow = w.kind === 'prop';
-    mesh.receiveShadow = true;
-    group.add(mesh);
-    if (w.kind !== 'prop' && w.size[1] >= 2) {
+    const axis = w.size[0] < 0.5 ? 2 : w.size[2] < 0.5 ? 0 : -1;
+    const plane = axis === 2 ? 0 : 2;
+    const openings = axis < 0 ? [] : data.interactables.filter((v) => v.type === 'vent'
+      && Math.abs(v.pos[plane] - w.pos[plane]) < 0.3
+      && Math.abs(v.pos[axis] - w.pos[axis]) < w.size[axis] / 2
+      && Math.abs(v.pos[1] - (w.pos[1] - w.size[1] / 2 + 0.42)) < 0.3).sort((a, b) => a.pos[axis] - b.pos[axis]);
+    if (!openings.length) wallPiece(w.pos, w.size, w.kind === 'prop');
+    else {
+      let cursor = w.pos[axis] - w.size[axis] / 2;
+      const high = w.pos[axis] + w.size[axis] / 2;
+      for (const v of openings) {
+        const from = Math.max(cursor, v.pos[axis] - 0.55), to = Math.min(high, v.pos[axis] + 0.55);
+        const pos = [...w.pos], size = [...w.size];
+        pos[axis] = (cursor + from) / 2; size[axis] = from - cursor; wallPiece(pos, size);
+        const lintel = [...w.pos], lintelSize = [...w.size];
+        lintel[axis] = (from + to) / 2; lintelSize[axis] = to - from;
+        lintel[1] += 0.525; lintelSize[1] -= 1.05; wallPiece(lintel, lintelSize);
+        cursor = to;
+      }
+      const pos = [...w.pos], size = [...w.size]; pos[axis] = (cursor + high) / 2; size[axis] = high - cursor; wallPiece(pos, size);
+    }
+    if (w.kind !== 'prop' && w.size[1] >= 2 && !openings.length) {
       const trim = new THREE.Mesh(geo(new THREE.BoxGeometry(w.size[0] + 0.02, 0.08, w.size[2] + 0.02)), mats.trim);
       trim.position.set(w.pos[0], w.pos[1] - w.size[1] / 2 + 0.25, w.pos[2]);
       group.add(trim);
     }
+  }
+
+  for (const label of data.labels ?? []) {
+    const canvas = document.createElement('canvas'); canvas.width = 768; canvas.height = 144;
+    const ctx = canvas.getContext('2d'); ctx.fillStyle = '#21312e'; ctx.fillRect(0, 0, 768, 144);
+    ctx.strokeStyle = '#d4d8c6'; ctx.lineWidth = 5; ctx.strokeRect(8, 8, 752, 128);
+    ctx.fillStyle = '#ecebdc'; ctx.font = '600 37px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(label.text, 384, 73, 710);
+    const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
+    const material = own(new THREE.MeshStandardMaterial({ map: texture, roughness: 0.85, emissive: 0x333b31, emissiveIntensity: 0.35 }));
+    const sign = new THREE.Mesh(geo(new THREE.PlaneGeometry(label.width, label.width * 144 / 768)), material);
+    sign.position.set(...label.pos); sign.rotation.y = THREE.MathUtils.degToRad(label.rotYDeg ?? 0); group.add(sign);
   }
 
   const lights = new THREE.Group();
@@ -201,7 +234,7 @@ export function buildLevel(scene, materials, field, data, { roofRain = false } =
   for (const z of data.zones ?? []) {
     const cx = (z.min[0] + z.max[0]) / 2;
     const cz = (z.min[2] + z.max[2]) / 2;
-    const p = new THREE.PointLight(data.id === 3 ? 0xff5a4a : 0xa8c8ff, data.id === 3 ? 14 : 30, Math.max(z.max[0] - z.min[0], z.max[2] - z.min[2]) * 1.1, 1.6);
+    const p = new THREE.PointLight(data.id === 3 ? 0xaeb9c7 : 0xa8c8ff, data.id === 3 ? 18 : 30, Math.max(z.max[0] - z.min[0], z.max[2] - z.min[2]) * 1.1, 1.6);
     p.position.set(cx, z.min[1] + ROOM_HEIGHT - 0.4, cz);
     lights.add(p);
     if (data.id === 3 && z.min[1] < 10) addBeacon(cx, z.min[1] + ROOM_HEIGHT, cz, p);
@@ -210,6 +243,9 @@ export function buildLevel(scene, materials, field, data, { roofRain = false } =
   let rain = null;
   let searchlight = null;
   if (roofRain) {
+    const moon = new THREE.DirectionalLight(0xa9c4e4, 0.8);
+    moon.position.set(-30, 60, -90); moon.target.position.set(0, 20, -75);
+    group.add(moon, moon.target, new THREE.HemisphereLight(0x819bb9, 0x18212c, 0.28));
     const count = 1800;
     const positions = new Float32Array(count * 6);
     for (let i = 0; i < count; i += 1) {

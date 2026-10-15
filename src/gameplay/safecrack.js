@@ -7,6 +7,7 @@ export function createSafecrackSystem({ combination = [18, 63, 41], windows = [5
   let dial = 0;
   let tumbler = 0;
   let opened = false;
+  let nearClick = false;
 
   const api = {
     turn(delta, dt = 1 / 60) {
@@ -14,6 +15,9 @@ export function createSafecrackSystem({ combination = [18, 63, 41], windows = [5
       dial = (dial + delta + 1000) % 100;
       const speed = Math.abs(delta) / Math.max(dt, 1 / 240);
       const noise = Math.min(1, speed / 120);
+      const near = circularDistance(dial, combination[tumbler]) < windows[tumbler];
+      if (near && !nearClick) events?.emit('safe:contact', { tumbler, dial });
+      nearClick = near;
       if (noise > 0.35) events?.emit('safe:noise', { noise, dial, tumbler });
       return { ...api.snapshot(), noise };
     },
@@ -26,6 +30,7 @@ export function createSafecrackSystem({ combination = [18, 63, 41], windows = [5
       }
       const set = tumbler;
       tumbler += 1;
+      nearClick = false;
       opened = tumbler === combination.length;
       events?.emit('safe:tumbler-set', { tumbler: set, dial, opened });
       if (opened) events?.emit('safe:opened', { combination: [...combination] });
@@ -40,6 +45,7 @@ export function createSafecrackSystem({ combination = [18, 63, 41], windows = [5
       dial = 0;
       tumbler = 0;
       opened = false;
+      nearClick = false;
     },
     snapshot() {
       return { dial, tumbler, total: combination.length, opened };

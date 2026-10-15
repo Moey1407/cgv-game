@@ -12,7 +12,7 @@
 //   z=-62                 +---+  vault wing door (0, -61.7)
 //
 // What is new compared with the build, because the plan changes the mission:
-//   * Okafor (west wall) carries a keycard that the player lifts (hold E, 1.5 s).
+//   * Okafor's inspection pauses allow a 0.75-second badge copy; the original remains on him.
 //   * The corridor lasers are gone: they belong to Level 2 in the plan.
 //   * The vault door is a keycard_door interactable, not scenery.
 //   * Loot, the evidence file and the Dex lines are new. Anything marked
@@ -27,17 +27,18 @@ const floor = (surface, pos, size) => ({ surface, pos, size });
 export default {
   id: 1,
   name: 'The Gala',
-  objective: "Reach the vault wing door with Okafor's keycard, unseen",
+  objective: 'Copy a staff badge, authorise the night entry, and leave through the lobby',
   objectives: [
     { id: 'cctv', text: "Hack a camera and watch Okafor's patrol" },
-    { id: 'keycard', text: "Lift Okafor's keycard", follow: 'Okafor' },
-    { id: 'vault_door', text: 'Swipe the keycard at the vault wing door', marker: [0, 2, -61.7] },
+    { id: 'keycard', text: 'Copy Okafor’s badge during an inspection stop', follow: 'Okafor' },
+    { id: 'vault_door', text: 'Register the copied badge at the staff reader', marker: [0, 2, -61.7] },
+    { id: 'exit', text: 'Leave through the lobby before closing', marker: [-4.2, 0, 5] },
   ],
   // The build starts the player at (-4.2, 0, 5) with yaw atan2(-6, 21), about -16 degrees.
   spawn: [-4.2, 0, 5],
   spawnYawDeg: -16,
   checkpoint: [-4.2, 0, 5],
-  goal: [0, 0, -60.6],
+  goal: [-4.2, 0, 5],
 
   // The carpet runner is listed after the marble so it wins where they overlap.
   floors: [
@@ -84,10 +85,11 @@ export default {
   guards: [
     {
       name: 'Okafor', // patrols the west wall and carries the keycard (matches main.js)
-      route: [[-9.6, 0, -12.6], [-9.6, 0, -30]],
+      route: [[-9.6, 0, -12.6], [-9.6, 0, -20], [-9.6, 0, -28], [-9.6, 0, -20]],
       speed: 1.1,
+      pauseSeconds: 3.6,
       hasKeycard: true,
-      pickpocketSeconds: 1.5,
+      pickpocketSeconds: 0.75,
     },
     {
       name: 'Briggs', // the central loop in main.js
@@ -109,9 +111,6 @@ export default {
   // Placeholder positions and cash values. Items sit on table tops and beside
   // walls, never inside a wall box, so the XZ access check does not block pickup.
   pickups: [
-    { id: 'loot_watch', kind: 'loot', pos: [-2.4, 1.1, -11], value: 3500, label: 'Wristwatch' },
-    { id: 'loot_purse', kind: 'loot', pos: [6.5, 1.1, -8], value: 2200, label: 'Clutch purse' },
-    { id: 'loot_sketch', kind: 'loot', pos: [-10.8, 1.0, -13.5], value: 6000, label: 'Painting sketch' },
     // The plan puts evidence 1 in a security office. This map has no side rooms,
     // so it sits on a guard desk in the vault wing until we decide to add one.
     { id: 'evidence_1', kind: 'evidence', evidenceIndex: 1, pos: [-10.5, 1.0, -37.5], label: 'Security log' },
@@ -119,6 +118,7 @@ export default {
 
   interactables: [
     { id: 'vault_door', type: 'keycard_door', pos: [0, 2, -61.7], size: [3.6, 3.6, 0.5], usePos: [0, 0, -60.6], requires: 'keycard' },
+    { id: 'gala_exit', type: 'door', pos: [-4.2, 1.2, 7.8], usePos: [-4.2, 0, 5], requires: 'night_entry' },
   ],
 
   // From the old main.js (3 charges, one back every 6 s). throwing.js is not in the
@@ -139,8 +139,8 @@ export default {
     { trigger: 'start', text: 'Evening, Wren. The service door worked and nobody is looking at you. Stay with me and I will talk you through the room.' },
     { trigger: 'objective:cctv', text: "Tab puts you on the cameras. Watch Okafor's loop, and loop a feed if you need a gap." },
     { trigger: 'zone:grand-hall', text: 'Stick to the carpet runner. Marble carries every step.' },
-    { trigger: 'objective:keycard', text: 'Okafor has the keycard on his belt. Come up behind him, hold E, and stay out of his sight.' },
-    { trigger: 'objective:vault_door', text: 'Smooth hands, Wren. Vault wing door is at the end of the corridor. Swipe it and we are in business.' },
+    { trigger: 'objective:keycard', text: 'Wait for an inspection stop. Copy his badge from behind, clear of guests and cameras.' },
+    { trigger: 'objective:vault_door', text: 'Register night entry at the rear reader, then leave through the lobby.' },
   ],
 
   look: { skybox: 'night_city', fog: { color: '#1a120a', density: 0.012 }, music: 'gala_l1' },

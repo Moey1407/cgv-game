@@ -25,7 +25,7 @@ export default {
   spawn: [0, 0, -3],
   checkpoint: [0, 0, -3],
   goal: [0, 20, -78],
-  lockdownSeconds: 240,
+  lockdownSeconds: 360,
   alarmFloor: 'Alert', // the alarm is stuck at Alert for the whole level
 
   floors: [
@@ -57,6 +57,7 @@ export default {
     wall('gallery-east', [10.1, 2, -35], [0.2, 4, 20.4]),
     wall('gallery-back', [0, 2, -45.1], [20.4, 4, 0.2]),
     { name: 'security-desk', kind: 'prop', pos: [8.2, 0.5, -27.4], size: [2, 1, 0.8] },
+    { name: 'gallery-cover', kind: 'prop', pos: [0, 0.9, -35], size: [2.4, 1.8, 1.4] },
     // Plates landing (y 20)
     wall('landing-west', [-7.1, 22, -60], [0.2, 4, 14.2]),
     wall('landing-east', [7.1, 22, -60], [0.2, 4, 14.2]),
@@ -84,22 +85,32 @@ export default {
     { id: 'roof_override', type: 'override', pos: [0, 21.2, -65.8], usePos: [0, 20, -65.8], holdSeconds: 3.5, opens: ['roof_hatch'] },
     { id: 'roof_hatch', type: 'hatch', pos: [0, 21.2, -67], size: [3, 2.4, 0.2] },
     { id: 'zip', type: 'zipline', pos: [0, 21, -79.6], usePos: [0, 20, -78] },
+    { id: 'vent_in', type: 'vent', pos: [-9.95, 0.42, -32.5], usePos: [-9, 0, -32.5], to: [-8, 0, -43], rotYDeg: 90,
+      path: [[-9, 0, -32.5], [-11.1, 0, -32.5], [-11.1, 0, -43], [-8, 0, -43]], opens: ['vent_out'] },
+    { id: 'vent_out', type: 'vent', pos: [-10, 0.42, -43], usePos: [-8, 0, -43], rotYDeg: 90 },
   ],
 
   guards: [
     // The sweep team guards the only stairwell (north-east corner of the gallery).
     { name: 'Sweep Team', route: [[-8, 0, -30], [8, 0, -30], [8, 0, -41.5], [-8, 0, -41.5]], speed: 1.6 },
+    { name: 'Briggs', route: [[-5, 0, -28], [-5, 0, -40], [4, 0, -40], [4, 0, -28]], speed: 1.35 },
   ],
   cameras: [],
   lasers: [],
 
   pickups: [
-    { id: 'evidence_3', kind: 'evidence', evidenceIndex: 3, pos: [8.2, 1.1, -28.2], label: "Security chief's desk" }, // slightly off the route
+    { id: 'evidence_3', kind: 'evidence', evidenceIndex: 3, pos: [8.2, 0.985, -27.4], usePos: [8.2, 0, -28.4], label: "Security chief's desk" },
   ],
 
   lights: [
-    { type: 'ambient', color: '#401010', intensity: 0.35 },
+    { type: 'ambient', color: '#7f889b', intensity: 0.35 },
     { type: 'point', pos: [0, 3.5, -10], color: '#ff2a2a', intensity: 1.5, shadow: true }, // lockdown strobe, Huzaifa animates
+  ],
+
+  labels: [
+    { text: 'SERVICE STAIR  /  ROOF', pos: [8, 2.65, -44.85], width: 2.2 },
+    { text: 'TWO OPERATORS REQUIRED', pos: [0, 22.7, -66.82], width: 2.4 },
+    { text: 'MAINTENANCE DUCT', pos: [-9.85, 1.45, -32.5], width: 1.5, rotYDeg: 90 },
   ],
 
   dex: [
@@ -107,5 +118,5 @@ export default {
     { trigger: 'zone:hold', text: '[comms dead]' },
   ],
 
-  look: { skybox: 'roof_rain', fog: { color: '#200808', density: 0.04 }, music: 'lockdown_l3' },
+  look: { skybox: 'roof_rain', fog: { color: '#111a28', density: 0.012 }, music: 'lockdown_l3' },
 };

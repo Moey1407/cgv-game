@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createEventBus } from '../src/core/events.js';
-import { gradeRun, createRunTracker, loadOptions, DEFAULT_OPTIONS } from '../src/screens.js';
+import { gradeRun, createRunTracker, loadOptions, DEFAULT_OPTIONS, LEVEL_MECHANICS, briefingFor } from '../src/screens.js';
 import { createAudio, MUSIC_MIX } from '../src/audio.js';
+import { QUALITY } from '../src/render/postfx.js';
 
 const LOOT = [
   { id: 'a', type: 'loot', value: 1000 },
@@ -54,6 +55,17 @@ test('options fall back to defaults when storage is missing or broken', () => {
   assert.deepEqual(loadOptions({ getItem: () => { throw new Error('blocked'); } }), { ...DEFAULT_OPTIONS });
 });
 
+test('retrying a checkpoint cannot duplicate evidence or award a lost pickup', () => {
+  const events = createEventBus(), tracker = createRunTracker({ events, loot: LOOT });
+  events.emit('item:picked', { id: 'e', type: 'evidence' });
+  events.emit('item:picked', { id: 'e', type: 'evidence' });
+  assert.equal(tracker.snapshot().evidence, 1);
+  events.emit('item:picked', { id: 'a', type: 'loot', value: 1000 });
+  events.emit('checkpoint:restore', { payload: { collected: ['e'] } });
+  assert.equal(tracker.snapshot().take, 0);
+  assert.equal(tracker.snapshot().evidence, 1);
+});
+
 test('music gets busier as the alarm rises', () => {
   const total = (m) => m.bass + m.drums + m.tension;
   const order = ['quiet', 'suspicious', 'alert', 'lockdown'].map((k) => total(MUSIC_MIX[k]));
@@ -71,4 +83,21 @@ test('audio is silent and safe before the first click (and in Node)', () => {
   assert.equal(audio.volume, 1);
   assert.equal(audio.mix, MUSIC_MIX.alert, 'the mix follows the alarm even before sound is unlocked');
   off();
+});
+
+test('every level advertises a distinct headline mechanic', () => {
+  assert.equal(new Set(Object.values(LEVEL_MECHANICS)).size, 3);
+  assert.match(briefingFor(1).mechanic, /CCTV/);
+  assert.match(briefingFor(2).mechanic, /VENTS/);
+  assert.match(briefingFor(3).mechanic, /ECHO/);
+  assert.match(briefingFor(3).mechanic, /ZIPLINE/);
+});
+
+test('low quality removes the expensive passes and lowers auxiliary render rates', () => {
+  assert.equal(QUALITY.low.direct, true);
+  assert.equal(QUALITY.low.bloom, false);
+  assert.equal(QUALITY.low.shadows, false);
+  assert.ok(QUALITY.low.feedRate < QUALITY.medium.feedRate);
+  assert.ok(QUALITY.low.mapRate < QUALITY.medium.mapRate);
+  assert.ok(QUALITY.low.crowdLimit < QUALITY.medium.crowdLimit);
 });

@@ -88,10 +88,20 @@ export async function buildHall(scene, materials, renderer, { width, height }) {
   const backTop = new THREE.Mesh(new THREE.PlaneGeometry(6.2, HT - 6.2), materials.damaskWall);
   backTop.position.set(0, 6.2 + (HT - 6.2) / 2, Z1);
   world.add(backLeft, backRight, backTop);
-  const frontWall = new THREE.Mesh(new THREE.PlaneGeometry(HW * 2, HT), materials.damaskWall);
-  frontWall.position.set(0, HT / 2, Z0);
-  frontWall.rotation.y = Math.PI;
-  world.add(frontWall);
+  for (const [x, width, y, height] of [[-9.3, 7.4, 5, 10], [5.1, 15.8, 5, 10], [-4.2, 2.8, 6.6, 6.8]]) {
+    const frontWall = new THREE.Mesh(new THREE.PlaneGeometry(width, height), materials.damaskWall);
+    frontWall.position.set(x, y, Z0); frontWall.rotation.y = Math.PI; world.add(frontWall);
+  }
+  const oak = new THREE.MeshStandardMaterial({ color: 0x654c35, roughness: 0.56 });
+  for (const side of [-1, 1]) {
+    box(world, 1.25, 3.05, 0.15, oak, -4.2 + side * 0.64, 1.525, 7.94);
+    box(world, 0.045, 2.8, 0.04, materials.brass, -4.2 + side * 0.64, 1.52, 7.84);
+    box(world, 0.42, 0.07, 0.1, materials.brass, -4.2 + side * 0.32, 1.12, 7.78);
+    box(world, 0.16, 3.3, 0.26, materials.cream, -4.2 + side * 1.4, 1.65, 7.94);
+  }
+  box(world, 3, 0.2, 0.26, materials.cream, -4.2, 3.25, 7.94);
+  const exitSign = new THREE.Mesh(new THREE.PlaneGeometry(1.75, 0.42), new THREE.MeshBasicMaterial({ map: bannerTexture('PUBLIC EXIT', 'LOBBY'), side: THREE.DoubleSide }));
+  exitSign.position.set(-4.2, 3.65, 7.86); exitSign.rotation.y = Math.PI; world.add(exitSign);
 
   const arch = new THREE.Mesh(new THREE.TorusGeometry(3.1, 0.35, 16, 48, Math.PI), materials.cream);
   arch.position.set(0, 6.2, Z1 + 0.3);
@@ -135,6 +145,16 @@ export async function buildHall(scene, materials, renderer, { width, height }) {
   }, undefined, resolve))));
 
   world.add(velvetRope(materials, [-8.5, -6.5, -4.5].map((z) => new THREE.Vector3(-HW + 1.6, 0, z))));
+  // A visible social boundary matches Level 1's disguise rule. Guests can
+  // pass through the central opening, but security treats it as trespass.
+  world.add(velvetRope(materials, [-11, -7, -3].map((x) => new THREE.Vector3(x, 0, -30))));
+  world.add(velvetRope(materials, [3, 7, 11].map((x) => new THREE.Vector3(x, 0, -30))));
+  const restrictedSign = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.2, 0.55),
+    new THREE.MeshBasicMaterial({ map: bannerTexture('PRIVATE', 'STAFF ONLY'), transparent: true, side: THREE.DoubleSide, depthWrite: false })
+  );
+  restrictedSign.position.set(0, 1.15, -30);
+  world.add(restrictedSign);
 
   const tables = [[1.4, -3.2, 4], [-2.4, -11, 3], [4.2, -16, 5], [-1.6, -22, 3], [6.5, -8, 3]].map(([x, z, n], i) => {
     const t = cocktailTable(materials, { glasses: n, seed: i });

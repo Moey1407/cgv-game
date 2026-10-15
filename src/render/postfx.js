@@ -54,7 +54,7 @@ void main() {
   float lum = dot(col, vec3(0.299, 0.587, 0.114));
   col = mix(col, vec3(lum) * vec3(0.7, 0.95, 1.05), uDampen * 0.45);
   float pulse = 0.5 + 0.5 * sin(uTime * 5.5);
-  col = mix(col, col * vec3(1.35, 0.55, 0.6) + vec3(0.06, 0.0, 0.01) * pulse, uAlarm * (0.55 + 0.25 * pulse));
+  col = mix(col, col * vec3(1.08, 0.91, 0.91) + vec3(0.018, 0.0, 0.002) * pulse, uAlarm * smoothstep(0.25, 0.75, r) * 0.4);
   col += (hash(uv * uResolution + fract(uTime) * 100.0) - 0.5) * uGrain;
   col *= mix(1.0, smoothstep(0.85, 0.2, r), uVignette + uDamage * 0.4);
   col = mix(col, vec3(0.6, 0.0, 0.05), uDamage * smoothstep(0.3, 0.8, r) * 0.6);
@@ -64,9 +64,9 @@ void main() {
 };
 
 export const QUALITY = {
-  low: { pixelRatio: 0.7, bloom: false, samples: 0, shadows: false, reflection: 0, feedRate: 6, mapRate: 4 },
-  medium: { pixelRatio: 1, bloom: true, samples: 0, shadows: true, reflection: 0.5, feedRate: 10, mapRate: 8 },
-  high: { pixelRatio: 1.25, bloom: true, samples: 4, shadows: true, reflection: 1, feedRate: 20, mapRate: 15 }
+  low: { pixelRatio: 0.65, bloom: false, direct: true, samples: 0, shadows: false, reflection: 0, feedRate: 4, feedWidth: 256, feedHeight: 144, mapRate: 3, crowdRate: 8, crowdLimit: 7 },
+  medium: { pixelRatio: 1, bloom: true, direct: false, samples: 0, shadows: true, reflection: 0.5, feedRate: 8, feedWidth: 384, feedHeight: 216, mapRate: 6, crowdRate: 15, crowdLimit: 11 },
+  high: { pixelRatio: 1.25, bloom: true, direct: false, samples: 4, shadows: true, reflection: 1, feedRate: 16, feedWidth: 480, feedHeight: 270, mapRate: 12, crowdRate: 30, crowdLimit: Infinity }
 };
 
 export function createPostFX(renderer, scene, camera, { quality = 'medium' } = {}) {
@@ -129,7 +129,8 @@ export function createPostFX(renderer, scene, camera, { quality = 'medium' } = {
     u.uGlitch.value = shown.glitch;
     u.uDampen.value = shown.dampen;
     u.uDamage.value = shown.damage;
-    composer.render(dt);
+    if (settings.direct) renderer.render(scene, activeCamera);
+    else composer.render(dt);
   }
 
   function dispose() {

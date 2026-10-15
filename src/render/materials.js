@@ -171,10 +171,18 @@ export function createMaterials(field, { maxAnisotropy = 8 } = {}) {
 }
 
 export function suit(hex) {
-  return (material) => {
-    material.color = new THREE.Color(hex);
-    material.roughness = 0.55;
+  return (material, mesh) => {
+    // The lightweight Xbot has separate joint and surface meshes. Keeping the
+    // joints warmer while giving the outer surface a dark cloth finish reads as
+    // formalwear without adding another model, texture or draw call.
+    const joint = /joint/i.test(mesh?.name ?? '') || /joint/i.test(material.name ?? '');
+    material.color = new THREE.Color(joint ? 0xa98873 : hex);
+    material.roughness = joint ? 0.78 : 0.62;
     material.metalness = 0.05;
+    if (!joint) {
+      material.map = null;
+      material.normalMap = null;
+    }
     if (material.emissive) material.emissive.setHex(0x000000);
   };
 }

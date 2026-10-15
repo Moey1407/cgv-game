@@ -16,14 +16,16 @@ const wall = (name, pos, size) => ({ name, kind: 'wall', pos, size });
 export default {
   id: 2,
   name: 'The Vault',
-  objective: 'Cross the lasers and crack the safe',
+  objective: 'Isolate the safe sensor, crack the safe, recover the Star and reach the service exit',
   objectives: [
     { id: 'lasers', text: 'Get through the laser corridor' },
+    { id: 'circuit', text: 'Isolate the tamper circuit at the west service panel' },
     { id: 'safe', text: 'Crack the safe before Briggs comes back', marker: [0, 1, -39] },
+    { id: 'star', text: 'Take the Star and return to the service fire door' },
   ],
   spawn: [0, 0, 0],
   checkpoint: [0, 0, 0],
-  goal: [0, 0, -38.4],
+  goal: [0.1, 0, -25.7],
 
   floors: [
     { pos: [0, -0.1, -10], size: [6, 0.2, 24], surface: 'steel' }, // laser corridor z -22..2
@@ -49,12 +51,16 @@ export default {
     wall('vault-east', [7.1, 2, -34], [0.2, 4, 14.2]),
     wall('vault-back', [0, 2, -41.1], [14.4, 4, 0.2]),
     { name: 'safe', kind: 'prop', pos: [0, 0.9, -40.4], size: [1.6, 1.8, 1.2] }, // hide behind it when Briggs passes
+    { name: 'archive-cover-west', kind: 'prop', pos: [-3.5, 0.85, -33.8], size: [1.8, 1.7, 1.4] },
+    { name: 'archive-cover-east', kind: 'prop', pos: [3.2, 0.85, -35.5], size: [1.8, 1.7, 1.4] },
+    { name: 'security-file-cabinet', kind: 'prop', pos: [6.2, 0.51, -39.4], size: [1, 1.02, 0.65] },
   ],
 
   lasers: [
-    { id: 'laser_crawl', a: [-3, 0.55, -4], b: [3, 0.55, -4], pattern: 'static', teaches: 'crawl' },
+    { id: 'laser_crawl', a: [-3, 0.85, -4], b: [3, 0.85, -4], pattern: 'static', teaches: 'crawl' },
     { id: 'laser_jump', a: [-3, 0.3, -10], b: [3, 0.3, -10], pattern: 'static', teaches: 'jump' },
     { id: 'laser_timing', a: [-3, 1.0, -16], b: [3, 1.0, -16], pattern: 'rise_fall', period: 4, amplitude: 0.9, teaches: 'timing' },
+    { id: 'laser_inner', a: [-1.5, 0.75, -24.5], b: [1.5, 0.75, -24.5], pattern: 'blink', period: 3.8, teaches: 'timing' },
   ],
 
   guards: [
@@ -67,13 +73,21 @@ export default {
 
   interactables: [
     // The vent skips the guarded corridor: slow (crawl only) and one noisy grate.
-    { id: 'vent_in', type: 'vent', pos: [-3, 0.3, -6], usePos: [-2.4, 0, -6], to: [-6, 0, -28.5], opens: ['vent_out'] },
-    { id: 'vent_out', type: 'vent', pos: [-6, 0.3, -27.6], usePos: [-6, 0, -28.5] },
+    { id: 'vent_in', type: 'vent', pos: [-3, 0.42, -18.7], usePos: [-2.3, 0, -18.7], to: [-6, 0, -28.5], opens: ['vent_out'],
+      path: [[-2.3, 0, -18.7], [-4.5, 0, -18.7], [-4.5, 0, -25.4], [-6, 0, -25.4], [-6, 0, -28.5]], rotYDeg: 90 },
+    { id: 'vent_out', type: 'vent', pos: [-6, 0.42, -26.9], usePos: [-6, 0, -28.5] },
     { id: 'safe', type: 'safe', pos: [0, 1, -39.7], usePos: [0, 0, -38.4] },
+    { id: 'tamper_panel', type: 'override', pos: [-6.85, 1.3, -31.5], usePos: [-5.8, 0, -31.5], holdSeconds: 2.5 },
+    { id: 'service_exit', type: 'door', pos: [1.3, 1.2, -25.7], usePos: [0.1, 0, -25.7] },
   ],
   pickups: [
-    { id: 'loot_deposit', kind: 'loot', pos: [5.6, 1, -39.4], value: 12000, label: 'Deposit box' },
-    { id: 'evidence_2', kind: 'evidence', evidenceIndex: 2, pos: [6.2, 1, -39.4], label: 'Radio intercept' },
+    { id: 'kestrel_star', kind: 'loot', pos: [0, 1.05, -38.4], value: 1000000, label: 'Kestrel Star' }, // interaction point; the rendered gem stays inside the safe
+    { id: 'evidence_2', kind: 'evidence', evidenceIndex: 2, pos: [6.2, 1, -39.4], usePos: [5, 0, -39.4], label: 'Radio intercept' },
+  ],
+
+  labels: [
+    { text: 'VAULT SERVICES', pos: [-6.82, 2.1, -31.5], width: 1.4, rotYDeg: 90 },
+    { text: 'STAFF EXIT', pos: [1.35, 2.5, -25.7], width: 1.2, rotYDeg: -90 },
   ],
 
   lights: [

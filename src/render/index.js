@@ -9,5 +9,6 @@ export { createLaserSystem, distanceToSegment } from './lasers.js';
 export { createHologramMaterial, applyHologram } from './hologram.js';
 export { chandelier, framedPainting, cocktailTable, velvetRope, column, bannerTexture, soundRingMarker } from './props.js';
 export { loadCharacter, spawnCharacter, blobShadow, FORWARD } from './characters.js';
+export { createGalaCrowd } from './galaCrowd.js';
 export { disposeObject, disposeMaterial, rendererStats } from './dispose.js';
 export { RING_COLOURS } from './palette.js';

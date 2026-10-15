@@ -72,6 +72,7 @@
  * @property {'loot'|'evidence'|'keycard'} kind
  * @property {Vec3} pos
  * @property {number} [value]       loot cash value
+ * @property {Vec3} [usePos]        reachable standing point for an item on solid furniture
  * @property {number} [evidenceIndex] 1..3
  * @property {string} [label]
  *

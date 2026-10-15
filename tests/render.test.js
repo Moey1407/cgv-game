@@ -72,3 +72,17 @@ test('laser patterns move and blink', () => {
   lasers.dispose();
   assert.equal(scene.children.length, 0);
 });
+
+test('laser collision checks the whole body and rewards the correct stance', () => {
+  const lasers = createLaserSystem(new THREE.Scene());
+  lasers.add({ start: new THREE.Vector3(-3, 0.85, 0), end: new THREE.Vector3(3, 0.85, 0) });
+  assert.equal(lasers.hitsBody({ x: 0, z: 0 }, { height: 1.68 }), true);
+  assert.equal(lasers.hitsBody({ x: 0, z: 0 }, { height: 1.08 }), true);
+  assert.equal(lasers.hitsBody({ x: 0, z: 0 }, { height: 0.58 }), false);
+  lasers.dispose();
+  const low = createLaserSystem(new THREE.Scene());
+  low.add({ start: new THREE.Vector3(-3, 0.3, 0), end: new THREE.Vector3(3, 0.3, 0) });
+  assert.equal(low.hitsBody({ x: 0, z: 0 }, { height: 1.68 }), true);
+  assert.equal(low.hitsBody({ x: 0, z: 0 }, { height: 1.68, jump: 0.5 }), false);
+  low.dispose();
+});

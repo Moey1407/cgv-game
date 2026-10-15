@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { statSync } from 'node:fs';
 import { createEventBus } from '../src/core/events.js';
-import { createStoryDirector, voiceLines, SCRIPT, BARKS, EVIDENCE, endingFor, ENDINGS, DEX } from '../src/story.js';
+import { createStoryDirector, voiceLines, RECORDED_CLIPS, recordedLineAvailable, SCRIPT, BARKS, EVIDENCE, cinematicFor, CINEMATICS, endingFor, ENDINGS, DEX, WREN } from '../src/story.js';
 
 function setup() {
   const events = createEventBus();
@@ -35,6 +36,17 @@ test('nothing plays while the game is paused (dt of 0)', () => {
   assert.equal(log.radio.length, 0);
   story.update(0.1);
   assert.equal(log.radio.length, 1);
+});
+
+test('a longer recorded performance keeps its line on screen until the performance finishes', () => {
+  const { events, story } = setup();
+  events.emit('checkpoint:save', { id: 'start' }); story.update(0.1);
+  const first = voiceLines().find((line) => line.level === '1' && line.key === 'level:start');
+  story.extendLine(first.id, 15);
+  for (let i = 0; i < 32; i++) story.update(0.25);
+  assert.equal(story.snapshot().current.text, first.text);
+  for (let i = 0; i < 32; i++) story.update(0.25);
+  assert.notEqual(story.snapshot().current?.text, first.text);
 });
 
 test('starting a new heist resets once-only lines', () => {
@@ -97,7 +109,7 @@ test('Level 3 cuts comms after the betrayal, and Dex stays silent after that', (
   const { events, story, log, drain } = setup();
   story.setLevel(3);
   drain();
-  assert.equal(log.radio[0], 'Sorry, Wren. Same as Marlowe.');
+  assert.match(log.radio[0], /Same as Marlowe/);
   assert.equal(log.cuts, 1);
   assert.ok(log.radio.includes('SIGNAL LOST'));
   assert.ok(story.snapshot().cut);
@@ -136,4 +148,23 @@ test('every line has a unique, filename-safe clip id and fits on screen', () => 
 test('the ending depends on finding all three evidence files', () => {
   assert.equal(endingFor(3), ENDINGS.exposed);
   assert.equal(endingFor(2), ENDINGS.alone);
+});
+
+test('story pages cover the opening, both level transitions and both endings', () => {
+  for (const key of ['opening', 'after1', 'after2']) {
+    assert.ok(CINEMATICS[key].length >= 1, `${key} needs a story card`);
+    for (const frame of cinematicFor(key)) {
+      assert.ok(frame.scene && frame.title && frame.text && frame.visual);
+    }
+  }
+  assert.match(cinematicFor('ending', 3)[1].text, /police|sirens/i);
+  assert.match(cinematicFor('ending', 2)[1].text, /alone|truth|never/i);
+});
+
+test('published clips exist; rewritten dialogue never plays a stale performance', () => {
+  const clips = new Set(RECORDED_CLIPS);
+  assert.equal(recordedLineAvailable({ clip: 'voice-test', text: 'Comms check. If you can hear me, the radio is working.' }), true);
+  assert.equal(recordedLineAvailable({ clip: 'voice-test', text: 'A rewritten line with the same filename.' }), false);
+  assert.equal(recordedLineAvailable({ clip: 'missing', text: 'Missing clips remain captioned.' }), false);
+  for (const id of clips) assert.ok(statSync(new URL(`../public/audio/voice/${id}.mp3`, import.meta.url)).size > 0, id);
 });

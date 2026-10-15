@@ -85,7 +85,7 @@ for (const level of LEVELS) {
     check('spawn', level.spawn, PLAYER_RADIUS);
     check('checkpoint', level.checkpoint, PLAYER_RADIUS);
     check('goal', level.goal, PLAYER_RADIUS);
-    for (const p of level.pickups) check(`pickup ${p.id}`, [p.pos[0], 0, p.pos[2]].map((v, i) => (i === 1 ? Math.round(p.pos[1] / 20) * 20 : v)), 0.3);
+    for (const p of level.pickups) check(`pickup ${p.id}`, p.usePos ?? [p.pos[0], Math.round(p.pos[1] / 20) * 20, p.pos[2]], 0.3);
     for (const i of level.interactables) if (i.usePos) check(`${i.id} usePos`, i.usePos, PLAYER_RADIUS);
     for (const g of level.guards) for (const w of g.route) check(`${g.name} waypoint`, w, GUARD_RADIUS);
   });
@@ -97,7 +97,7 @@ for (const level of LEVELS) {
   test(`level ${level.id}: every pickup and interactable can be reached from spawn`, () => {
     for (const p of level.pickups) {
       const y = Math.round(p.pos[1] / 20) * 20;
-      assert.ok(reachable(level, ground(level.spawn), [p.pos[0], y, p.pos[2]], 0.3), `${p.id} is unreachable`);
+      assert.ok(reachable(level, ground(level.spawn), p.usePos ?? [p.pos[0], y, p.pos[2]], PLAYER_RADIUS), `${p.id} is unreachable`);
     }
     for (const i of level.interactables) {
       if (i.usePos) assert.ok(reachable(level, ground(level.spawn), ground(i.usePos), PLAYER_RADIUS), `${i.id} is unreachable`);
@@ -156,5 +156,5 @@ test('level 3: the roof is only reachable by the stairwell', () => {
 
 test('a blocked doorway is caught', () => {
   const plugged = { ...level1, walls: [...level1.walls, { name: 'plug', pos: [0, 2, -40.2], size: [5, 4, 0.4] }] };
-  assert.equal(reachable(plugged, ground(level1.spawn), ground(level1.goal), PLAYER_RADIUS), false);
+  assert.equal(reachable(plugged, ground(level1.spawn), [0, 0, -60.6], PLAYER_RADIUS), false);
 });

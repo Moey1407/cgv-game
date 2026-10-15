@@ -11,9 +11,9 @@ export function createPickupSystem(definitions = [], { events } = {}) {
 
   return {
     items,
-    nearby(position, stage, range = 1.6) {
+    nearby(position, stage, range = 1.6, available = () => true) {
       return items.find((item) => !item.collected && item.stage === stage &&
-        Math.hypot(item.x - position.x, item.z - position.z) <= range);
+        Math.hypot(item.x - position.x, item.z - position.z) <= range && available(item));
     },
     collect,
     reset() {

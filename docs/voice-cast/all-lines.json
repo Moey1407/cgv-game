@@ -1,0 +1,885 @@
+[
+  {
+    "id": "dex-1-level-start-1",
+    "who": "DEX",
+    "text": "Your name is on the guest list. Okafor sees a donor. Stay upright and keep the rig out of sight.",
+    "level": "1",
+    "key": "level:start",
+    "direction": ""
+  },
+  {
+    "id": "dex-1-level-start-2",
+    "who": "DEX",
+    "text": "Loop the hall camera. Okafor stops along the west wall. Copy his badge from behind; leave the original on him.",
+    "level": "1",
+    "key": "level:start",
+    "direction": ""
+  },
+  {
+    "id": "dex-1-level-start-3",
+    "who": "DEX",
+    "text": "Use the copy at the rear staff reader to book our night entry. Then leave through the lobby.",
+    "level": "1",
+    "key": "level:start",
+    "direction": ""
+  },
+  {
+    "id": "wren-1-level-start-4",
+    "who": "WREN",
+    "text": "And I choose the way out this time. There is a line waiting on the roof.",
+    "level": "1",
+    "key": "level:start",
+    "direction": ""
+  },
+  {
+    "id": "dex-1-pickpocket-complete-1",
+    "who": "DEX",
+    "text": "Smooth. Original stays on his belt. Get the copy authorised at the rear staff reader.",
+    "level": "1",
+    "key": "pickpocket:complete",
+    "direction": ""
+  },
+  {
+    "id": "wren-1-evidence-1",
+    "who": "WREN",
+    "text": "A security roster. Dex is on it. Why would Dex be on it?",
+    "level": "1",
+    "key": "evidence",
+    "direction": ""
+  },
+  {
+    "id": "dex-1-evidence-2",
+    "who": "DEX",
+    "text": "Wren? You've gone quiet. Keep moving.",
+    "level": "1",
+    "key": "evidence",
+    "direction": ""
+  },
+  {
+    "id": "dex-2-level-start-1",
+    "who": "DEX",
+    "text": "One-thirty. Same night. The badge got you inside; your donor cover is finished.",
+    "level": "2",
+    "key": "level:start",
+    "direction": ""
+  },
+  {
+    "id": "dex-2-level-start-2",
+    "who": "DEX",
+    "text": "Cross the security corridor. Isolate the safe’s tamper circuit at the west service panel before touching the dial.",
+    "level": "2",
+    "key": "level:start",
+    "direction": ""
+  },
+  {
+    "id": "dex-2-door-tamper-circuit-1",
+    "who": "DEX",
+    "text": "Tamper circuit isolated. Now the dial. Briggs is still making rounds.",
+    "level": "2",
+    "key": "door:tamper-circuit",
+    "direction": ""
+  },
+  {
+    "id": "dex-2-hazard-trip-1",
+    "who": "DEX",
+    "text": "Are you trying to set them off? Watch the pattern!",
+    "level": "2",
+    "key": "hazard:trip",
+    "direction": ""
+  },
+  {
+    "id": "dex-2-hazard-trip-2",
+    "who": "DEX",
+    "text": "Again? Crawl, jump or wait. It's not complicated.",
+    "level": "2",
+    "key": "hazard:trip",
+    "direction": ""
+  },
+  {
+    "id": "dex-2-player-detected-1",
+    "who": "DEX",
+    "text": "Briggs has you! Move!",
+    "level": "2",
+    "key": "player:detected",
+    "direction": ""
+  },
+  {
+    "id": "dex-2-player-detected-2",
+    "who": "DEX",
+    "text": "Seen. Of course. Hide, then hurry.",
+    "level": "2",
+    "key": "player:detected",
+    "direction": ""
+  },
+  {
+    "id": "dex-2-safe-tumbler-1-1",
+    "who": "DEX",
+    "text": "One. Faster.",
+    "level": "2",
+    "key": "safe:tumbler-1",
+    "direction": ""
+  },
+  {
+    "id": "dex-2-safe-tumbler-2-1",
+    "who": "DEX",
+    "text": "Two. Come on, come on.",
+    "level": "2",
+    "key": "safe:tumbler-2",
+    "direction": ""
+  },
+  {
+    "id": "dex-2-safe-miss-1",
+    "who": "DEX",
+    "text": "You're turning it like a radio dial. Slow. Down.",
+    "level": "2",
+    "key": "safe:miss",
+    "direction": ""
+  },
+  {
+    "id": "dex-2-safe-noise-1",
+    "who": "DEX",
+    "text": "That's loud. Briggs will hear that.",
+    "level": "2",
+    "key": "safe:noise",
+    "direction": ""
+  },
+  {
+    "id": "wren-2-evidence-1",
+    "who": "WREN",
+    "text": "A radio intercept on the guard channel. That's Dex's voice.",
+    "level": "2",
+    "key": "evidence",
+    "direction": ""
+  },
+  {
+    "id": "dex-2-evidence-2",
+    "who": "DEX",
+    "text": "Leave the paperwork. We didn't come for paperwork.",
+    "level": "2",
+    "key": "evidence",
+    "direction": ""
+  },
+  {
+    "id": "dex-2-safe-opened-1",
+    "who": "DEX",
+    "text": "Open. Take the Star, then get back to the service fire door.",
+    "level": "2",
+    "key": "safe:opened",
+    "direction": ""
+  },
+  {
+    "id": "wren-2-diamond-taken-1",
+    "who": "WREN",
+    "text": "I have it. Service door, then the roof.",
+    "level": "2",
+    "key": "diamond:taken",
+    "direction": ""
+  },
+  {
+    "id": "dex-2-diamond-taken-2",
+    "who": "DEX",
+    "text": "Right. The service door. Keep moving.",
+    "level": "2",
+    "key": "diamond:taken",
+    "direction": ""
+  },
+  {
+    "id": "dex-3-level-start-1",
+    "who": "DEX",
+    "text": "Insurance pays better with a culprit. Sorry, Wren. Same as Marlowe.",
+    "level": "3",
+    "key": "level:start",
+    "direction": ""
+  },
+  {
+    "id": "wren-3-level-start-3",
+    "who": "WREN",
+    "text": "Two-person interlock. My rig can replay the second operator’s signal. I can still reach my roof line.",
+    "level": "3",
+    "key": "level:start",
+    "direction": ""
+  },
+  {
+    "id": "wren-3-player-detected-1",
+    "who": "WREN",
+    "text": "Seen. Move!",
+    "level": "3",
+    "key": "player:detected",
+    "direction": ""
+  },
+  {
+    "id": "wren-3-player-detected-2",
+    "who": "WREN",
+    "text": "Not now. Not now.",
+    "level": "3",
+    "key": "player:detected",
+    "direction": ""
+  },
+  {
+    "id": "wren-3-alarm-alert-1",
+    "who": "WREN",
+    "text": "Keep breathing. Find the quiet route.",
+    "level": "3",
+    "key": "alarm:alert",
+    "direction": ""
+  },
+  {
+    "id": "wren-3-echo-start-1",
+    "who": "WREN",
+    "text": "Recording. Show me how it's done.",
+    "level": "3",
+    "key": "echo:start",
+    "direction": ""
+  },
+  {
+    "id": "wren-3-echo-replay-1",
+    "who": "WREN",
+    "text": "There I am. Still better company than Dex.",
+    "level": "3",
+    "key": "echo:replay",
+    "direction": ""
+  },
+  {
+    "id": "wren-3-echo-shattered-1",
+    "who": "WREN",
+    "text": "They broke my Echo. Again, then.",
+    "level": "3",
+    "key": "echo:shattered",
+    "direction": ""
+  },
+  {
+    "id": "wren-3-evidence-1",
+    "who": "WREN",
+    "text": "\"Leave the safecracker inside.\" Got you, Dex.",
+    "level": "3",
+    "key": "evidence",
+    "direction": ""
+  },
+  {
+    "id": "wren-3-level-complete-1",
+    "who": "WREN",
+    "text": "One stone, one safecracker, no handler. Time to go.",
+    "level": "3",
+    "key": "level:complete",
+    "direction": ""
+  },
+  {
+    "id": "wren-3-evidence-uploaded-1",
+    "who": "WREN",
+    "text": "Three files. Names, orders, payment. Sending it all. Your turn to wait for the police, Dex.",
+    "level": "3",
+    "key": "evidence:uploaded",
+    "direction": ""
+  },
+  {
+    "id": "dex-any-camera-loop-1",
+    "who": "DEX",
+    "text": "That feed's on a loop for eight seconds. Security is watching a very boring rerun.",
+    "level": "any",
+    "key": "camera:loop",
+    "direction": ""
+  },
+  {
+    "id": "dex-any-camera-detected-1",
+    "who": "DEX",
+    "text": "Camera's got you. Loop it or get out of its view.",
+    "level": "any",
+    "key": "camera:detected",
+    "direction": ""
+  },
+  {
+    "id": "dex-any-camera-detected-2",
+    "who": "DEX",
+    "text": "You're on camera, Wren. Smile, then move.",
+    "level": "any",
+    "key": "camera:detected",
+    "direction": ""
+  },
+  {
+    "id": "dex-any-player-detected-1",
+    "who": "DEX",
+    "text": "He's seen you. Break line of sight!",
+    "level": "any",
+    "key": "player:detected",
+    "direction": ""
+  },
+  {
+    "id": "dex-any-player-detected-2",
+    "who": "DEX",
+    "text": "Spotted! Get behind something solid.",
+    "level": "any",
+    "key": "player:detected",
+    "direction": ""
+  },
+  {
+    "id": "dex-any-player-caught-1",
+    "who": "DEX",
+    "text": "Wren? Wren. Okay. Back to the checkpoint. Deep breath.",
+    "level": "any",
+    "key": "player:caught",
+    "direction": ""
+  },
+  {
+    "id": "dex-any-checkpoint-restore-1",
+    "who": "DEX",
+    "text": "Again. Slower this time.",
+    "level": "any",
+    "key": "checkpoint:restore",
+    "direction": ""
+  },
+  {
+    "id": "dex-any-alarm-suspicious-1",
+    "who": "DEX",
+    "text": "Easy. Somebody's twitchy. Find a quiet corner and let it settle.",
+    "level": "any",
+    "key": "alarm:suspicious",
+    "direction": ""
+  },
+  {
+    "id": "dex-any-alarm-alert-1",
+    "who": "DEX",
+    "text": "They're actively looking for you now. Get out of sight.",
+    "level": "any",
+    "key": "alarm:alert",
+    "direction": ""
+  },
+  {
+    "id": "dex-any-alarm-lockdown-1",
+    "who": "DEX",
+    "text": "That's lockdown. Well. That's the noisy version of the plan.",
+    "level": "any",
+    "key": "alarm:lockdown",
+    "direction": ""
+  },
+  {
+    "id": "dex-any-pickpocket-complete-1",
+    "who": "DEX",
+    "text": "Smooth. Two years and you've still got the hands.",
+    "level": "any",
+    "key": "pickpocket:complete",
+    "direction": ""
+  },
+  {
+    "id": "wren-any-evidence-1",
+    "who": "WREN",
+    "text": "Why is Dex's name on this?",
+    "level": "any",
+    "key": "evidence",
+    "direction": ""
+  },
+  {
+    "id": "dex-any-hazard-trip-1",
+    "who": "DEX",
+    "text": "That beam was not a suggestion.",
+    "level": "any",
+    "key": "hazard:trip",
+    "direction": ""
+  },
+  {
+    "id": "dex-any-hazard-trip-2",
+    "who": "DEX",
+    "text": "Under, over or wait. Pick one.",
+    "level": "any",
+    "key": "hazard:trip",
+    "direction": ""
+  },
+  {
+    "id": "dex-any-safe-noise-1",
+    "who": "DEX",
+    "text": "Too fast. The clicks are carrying.",
+    "level": "any",
+    "key": "safe:noise",
+    "direction": ""
+  },
+  {
+    "id": "dex-any-safe-miss-1",
+    "who": "DEX",
+    "text": "Missed it. Slow the dial right down.",
+    "level": "any",
+    "key": "safe:miss",
+    "direction": ""
+  },
+  {
+    "id": "dex-any-safe-tumbler-1-1",
+    "who": "DEX",
+    "text": "One down.",
+    "level": "any",
+    "key": "safe:tumbler-1",
+    "direction": ""
+  },
+  {
+    "id": "dex-any-safe-tumbler-2-1",
+    "who": "DEX",
+    "text": "Two. One more.",
+    "level": "any",
+    "key": "safe:tumbler-2",
+    "direction": ""
+  },
+  {
+    "id": "dex-any-safe-opened-1",
+    "who": "DEX",
+    "text": "There she is. The Kestrel Star.",
+    "level": "any",
+    "key": "safe:opened",
+    "direction": ""
+  },
+  {
+    "id": "dex-any-door-vault-wing-1",
+    "who": "DEX",
+    "text": "Night entry authorised. Walk out through the lobby. We come back when the Star is in the safe.",
+    "level": "any",
+    "key": "door:vault-wing",
+    "direction": ""
+  },
+  {
+    "id": "wren-any-echo-start-1",
+    "who": "WREN",
+    "text": "Recording. Remember this, rig.",
+    "level": "any",
+    "key": "echo:start",
+    "direction": ""
+  },
+  {
+    "id": "wren-any-echo-replay-1",
+    "who": "WREN",
+    "text": "There I am.",
+    "level": "any",
+    "key": "echo:replay",
+    "direction": ""
+  },
+  {
+    "id": "wren-any-echo-shattered-1",
+    "who": "WREN",
+    "text": "They got my Echo. Again, then.",
+    "level": "any",
+    "key": "echo:shattered",
+    "direction": ""
+  },
+  {
+    "id": "cinematic-opening-1",
+    "who": "WREN",
+    "text": "Dex, open the service door. I have the drive.",
+    "key": "cinematic:opening",
+    "direction": "Breathless, urgent. A steel shutter is falling behind you."
+  },
+  {
+    "id": "cinematic-opening-2",
+    "who": "DEX",
+    "text": "I'm sorry, Wren. I can't lose the whole crew.",
+    "key": "cinematic:opening",
+    "direction": "Quiet guilt under pressure. Do not shout; the choice has already been made."
+  },
+  {
+    "id": "cinematic-opening-3",
+    "who": "DEX",
+    "text": "You want out? One job. Your name is on the gala list. We go back after closing.",
+    "key": "cinematic:opening",
+    "direction": "Measured persuasion. He needs Wren to trust him, but he is hiding something."
+  },
+  {
+    "id": "cinematic-opening-4",
+    "who": "DEX",
+    "text": "You are a donor tonight. Copy the badge. Authorise the night entry. Then walk out.",
+    "key": "cinematic:opening",
+    "direction": "Low radio voice. Controlled, specific, almost too calm."
+  },
+  {
+    "id": "okafor-warning-1",
+    "who": "OKAFOR",
+    "text": "Can I help you?",
+    "key": "warning",
+    "direction": ""
+  },
+  {
+    "id": "okafor-warning-2",
+    "who": "OKAFOR",
+    "text": "Give me a little space, please.",
+    "key": "warning",
+    "direction": ""
+  },
+  {
+    "id": "briggs-warning-1",
+    "who": "BRIGGS",
+    "text": "Can I help you?",
+    "key": "warning",
+    "direction": ""
+  },
+  {
+    "id": "briggs-warning-2",
+    "who": "BRIGGS",
+    "text": "Give me a little space, please.",
+    "key": "warning",
+    "direction": ""
+  },
+  {
+    "id": "sweep-warning-1",
+    "who": "SWEEP TEAM",
+    "text": "Can I help you?",
+    "key": "warning",
+    "direction": ""
+  },
+  {
+    "id": "sweep-warning-2",
+    "who": "SWEEP TEAM",
+    "text": "Give me a little space, please.",
+    "key": "warning",
+    "direction": ""
+  },
+  {
+    "id": "okafor-investigate-1",
+    "who": "OKAFOR",
+    "text": "Did you hear that?",
+    "key": "investigate",
+    "direction": ""
+  },
+  {
+    "id": "okafor-investigate-2",
+    "who": "OKAFOR",
+    "text": "Hello? Someone there?",
+    "key": "investigate",
+    "direction": ""
+  },
+  {
+    "id": "okafor-investigate-3",
+    "who": "OKAFOR",
+    "text": "Hang on. What was that?",
+    "key": "investigate",
+    "direction": ""
+  },
+  {
+    "id": "briggs-investigate-1",
+    "who": "BRIGGS",
+    "text": "Did you hear that?",
+    "key": "investigate",
+    "direction": ""
+  },
+  {
+    "id": "briggs-investigate-2",
+    "who": "BRIGGS",
+    "text": "Hello? Someone there?",
+    "key": "investigate",
+    "direction": ""
+  },
+  {
+    "id": "briggs-investigate-3",
+    "who": "BRIGGS",
+    "text": "Hang on. What was that?",
+    "key": "investigate",
+    "direction": ""
+  },
+  {
+    "id": "sweep-investigate-1",
+    "who": "SWEEP TEAM",
+    "text": "Did you hear that?",
+    "key": "investigate",
+    "direction": ""
+  },
+  {
+    "id": "sweep-investigate-2",
+    "who": "SWEEP TEAM",
+    "text": "Hello? Someone there?",
+    "key": "investigate",
+    "direction": ""
+  },
+  {
+    "id": "sweep-investigate-3",
+    "who": "SWEEP TEAM",
+    "text": "Hang on. What was that?",
+    "key": "investigate",
+    "direction": ""
+  },
+  {
+    "id": "okafor-pursue-1",
+    "who": "OKAFOR",
+    "text": "There! Stop right there!",
+    "key": "pursue",
+    "direction": ""
+  },
+  {
+    "id": "okafor-pursue-2",
+    "who": "OKAFOR",
+    "text": "Got movement! On me!",
+    "key": "pursue",
+    "direction": ""
+  },
+  {
+    "id": "okafor-pursue-3",
+    "who": "OKAFOR",
+    "text": "Hey! You!",
+    "key": "pursue",
+    "direction": ""
+  },
+  {
+    "id": "briggs-pursue-1",
+    "who": "BRIGGS",
+    "text": "There! Stop right there!",
+    "key": "pursue",
+    "direction": ""
+  },
+  {
+    "id": "briggs-pursue-2",
+    "who": "BRIGGS",
+    "text": "Got movement! On me!",
+    "key": "pursue",
+    "direction": ""
+  },
+  {
+    "id": "briggs-pursue-3",
+    "who": "BRIGGS",
+    "text": "Hey! You!",
+    "key": "pursue",
+    "direction": ""
+  },
+  {
+    "id": "sweep-pursue-1",
+    "who": "SWEEP TEAM",
+    "text": "There! Stop right there!",
+    "key": "pursue",
+    "direction": ""
+  },
+  {
+    "id": "sweep-pursue-2",
+    "who": "SWEEP TEAM",
+    "text": "Got movement! On me!",
+    "key": "pursue",
+    "direction": ""
+  },
+  {
+    "id": "sweep-pursue-3",
+    "who": "SWEEP TEAM",
+    "text": "Hey! You!",
+    "key": "pursue",
+    "direction": ""
+  },
+  {
+    "id": "okafor-search-1",
+    "who": "OKAFOR",
+    "text": "I know you're in here.",
+    "key": "search",
+    "direction": ""
+  },
+  {
+    "id": "okafor-search-2",
+    "who": "OKAFOR",
+    "text": "Come on out. Nobody needs to get hurt.",
+    "key": "search",
+    "direction": ""
+  },
+  {
+    "id": "okafor-search-3",
+    "who": "OKAFOR",
+    "text": "Where'd you go?",
+    "key": "search",
+    "direction": ""
+  },
+  {
+    "id": "briggs-search-1",
+    "who": "BRIGGS",
+    "text": "I know you're in here.",
+    "key": "search",
+    "direction": ""
+  },
+  {
+    "id": "briggs-search-2",
+    "who": "BRIGGS",
+    "text": "Come on out. Nobody needs to get hurt.",
+    "key": "search",
+    "direction": ""
+  },
+  {
+    "id": "briggs-search-3",
+    "who": "BRIGGS",
+    "text": "Where'd you go?",
+    "key": "search",
+    "direction": ""
+  },
+  {
+    "id": "sweep-search-1",
+    "who": "SWEEP TEAM",
+    "text": "I know you're in here.",
+    "key": "search",
+    "direction": ""
+  },
+  {
+    "id": "sweep-search-2",
+    "who": "SWEEP TEAM",
+    "text": "Come on out. Nobody needs to get hurt.",
+    "key": "search",
+    "direction": ""
+  },
+  {
+    "id": "sweep-search-3",
+    "who": "SWEEP TEAM",
+    "text": "Where'd you go?",
+    "key": "search",
+    "direction": ""
+  },
+  {
+    "id": "okafor-patrol-1",
+    "who": "OKAFOR",
+    "text": "Must have been the pipes.",
+    "key": "patrol",
+    "direction": ""
+  },
+  {
+    "id": "okafor-patrol-2",
+    "who": "OKAFOR",
+    "text": "Probably nothing. Back to it.",
+    "key": "patrol",
+    "direction": ""
+  },
+  {
+    "id": "okafor-patrol-3",
+    "who": "OKAFOR",
+    "text": "Jumpy tonight.",
+    "key": "patrol",
+    "direction": ""
+  },
+  {
+    "id": "briggs-patrol-1",
+    "who": "BRIGGS",
+    "text": "Must have been the pipes.",
+    "key": "patrol",
+    "direction": ""
+  },
+  {
+    "id": "briggs-patrol-2",
+    "who": "BRIGGS",
+    "text": "Probably nothing. Back to it.",
+    "key": "patrol",
+    "direction": ""
+  },
+  {
+    "id": "briggs-patrol-3",
+    "who": "BRIGGS",
+    "text": "Jumpy tonight.",
+    "key": "patrol",
+    "direction": ""
+  },
+  {
+    "id": "sweep-patrol-1",
+    "who": "SWEEP TEAM",
+    "text": "Must have been the pipes.",
+    "key": "patrol",
+    "direction": ""
+  },
+  {
+    "id": "sweep-patrol-2",
+    "who": "SWEEP TEAM",
+    "text": "Probably nothing. Back to it.",
+    "key": "patrol",
+    "direction": ""
+  },
+  {
+    "id": "sweep-patrol-3",
+    "who": "SWEEP TEAM",
+    "text": "Jumpy tonight.",
+    "key": "patrol",
+    "direction": ""
+  },
+  {
+    "id": "okafor-caught-1",
+    "who": "OKAFOR",
+    "text": "Got you.",
+    "key": "caught",
+    "direction": ""
+  },
+  {
+    "id": "okafor-caught-2",
+    "who": "OKAFOR",
+    "text": "Hands where I can see them.",
+    "key": "caught",
+    "direction": ""
+  },
+  {
+    "id": "briggs-caught-1",
+    "who": "BRIGGS",
+    "text": "Got you.",
+    "key": "caught",
+    "direction": ""
+  },
+  {
+    "id": "briggs-caught-2",
+    "who": "BRIGGS",
+    "text": "Hands where I can see them.",
+    "key": "caught",
+    "direction": ""
+  },
+  {
+    "id": "sweep-caught-1",
+    "who": "SWEEP TEAM",
+    "text": "Got you.",
+    "key": "caught",
+    "direction": ""
+  },
+  {
+    "id": "sweep-caught-2",
+    "who": "SWEEP TEAM",
+    "text": "Hands where I can see them.",
+    "key": "caught",
+    "direction": ""
+  },
+  {
+    "id": "control-camera-1",
+    "who": "CONTROL",
+    "text": "Control to floor. Movement on camera.",
+    "key": "camera",
+    "direction": ""
+  },
+  {
+    "id": "control-camera-2",
+    "who": "CONTROL",
+    "text": "Control. Somebody on the feed. Check it.",
+    "key": "camera",
+    "direction": ""
+  },
+  {
+    "id": "okafor-echo-1",
+    "who": "OKAFOR",
+    "text": "What... was that a ghost?",
+    "key": "echo",
+    "direction": ""
+  },
+  {
+    "id": "okafor-echo-2",
+    "who": "OKAFOR",
+    "text": "It just came apart in my hands.",
+    "key": "echo",
+    "direction": ""
+  },
+  {
+    "id": "briggs-echo-1",
+    "who": "BRIGGS",
+    "text": "What... was that a ghost?",
+    "key": "echo",
+    "direction": ""
+  },
+  {
+    "id": "briggs-echo-2",
+    "who": "BRIGGS",
+    "text": "It just came apart in my hands.",
+    "key": "echo",
+    "direction": ""
+  },
+  {
+    "id": "sweep-echo-1",
+    "who": "SWEEP TEAM",
+    "text": "What... was that a ghost?",
+    "key": "echo",
+    "direction": ""
+  },
+  {
+    "id": "sweep-echo-2",
+    "who": "SWEEP TEAM",
+    "text": "It just came apart in my hands.",
+    "key": "echo",
+    "direction": ""
+  },
+  {
+    "id": "voice-test",
+    "who": "DEX",
+    "text": "Comms check. If you can hear me, the radio is working.",
+    "key": "audio-test",
+    "direction": ""
+  }
+]

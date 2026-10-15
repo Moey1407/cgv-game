@@ -59,10 +59,10 @@ export function createHud(doc = document) {
     text(el.movement, 'movement', label);
     el.stamina.style.width = Math.round(ratio * 100) + '%';
   }
-  function items({ keycard, cash, evidence, evidenceTotal }) {
-    text(el.keycard, 'keycard', keycard ? 'KEYCARD ✓' : 'KEYCARD —');
+  function items({ keycard, star, cash, evidence, evidenceTotal }) {
+    text(el.keycard, 'keycard', keycard ? 'BADGE COPIED' : 'BADGE —');
     el.keycard.classList.toggle('have', keycard);
-    text(el.take, 'take', 'TAKE $' + cash.toLocaleString('en-US'));
+    text(el.take, 'take', star ? 'KESTREL STAR ✓' : 'KESTREL STAR —');
     text(el.evidence, 'evidence', 'EVIDENCE ' + evidence + '/' + evidenceTotal);
   }
   function decoy(charges, recharge = 0) {
@@ -111,6 +111,12 @@ export function createHud(doc = document) {
     el.echoFill.style.width = Math.round(Math.max(0, Math.min(1, progress)) * 100) + '%';
   }
   function objective(value) { text(el.objective, 'objective', value); }
+  function hint(value) {
+    const node = $('control-hint');
+    if (!node) return;
+    node.classList.toggle('is-hidden', !value);
+    if (value) text(node, 'controlHint', value);
+  }
 
   function prompt(value, progress = null) {
     el.prompt.classList.toggle('is-hidden', !value);
@@ -142,7 +148,7 @@ export function createHud(doc = document) {
     const won = kind === 'won';
     el.end.classList.toggle('won', won);
     el.endKicker.textContent = won ? 'VAULT OPEN' : 'CAUGHT';
-    el.endTitle.textContent = won ? 'The Kestrel Star is yours.' : 'Okafor has you.';
+    el.endTitle.textContent = won ? 'The Kestrel Star is yours.' : 'Security has you.';
     el.endCopy.textContent = won ? 'Now get out before Dex makes his move.' : 'Back to the last checkpoint. Press R.';
     el.endStats.textContent = stats;
   }
@@ -153,5 +159,6 @@ export function createHud(doc = document) {
     if (toastTimer <= 0) el.toast.classList.add('is-hidden');
   }
 
-  return { alarm, guard, movement, items, decoy, echo, objective, prompt, toast, safe, end, update };
+  return { alarm, guard, movement, items, decoy, echo, objective, hint, prompt, toast, safe, end, update,
+    clearTransient() { toastTimer = 0; el.toast.classList.add('is-hidden'); prompt(null); } };
 }

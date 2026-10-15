@@ -1,7 +1,7 @@
-export const PICKPOCKET_SECONDS = 1.5;
+export const PICKPOCKET_SECONDS = 0.75;
 
 export function pickpocketAccess(player, guard, { range = 1.45, behindDot = -0.42, clear = true } = {}) {
-  if (!player || !guard || !clear || guard.state === 'pursue') return false;
+  if (!player || !guard || !clear || guard.state === 'pursue' || guard.stationary === false) return false;
   const dx = player.x - guard.position.x;
   const dz = player.z - guard.position.z;
   const distance = Math.hypot(dx, dz);

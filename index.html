@@ -18,9 +18,9 @@
   </div>
 </div>
 <div class="top-left">
-  <div id="mode" class="mode">LEVEL 1 · THE GALA · 19:40</div>
+  <div id="mode" class="mode">THE GALA · 19:40</div>
   <div id="timer" class="timer is-hidden"></div>
-  <div id="objective" class="objective">Lift Okafor's keycard</div>
+  <div id="objective" class="objective">Prepare the night entry</div>
 </div>
 <div id="alarm" class="alarm quiet">
   <span class="alarm-name">ALARM</span><strong id="alarm-label">QUIET</strong>
@@ -29,7 +29,7 @@
 </div>
 <div class="status">
   <div class="status-row"><span id="movement">RUNNING</span><div class="stamina"><i id="stamina-fill"></i></div></div>
-  <div class="status-row items"><span id="item-keycard">KEYCARD —</span><span id="item-take">TAKE $0</span><span id="item-evidence">EVIDENCE 0/1</span><span id="item-decoy">DECOY ×3</span></div>
+  <div class="status-row items"><span id="item-keycard">BADGE —</span><span id="item-take">KESTREL STAR —</span><span id="item-evidence">EVIDENCE 0/3</span><span id="item-decoy">DECOY ×3</span></div>
   <div id="echo-state" class="echo-state is-hidden">
     <div class="echo-head"><strong id="echo-step">ECHO · READY</strong><span id="echo-time">20.0s MAX</span></div>
     <b id="echo-action">Q · START RECORDING</b>
@@ -40,6 +40,7 @@
 <div id="stats" class="stats"></div>
 <div id="toast" class="toast is-hidden" role="status"></div>
 <div id="prompt" class="prompt is-hidden"><span id="prompt-text"></span><div class="prompt-track"><i id="prompt-fill"></i></div></div>
+<div id="control-hint" class="control-hint is-hidden"></div>
 <div id="radio" class="radio is-hidden" data-who="dex" aria-live="polite"><span class="radio-who">DEX · RADIO</span><p class="radio-text"></p></div>
 <div id="bark" class="bark is-hidden"><b class="bark-who"></b><span class="bark-text"></span></div>
 <aside id="evidence-card" class="evidence-card is-hidden"><span class="evidence-kicker"></span><h3 class="evidence-title"></h3><p class="evidence-body"></p></aside>
@@ -88,11 +89,10 @@
     <span class="kicker briefing-kicker"></span>
     <h2 class="briefing-title"></h2>
     <span class="briefing-place"></span>
+    <strong class="briefing-mechanic"></strong>
     <div class="briefing-body"></div>
-    <h3>Tonight</h3>
     <ol class="briefing-objectives"></ol>
-    <h3>Controls</h3>
-    <ul class="controls"></ul>
+    <details class="controls-reference"><summary>Controls reference</summary><ul class="controls"></ul></details>
     <div class="buttons">
       <button type="button" class="primary" data-action="enter">ENTER THE MUSEUM</button>
       <button type="button" data-action="options">OPTIONS</button>
@@ -101,11 +101,34 @@
     <p class="lock-note"></p>
   </div>
 </section>
+<section id="cinematic" class="cinematic is-hidden" aria-label="Story" aria-live="polite">
+  <div class="cinematic-grain" aria-hidden="true"></div>
+  <div class="cinematic-art" aria-hidden="true">
+    <div class="cinematic-museum"></div>
+    <div class="cinematic-object"><i></i></div>
+    <div class="cinematic-figure"></div>
+    <div class="cinematic-shutter"></div>
+    <div class="cinematic-taillights"><i></i><i></i></div>
+    <div class="cinematic-signal"><i></i><i></i><i></i><i></i><i></i></div>
+  </div>
+  <article class="cinematic-panel">
+    <span class="cinematic-scene"></span>
+    <h2 class="cinematic-title"></h2>
+    <p class="cinematic-copy"></p>
+    <blockquote class="cinematic-quote"><b class="cinematic-speaker"></b><span class="cinematic-dialogue"></span></blockquote>
+    <div class="cinematic-progress"><span class="cinematic-count"></span><i></i></div>
+  </article>
+  <div class="cinematic-actions">
+    <button type="button" data-action="cinematic-skip">SKIP STORY</button>
+    <button type="button" class="primary cinematic-next" data-action="cinematic-next">NEXT</button>
+  </div>
+</section>
 <section id="pause" class="screen is-hidden" aria-label="Paused">
   <div class="screen-box">
     <span class="kicker">PAUSED</span>
     <div class="buttons column">
       <button type="button" class="primary" data-action="resume">RESUME</button>
+      <button type="button" data-action="help">CONTROLS</button>
       <button type="button" data-action="restart">RESTART FROM CHECKPOINT</button>
       <button type="button" data-action="options">OPTIONS</button>
       <button type="button" data-action="new-heist">QUIT TO TITLE</button>
@@ -119,6 +142,8 @@
     <label>Mouse sensitivity <output data-out="sensitivity"></output><input type="range" name="sensitivity" min="0.3" max="2.5" step="0.05"></label>
     <label>Volume <output data-out="master"></output><input type="range" name="master" min="0" max="1" step="0.05"></label>
     <label>Music <output data-out="music"></output><input type="range" name="music" min="0" max="1" step="0.05"></label>
+    <label class="toggle">Voice narration <input type="checkbox" name="voice" checked></label>
+    <div class="voice-check"><button type="button" data-action="voice-test">TEST VOICE</button><span id="voice-status">Pre-rendered character dialogue.</span></div>
     <label>Graphics quality
       <select name="quality"><option value="auto">Auto</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select>
     </label>
@@ -141,13 +166,47 @@
 </section>
 <div id="fade" class="fade"></div>
 <div id="card" class="card is-hidden"><b class="card-title"></b><span class="card-text"></span></div>
-<dialog id="credits" class="credits">
-  <h2>Credits</h2>
-  <p>Three.js, MIT Licence. Vite, MIT Licence.</p>
-  <p>Soldier, Xbot and Michelle character models and animations from the Three.js examples (Mixamo, Adobe).</p>
-  <p>Paintings, public domain: The Starry Night (Vincent van Gogh, 1889), The Scream (Edvard Munch, 1893), The Great Wave off Kanagawa (Katsushika Hokusai, c. 1831), The Shipwreck (J. M. W. Turner, 1805).</p>
-  <p>All other geometry, textures, shaders, sound and code were made by the SIGNAL team. Music and sound effects are synthesised in the browser.</p>
-  <button id="close-credits" type="button">CLOSE</button>
+<dialog id="credits" class="credits" aria-labelledby="credits-title">
+  <div class="credits-sky" aria-hidden="true"></div>
+  <button id="close-credits" class="credits-close" type="button">CLOSE</button>
+  <div class="credits-viewport">
+    <div class="credits-roll">
+      <span class="credits-kicker">A VARGA MUSEUM STORY</span>
+      <h2 id="credits-title">SIGNAL</h2>
+      <p class="credits-epigraph">A safecracker. A stolen diamond.<br>A signal that remembers.</p>
+
+      <section>
+        <h3>Created by</h3>
+        <p>Muhammed · Huzaifa · Ahmed</p>
+        <small>Final full-name credits will be confirmed with the team.</small>
+      </section>
+      <section>
+        <h3>Game design &amp; story</h3>
+        <p>SIGNAL Team</p>
+        <h3>Gameplay &amp; systems</h3>
+        <p>SIGNAL Team</p>
+        <h3>Visuals &amp; rendering</h3>
+        <p>SIGNAL Team</p>
+        <h3>Audio</h3>
+        <p>SIGNAL Team</p>
+      </section>
+      <section>
+        <h3>Technology</h3>
+        <p>Three.js · MIT Licence<br>Vite · MIT Licence</p>
+        <h3>Character models</h3>
+        <p>Guests and security officers · SIGNAL Team<br>Echo mannequin · Xbot, Three.js examples / Mixamo, Adobe</p>
+      </section>
+      <section>
+        <h3>Public-domain paintings</h3>
+        <p>The Starry Night · Vincent van Gogh, 1889<br>The Scream · Edvard Munch, 1893<br>The Great Wave off Kanagawa · Katsushika Hokusai, c. 1831<br>The Shipwreck · J. M. W. Turner, 1805</p>
+      </section>
+      <section>
+        <p>All other geometry, textures, shaders, sound and code were made by the SIGNAL team. Music and sound effects are synthesised in the browser.</p>
+      </section>
+      <strong class="credits-final">THANK YOU FOR PLAYING</strong>
+      <span class="credits-mark">SIGNAL LOST</span>
+    </div>
+  </div>
 </dialog>
 <script type="module" src="./src/main.js"></script>
 </body>

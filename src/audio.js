@@ -224,6 +224,7 @@ export function createAudio({ surfaceAt = () => 'marble' } = {}) {
     'safe:tumbler-set': () => { const t = now(); hiss(sfxBus, t, 0.03, 0.5, 3500, { q: 4 }); tone(sfxBus, t + 0.02, 160, 0.12, 0.4, { to: 90 }); },
     'safe:noise': () => { const t = now(); for (const d of [0, 0.05, 0.11]) hiss(sfxBus, t + d, 0.03, 0.25, 3000, { q: 3 }); },
     'safe:miss': () => { const t = now(); tone(sfxBus, t, 140, 0.25, 0.4, { type: 'square', to: 70, cutoff: 600 }); },
+    'safe:contact': () => { const t = now(); hiss(sfxBus, t, 0.025, 0.3, 4200, { q: 5 }); hiss(sfxBus, t + 0.065, 0.02, 0.22, 3500, { q: 5 }); },
     'safe:opened': () => {
       const t = now();
       tone(sfxBus, t, 60, 1.5, 0.9, { to: 35 });
@@ -235,6 +236,8 @@ export function createAudio({ surfaceAt = () => 'marble' } = {}) {
     'echo:replay': () => { const t = now(); tone(sfxBus, t, 1400, 0.7, 0.1, { to: 200, type: 'sawtooth', cutoff: 3000 }); hiss(sfxBus, t, 0.6, 0.1, 2500, { q: 0.5 }); },
     'echo:shattered': () => { const t = now(); for (let i = 0; i < 6; i += 1) hiss(sfxBus, t + i * 0.04, 0.08, 0.2, 5000 + i * 700, { q: 6 }); },
     'checkpoint:restore': () => { const t = now(); hiss(sfxBus, t, 0.5, 0.15, 1200, { q: 0.4 }); tone(sfxBus, t, 600, 0.5, 0.05, { to: 150 }); },
+    'zipline:mount': () => { const t = now(); hiss(sfxBus, t, 0.09, 0.25, 2800, { q: 4 }); tone(sfxBus, t + 0.1, 480, 0.25, 0.12, { to: 220 }); hiss(sfxBus, t + 0.6, 7.2, 0.2, 950, { q: 0.4 }); },
+    'zipline:complete': () => { const t = now(); hiss(sfxBus, t, 0.3, 0.2, 400, { type: 'lowpass' }); tone(sfxBus, t, 130, 0.15, 0.3, { to: 60 }); },
   };
 
   function alarmStinger(level) {
@@ -291,6 +294,24 @@ export function createAudio({ surfaceAt = () => 'marble' } = {}) {
 
   return {
     unlock,
+    connectVoice(element, { radio = false } = {}) {
+      unlock();
+      if (!ready()) return null;
+      const nodes = [];
+      try {
+        const source = ctx.createMediaElementSource(element); nodes.push(source);
+        let tail = source;
+        if (radio) {
+          const high = ctx.createBiquadFilter(); high.type = 'highpass'; high.frequency.value = 180;
+          const low = ctx.createBiquadFilter(); low.type = 'lowpass'; low.frequency.value = 3900;
+          const compressor = ctx.createDynamicsCompressor(); compressor.threshold.value = -20; compressor.ratio.value = 2.5;
+          source.connect(high); high.connect(low); low.connect(compressor);
+          nodes.push(high, low, compressor); tail = compressor;
+        }
+        tail.connect(master);
+        return () => nodes.forEach((node) => node.disconnect());
+      } catch { nodes.forEach((node) => node.disconnect()); return null; }
+    },
     bind,
     update,
     get volume() { return volumes.master; },

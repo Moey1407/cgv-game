@@ -25,12 +25,14 @@ export function inCone(origin, yaw, point, range, fov) {
   return Math.abs(wrapAngle(Math.atan2(dx, dz) - yaw)) <= fov / 2;
 }
 
-export function createGuardAI({ id, actor, torch, waypoints, speed, events }) {
+export function createGuardAI({ id, actor, torch, waypoints, speed, pauseSeconds = 0, events }) {
   const root = actor.root;
   const home = waypoints[0].clone();
   const target = new THREE.Vector3();
   const lastSeen = new THREE.Vector3();
   const step = new THREE.Vector3();
+  const navGoal = new THREE.Vector3(Infinity, 0, Infinity);
+  let route = [], stuck = 0;
   const guard = {
     id,
     actor,
@@ -44,6 +46,9 @@ export function createGuardAI({ id, actor, torch, waypoints, speed, events }) {
     timer: 0,
     pulse: Math.random() * 2,
     lostSight: 0,
+    pauseTimer: 0,
+    proximityTime: 0,
+    checkingGuest: 0,
     get position() { return root.position; },
     get yaw() { return root.rotation.y; }
   };
@@ -66,11 +71,14 @@ export function createGuardAI({ id, actor, torch, waypoints, speed, events }) {
     return true;
   }
 
-  function moveToward(point, pace, dt, canStand) {
-    step.copy(point).sub(root.position);
+  function moveToward(point, pace, dt, canStand, findPath) {
+    if (point.distanceTo(navGoal) > 1.5) route = [];
+    if (route.length && Math.hypot(route[0].x - root.position.x, route[0].z - root.position.z) < 0.3) route.shift();
+    const aim = route.length ? route[0] : point;
+    step.set(aim.x, 0, aim.z).sub(root.position);
     step.y = 0;
     const d = step.length();
-    if (d < 0.25) return true;
+    if (d < 0.25) return !route.length && root.position.distanceTo(point) < 0.3;
     step.multiplyScalar(1 / d);
     const want = Math.atan2(step.x, step.z);
     const delta = wrapAngle(want - root.rotation.y);
@@ -78,6 +86,7 @@ export function createGuardAI({ id, actor, torch, waypoints, speed, events }) {
     const advance = Math.min(d, pace * dt * Math.max(0, Math.cos(delta)));
     const nx = root.position.x + step.x * advance;
     const nz = root.position.z + step.z * advance;
+    const beforeX = root.position.x, beforeZ = root.position.z;
     if (!canStand || canStand(nx, nz)) {
       root.position.x = nx;
       root.position.z = nz;
@@ -86,7 +95,10 @@ export function createGuardAI({ id, actor, torch, waypoints, speed, events }) {
     } else if (canStand(root.position.x, nz)) {
       root.position.z = nz;
     }
-    return d < 0.3;
+    const moved = Math.hypot(root.position.x - beforeX, root.position.z - beforeZ);
+    stuck = advance > 0.005 && moved < advance * 0.2 ? stuck + dt : 0;
+    if (stuck > 0.25 && findPath) { route = findPath(root.position, point); navGoal.copy(point); stuck = 0; }
+    return !route.length && root.position.distanceTo(point) < 0.3;
   }
 
   function update(dt, ctx) {
@@ -94,8 +106,8 @@ export function createGuardAI({ id, actor, torch, waypoints, speed, events }) {
     const sight = SIGHT[ctx.mode] ?? SIGHT.night;
     const crouchFactor = ctx.player.crouching ? 0.6 : 1;
     let sees = false;
-    if (ctx.player.visible) {
-      const range = sight.range * crouchFactor;
+    if (!ctx.player.blending) {
+      const range = (ctx.player.visible ? sight.range : 1.8) * crouchFactor;
       sees = inCone(root.position, root.rotation.y, ctx.player.position, range, sight.fov);
       if (!sees && torch?.visible && inCone(root.position, root.rotation.y, ctx.player.position, 14, 0.6)) sees = true;
       if (sees && ctx.clearView && !ctx.clearView(root.position, ctx.player.position)) sees = false;
@@ -114,18 +126,41 @@ export function createGuardAI({ id, actor, torch, waypoints, speed, events }) {
     }
 
     if (guard.state === 'patrol') {
-      if (moveToward(guard.waypoints[guard.index], pace, dt, ctx.canStand)) guard.index = (guard.index + 1) % guard.waypoints.length;
+      // A guest brushing past is ordinary; someone shadowing an officer at arm's
+      // length is not. Turn to check them before allowing an endless tail.
+      const close = ctx.mode === 'gala' && root.position.distanceTo(ctx.player.position) < 1.7;
+      guard.proximityTime = close ? guard.proximityTime + dt : Math.max(0, guard.proximityTime - dt * 2);
+      if (guard.proximityTime > 2.5 && guard.checkingGuest <= 0) {
+        guard.checkingGuest = 2.2;
+        guard.proximityTime = 0;
+        events?.emit('guard:warning', { id });
+      }
+      if (guard.checkingGuest > 0) {
+        guard.checkingGuest -= dt;
+        const want = angleTo(root.position, ctx.player.position);
+        root.rotation.y += wrapAngle(want - root.rotation.y) * Math.min(1, dt * 7);
+        actor.play('Idle');
+      } else if (guard.pauseTimer > 0) {
+        guard.pauseTimer = Math.max(0, guard.pauseTimer - dt);
+        actor.play('Idle');
+      } else {
+        actor.play('Walk');
+        if (moveToward(guard.waypoints[guard.index], pace, dt, ctx.canStand, ctx.findPath)) {
+          guard.index = (guard.index + 1) % guard.waypoints.length;
+          guard.pauseTimer = pauseSeconds;
+        }
+      }
     } else if (guard.state === 'investigate') {
       if (guard.timer > 0) {
         guard.timer -= dt;
         root.rotation.y += Math.sin(ctx.time * 1.4) * dt * 0.9;
         if (guard.timer <= 0) { setState('patrol'); actor.play('Walk'); }
-      } else if (moveToward(target, pace, dt, ctx.canStand)) {
+      } else if (moveToward(target, pace, dt, ctx.canStand, ctx.findPath)) {
         guard.timer = 3;
         actor.play('Idle');
       }
     } else if (guard.state === 'pursue') {
-      moveToward(lastSeen, pace * 1.75, dt, ctx.canStand);
+      moveToward(lastSeen, pace * 1.75, dt, ctx.canStand, ctx.findPath);
       if (guard.lostSight > 2.5) {
         guard.timer = 4;
         setState('search');
@@ -153,6 +188,10 @@ export function createGuardAI({ id, actor, torch, waypoints, speed, events }) {
     guard.suspicion = 0;
     guard.timer = 0;
     guard.lostSight = 0;
+    guard.pauseTimer = pauseSeconds;
+    guard.proximityTime = 0;
+    guard.checkingGuest = 0;
+    route = []; stuck = 0; navGoal.set(Infinity, 0, Infinity);
     guard.state = 'investigate';
     setState('patrol');
     actor.play('Walk');

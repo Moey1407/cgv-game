@@ -44,7 +44,9 @@ export function createCCTV(renderer, scene, cameras, { feedWidth = 480, feedHeig
     const camera = new THREE.PerspectiveCamera(config.fov ?? 70, aspect, 0.1, 80);
     camera.position.copy(config.position);
     camera.lookAt(config.target);
-    const target = new THREE.WebGLRenderTarget(feedWidth, feedHeight, { type: THREE.HalfFloatType });
+    // CCTV is deliberately stylised and does not need an HDR target. Eight-bit
+    // targets halve its memory bandwidth on integrated laptop GPUs.
+    const target = new THREE.WebGLRenderTarget(feedWidth, feedHeight, { type: THREE.UnsignedByteType, depthBuffer: true, stencilBuffer: false });
     target.texture.colorSpace = THREE.SRGBColorSpace;
     return {
       index,
@@ -217,6 +219,14 @@ export function createCCTV(renderer, scene, cameras, { feedWidth = 480, feedHeig
     canSee,
     dispose,
     setRate(value) { feedRate = value; },
+    setQuality({ rate = feedRate, width = feedWidth, height = feedHeight } = {}) {
+      feedRate = rate;
+      for (const feed of feeds) {
+        feed.target.setSize(width, height);
+        feed.age = Infinity;
+        feed.fresh = false;
+      }
+    },
     get active() { return active; },
     get lastViewed() { return lastViewed; }
   };

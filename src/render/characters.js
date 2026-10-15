@@ -26,7 +26,7 @@ export function spawnCharacter(gltf, { clip, time = 0, position, rotationY = 0, 
     child.frustumCulled = cull;
     if (recolor) {
       child.material = child.material.clone();
-      recolor(child.material);
+      recolor(child.material, child);
     }
     if (field && 'emissive' in child.material) {
       if (!recolor) child.material = child.material.clone();

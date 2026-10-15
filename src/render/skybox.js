@@ -42,7 +42,7 @@ void main() {
   vec3 night = mix(vec3(0.05, 0.07, 0.12), vec3(0.005, 0.01, 0.03), smoothstep(0.0, 0.6, y));
   vec3 col = mix(dusk, night, uNight);
   vec2 sp = vec2(atan(d.z, d.x), asin(clamp(y, -1.0, 1.0))) * 120.0;
-  float star = step(0.996, hash(floor(sp))) * smoothstep(0.05, 0.3, y);
+  float star = step(0.987, hash(floor(sp))) * (1.0 - smoothstep(0.035, 0.09, length(fract(sp) - 0.5))) * smoothstep(0.05, 0.3, y);
   col += vec3(star) * (0.6 + 0.4 * sin(uTime * 3.0 + hash(floor(sp)) * 20.0)) * uNight;
   float m = max(dot(d, normalize(uMoonDir)), 0.0);
   col += vec3(0.85, 0.9, 1.0) * (smoothstep(0.9994, 0.9997, m) + pow(m, 64.0) * 0.25) * uNight;
@@ -50,12 +50,13 @@ void main() {
   col = mix(col, col * 1.6 + vec3(0.02), smoothstep(0.55, 0.8, clouds) * smoothstep(0.05, 0.4, y) * 0.5);
   float a = atan(d.z, d.x) / 6.28318 + 0.5;
   float city = step(y, skyline(a));
-  vec2 win = vec2(a * 900.0, y * 400.0);
+  vec2 win = vec2(a * 230.0, y * 140.0);
   float lit = step(0.72, hash(floor(win))) * step(0.3, fract(win.x)) * step(0.3, fract(win.y));
-  vec3 cityCol = vec3(0.012, 0.016, 0.024) + vec3(1.0, 0.75, 0.4) * lit * 0.5;
+  lit *= step(0.0, y);
+  vec3 cityCol = vec3(0.012, 0.016, 0.024) + vec3(0.45, 0.39, 0.28) * lit * 0.18;
   col = mix(col, cityCol, city);
   col += vec3(1.0, 0.55, 0.25) * exp(-abs(y) * 22.0) * 0.12 * (1.0 - city);
-  col = mix(col, col * vec3(1.4, 0.4, 0.45), uAlarm * 0.6);
+  col += vec3(0.025, 0.003, 0.002) * uAlarm * exp(-abs(y) * 35.0);
   gl_FragColor = vec4(col, 1.0);
 }
 `;
@@ -73,6 +74,24 @@ export function createSkybox({ radius = 400 } = {}) {
   );
   mesh.frustumCulled = false;
   mesh.renderOrder = -1;
+  const city = new THREE.Group(); city.name = 'service-yard-skyline'; city.visible = false;
+  const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 256;
+  const ctx = canvas.getContext('2d'); ctx.fillStyle = '#27313b'; ctx.fillRect(0, 0, 128, 256);
+  for (let y = 8; y < 250; y += 16) for (let x = 6; x < 126; x += 16) {
+    const lit = ((x * 7 + y * 13) % 43) < 9;
+    ctx.fillStyle = lit ? '#8b8062' : '#151d29'; ctx.fillRect(x, y, 7, 9);
+  }
+  const map = new THREE.CanvasTexture(canvas); map.colorSpace = THREE.SRGBColorSpace;
+  const buildings = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({
+    map, emissiveMap: map, emissive: 0x8d8d8d, emissiveIntensity: 0.35, color: 0x8793a0, roughness: 0.9,
+  }), 24);
+  const dummy = new THREE.Object3D();
+  for (let i = 0; i < 24; i++) {
+    const side = i % 2 ? -1 : 1, row = Math.floor(i / 2), height = 9 + (i * 13 % 24);
+    dummy.position.set(side * (22 + i * 7 % 47), height / 2 - 4, -30 - row * 15);
+    dummy.scale.set(9 + i % 5 * 2, height, 9 + i % 4 * 3); dummy.updateMatrix(); buildings.setMatrixAt(i, dummy.matrix);
+  }
+  city.add(buildings);
   function setMode(mode) {
     uniforms.uNight.value = mode === 'gala' ? 0 : 1;
     uniforms.uAlarm.value = mode === 'lockdown' ? 1 : 0;
@@ -81,5 +100,5 @@ export function createSkybox({ radius = 400 } = {}) {
     uniforms.uTime.value = time;
     if (camera) mesh.position.copy(camera.position);
   }
-  return { mesh, uniforms, setMode, update };
+  return { mesh, city, uniforms, setMode, update };
 }

@@ -4,3 +4,5 @@ dist/
 *.log
 work/
 outputs/
+__pycache__/
+*.pyc
