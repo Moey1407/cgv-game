@@ -9,10 +9,11 @@ export const URGENT_LOOK = 6; // seconds spent looking around where it went off
 export const INVESTIGATE_NO_PROGRESS = 3; // seconds without moving before giving up
 
 const SIGHT = {
-  gala: { range: 10, fov: Math.PI * 0.55 },
-  night: { range: 6.5, fov: Math.PI * 0.5 },
-  lockdown: { range: 9, fov: Math.PI * 0.6 }
+  gala: { range: 6, fov: Math.PI * 0.4 },
+  night: { range: 4.5, fov: Math.PI * 0.34 },
+  lockdown: { range: 5.5, fov: Math.PI * 0.4 }
 };
+const TORCH = { range: 8, fov: 0.42 };
 
 export function angleTo(from, to) {
   return Math.atan2(to.x - from.x, to.z - from.z);
@@ -161,11 +162,11 @@ export function createGuardAI({ id, actor, torch, waypoints, speed, pauseSeconds
     if (!ctx.player.blending) {
       const range = (ctx.player.visible ? sight.range : 1.8) * crouchFactor;
       sees = inCone(root.position, root.rotation.y, ctx.player.position, range, sight.fov);
-      if (!sees && torch?.visible && torch.userData.on !== false && inCone(root.position, root.rotation.y, ctx.player.position, 14, 0.6)) sees = true;
+      if (!sees && torch?.visible && torch.userData.on !== false && inCone(root.position, root.rotation.y, ctx.player.position, TORCH.range, TORCH.fov)) sees = true;
       if (sees && ctx.clearView && !ctx.clearView(root.position, ctx.player.position)) sees = false;
     }
     if (sees) {
-      guard.suspicion = Math.min(1, guard.suspicion + dt * (guard.state === 'investigate' ? 1.8 : 1.1));
+      guard.suspicion = Math.min(1, guard.suspicion + dt * (guard.state === 'investigate' ? 3 : 2.2));
       lastSeen.copy(ctx.player.position);
       guard.lostSight = 0;
       if (guard.suspicion >= 1 && guard.state !== 'pursue') {

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 const vertexShader = `
 varying vec3 vDir;
@@ -100,24 +101,71 @@ export function createSkybox({ radius = 400 } = {}) {
   // another dynamic light or extra draw call. Windows remain the bright part.
   lights.globalAlpha = .18; lights.drawImage(canvas, 0, 0); lights.globalAlpha = 1;
   const map = new THREE.CanvasTexture(canvas); map.colorSpace = THREE.SRGBColorSpace;
+  map.wrapS = map.wrapT = THREE.RepeatWrapping;
   const emissiveMap = new THREE.CanvasTexture(glow); emissiveMap.colorSpace = THREE.SRGBColorSpace;
-  const buildings = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({
-    map, emissiveMap, emissive: 0xffffff, emissiveIntensity: 0.5, color: 0xadb5bf, roughness: 0.82,
-  }), 24);
-  const dummy = new THREE.Object3D();
-  for (let i = 0; i < 24; i++) {
-    const side = i % 2 ? -1 : 1, row = Math.floor(i / 2), height = 9 + (i * 13 % 24);
-    dummy.position.set(side * (22 + i * 7 % 47), height / 2 - 4, -30 - row * 15);
-    dummy.scale.set(9 + i % 5 * 2, height, 9 + i % 4 * 3); dummy.updateMatrix(); buildings.setMatrixAt(i, dummy.matrix);
-    buildings.setColorAt(i, new THREE.Color([0xc7c4b8, 0x9ea9b5, 0x8796a5, 0xb3a18e][i % 4]));
+  emissiveMap.wrapS = emissiveMap.wrapT = THREE.RepeatWrapping;
+  const walls = [], roofs = [], details = [], beacons = [];
+  const tints = [0xc7c4b8, 0x9ea9b5, 0x8796a5, 0xb3a18e, 0xa49787, 0x8f9a8e];
+  const colour = new THREE.Color();
+  function face(w, h, x, y, z, ry, tint, floors) {
+    const g = new THREE.PlaneGeometry(w, h);
+    const uv = g.attributes.uv;
+    for (let k = 0; k < uv.count; k++) uv.setXY(k, uv.getX(k) * w / 16, uv.getY(k) * floors / 8);
+    g.rotateY(ry); g.translate(x, y, z);
+    colour.set(tint);
+    const c = new Float32Array(g.attributes.position.count * 3);
+    for (let k = 0; k < c.length; k += 3) { c[k] = colour.r; c[k + 1] = colour.g; c[k + 2] = colour.b; }
+    g.setAttribute('color', new THREE.BufferAttribute(c, 3));
+    walls.push(g);
   }
-  city.add(buildings);
+  function block(g, x, y, z, list = details) { g.translate(x, y, z); list.push(g); }
+  function building(x, z, w, d, floors, n) {
+    const h = floors * 3.2, base = -4, tint = tints[n % tints.length];
+    face(w, h, x, base + h / 2, z + d / 2, 0, tint, floors);
+    face(w, h, x, base + h / 2, z - d / 2, Math.PI, tint, floors);
+    face(d, h, x + w / 2, base + h / 2, z, Math.PI / 2, tint, floors);
+    face(d, h, x - w / 2, base + h / 2, z, -Math.PI / 2, tint, floors);
+    const top = base + h;
+    const roof = new THREE.PlaneGeometry(w, d); roof.rotateX(-Math.PI / 2); block(roof, x, top, z, roofs);
+    for (const [px, pz, sx, sz] of [[0, d / 2, w + 0.3, 0.3], [0, -d / 2, w + 0.3, 0.3], [w / 2, 0, 0.3, d], [-w / 2, 0, 0.3, d]]) {
+      block(new THREE.BoxGeometry(sx, 0.9, sz), x + px, top + 0.45, z + pz);
+    }
+    block(new THREE.BoxGeometry(w * 0.3, 2.4, d * 0.3), x - w * 0.15, top + 1.2, z + d * 0.1);
+    if (n % 3 === 0) {
+      block(new THREE.CylinderGeometry(1.1, 1.1, 2.2, 12), x + w * 0.25, top + 3.1, z - d * 0.2);
+      for (const lx of [-0.7, 0.7]) block(new THREE.BoxGeometry(0.15, 2, 0.15), x + w * 0.25 + lx, top + 1, z - d * 0.2);
+    }
+    if (n % 2 === 1) for (let a = 0; a < 3; a++) block(new THREE.BoxGeometry(1.2, 0.8, 0.9), x + w * 0.3, top + 0.4, z - d * 0.3 + a * 1.3);
+    if (n % 4 === 2 || floors > 9) {
+      block(new THREE.CylinderGeometry(0.06, 0.1, 6, 6), x, top + 3, z);
+      beacons.push(new THREE.Vector3(x, top + 6.1, z));
+    }
+  }
+  for (let i = 0; i < 24; i++) {
+    const side = i % 2 ? -1 : 1, row = Math.floor(i / 2);
+    building(side * (22 + i * 7 % 47), -30 - row * 15, 9 + i % 5 * 2, 9 + i % 4 * 3, 3 + (i * 5 % 8), i);
+  }
+  for (let i = 0; i < 10; i++) {
+    const side = i % 2 ? -1 : 1;
+    building(side * (11 + i * 3 % 7), -96 - i * 11, 7 + i % 3 * 2, 8, 2 + i % 3, i + 30);
+  }
+  const wallMat = new THREE.MeshStandardMaterial({ map, emissiveMap, emissive: 0xffffff, emissiveIntensity: 0.5, vertexColors: true, roughness: 0.82 });
+  const roofMat = new THREE.MeshStandardMaterial({ color: 0x2c3237, roughness: 0.95 });
+  const detailMat = new THREE.MeshStandardMaterial({ color: 0x4a5359, roughness: 0.8, metalness: 0.2 });
+  city.add(new THREE.Mesh(mergeGeometries(walls), wallMat), new THREE.Mesh(mergeGeometries(roofs), roofMat), new THREE.Mesh(mergeGeometries(details), detailMat));
+  [...walls, ...roofs, ...details].forEach((g) => g.dispose());
+  const beaconMat = new THREE.MeshBasicMaterial({ color: 0xff2a2a, fog: false });
+  const beaconMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(0.22, 8, 6), beaconMat, beacons.length);
+  const dummy = new THREE.Object3D();
+  beacons.forEach((p, i) => { dummy.position.copy(p); dummy.updateMatrix(); beaconMesh.setMatrixAt(i, dummy.matrix); });
+  city.add(beaconMesh);
   function setMode(mode) {
     uniforms.uNight.value = mode === 'gala' ? 0 : 1;
     uniforms.uAlarm.value = mode === 'lockdown' ? 1 : 0;
   }
   function update(dt, time, camera) {
     uniforms.uTime.value = time;
+    beaconMat.color.setRGB(Math.sin(time * 3) > 0.2 ? 1 : 0.15, 0.05, 0.05);
     if (camera) mesh.position.copy(camera.position);
   }
   return { mesh, city, uniforms, setMode, update };

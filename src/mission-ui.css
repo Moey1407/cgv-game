@@ -147,3 +147,12 @@ body.cctv-mode .learning-guide { background: #efe7d3f5; }
 @media(max-width: 600px) { .briefing { padding: 12px; } .briefing-panel { padding: 16px; max-height: calc(100vh - 24px); } .mission-heading { gap: 10px; } .briefing-steps { gap: 3px; } .briefing-steps i { min-width: 23px; height: 25px; font-size: 11px; } .briefing .buttons { position: sticky; bottom: -16px; z-index: 2; padding: 12px 0; background: var(--paper); flex-wrap: wrap; } .interlude { padding: 12px; } .interlude-panel { max-height: calc(100vh - 24px); } .interlude-dialogue { font-size: 15px; } .interlude-footer button { width: 100%; } .completion-title { font-size: 32px; } }
 @media(max-height: 650px) and (min-width: 801px) { .briefing-panel { padding: 18px 23px; } .mission-heading { padding-bottom: 10px; margin-bottom: 12px; } .briefing-image { aspect-ratio: 16/5; } .briefing-title { font-size: 38px; } .briefing-diagram svg { max-height: 115px; } .interlude-photo { min-height: 390px; } .interlude-content { padding: 23px; } .interlude-dialogue { font-size: 16px; } .home-logo { font-size: 108px; } .home-tag { margin: 8px 0; } .home-panel { gap: 8px; } }
 @media(prefers-reduced-motion: reduce) { .page button, .screen button { transition: none; } .cinematic.scene-enter .cinematic-art, .cinematic .cinematic-panel.is-entering, .scene-enter .scene-wipe, .interlude.scene-enter * { animation: none !important; } }
+.learning-guide kbd[hidden] { display: none; }
+body.cctv-mode .learning-guide { top: 6px; bottom: auto; left: 50%; transform: translateX(-50%); width: min(920px, calc(100vw - 84px)); min-height: 0; padding: 6px 12px; display: flex; align-items: center; gap: 12px; z-index: 9; }
+body.cctv-mode .learning-guide small { flex: none; }
+body.cctv-mode .learning-guide h3 { margin: 0; font-size: 14px; flex: none; }
+body.cctv-mode .learning-guide p { display: none; }
+body.cctv-mode .learning-guide .learning-goal { flex: 1; margin: 0; font-size: 12px; }
+body.cctv-mode .learning-guide kbd { flex: none; padding: 3px 7px; font-size: 11px; }
+.safe .safe-exit { display: block; margin-top: 10px; padding: 7px 10px; text-align: center; color: #14252f; background: #e7c67e; border: 2px solid #0c1820; border-bottom-width: 4px; font: 800 12px Arial,sans-serif; letter-spacing: .08em; }
+.toast { z-index: 8; max-width: min(640px, 70vw); text-align: center; }

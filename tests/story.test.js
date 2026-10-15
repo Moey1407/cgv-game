@@ -180,3 +180,11 @@ test('published clips exist; rewritten dialogue never plays a stale performance'
   assert.equal(recordedLineAvailable({ clip: 'missing', text: 'Missing clips remain captioned.' }), false);
   for (const id of clips) assert.ok(statSync(new URL(`../public/audio/voice/${id}.mp3`, import.meta.url)).size > 0, id);
 });
+
+test('after the roof Wren works out the betrayal, and the last line depends on the evidence', () => {
+  const proof = cinematicFor('after3', 3), none = cinematicFor('after3', 1);
+  assert.equal(proof.length, 5);
+  assert.equal(proof.at(-1).title, 'Signed, D.');
+  assert.equal(none.at(-1).title, 'No proof.');
+  assert.ok(proof.every((frame) => frame.speaker === WREN && frame.dialogue));
+});

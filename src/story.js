@@ -254,6 +254,41 @@ export const CINEMATICS = Object.freeze({
   ],
 });
 
+const AFTER3 = [
+  {
+    scene: 'SERVICE ROOF · 02:06', title: 'Across.', visual: 'rain',
+    text: 'Wren unclips on the far roof. The rain covers the sirens behind her.',
+    speaker: WREN, dialogue: 'Clear of the line. Nobody followed. Now I think.',
+  },
+  {
+    scene: 'WREN · PIECING IT TOGETHER', title: 'Why the gala?', visual: 'diamond',
+    text: 'Dex could have sent her straight to the vault. Instead she spent the evening being seen.',
+    speaker: WREN, dialogue: 'He put my name on the guest list. Every camera in that hall has my face. That was never cover. It was the evidence for my arrest.',
+  },
+  {
+    scene: 'WREN · PIECING IT TOGETHER', title: 'Why the safe?', visual: 'vault',
+    text: 'The Star only moves into the safe after closing, when one thief would be alone with it.',
+    speaker: WREN, dialogue: 'He needed the Star stolen and a thief caught holding it. The insurance pays, the police get a name, and nobody asks who planned it.',
+  },
+  {
+    scene: 'WREN · PIECING IT TOGETHER', title: 'Same as Marlowe.', visual: 'police',
+    text: 'Two years ago the crew drove off and left her in the vault.',
+    speaker: WREN, dialogue: 'Marlowe was not bad luck. He sold me then too. And I still picked up when he called.',
+  },
+];
+
+const AFTER3_PROOF = {
+  scene: 'EVIDENCE · THREE OF THREE', title: 'Signed, D.', visual: 'signal',
+  text: 'The roster, the radio intercept and the payment slip are already with the police.',
+  speaker: WREN, dialogue: 'Consultant D on the roster. His voice on their radio. Half the payout in his name. He wrote the whole plan down for me. Let us see who gets left behind this time.',
+};
+
+const AFTER3_NO_PROOF = {
+  scene: 'EVIDENCE · INCOMPLETE', title: 'No proof.', visual: 'rain',
+  text: 'Without all three files it is her word against his.',
+  speaker: WREN, dialogue: 'I know it was him. I just cannot prove it yet. So I keep the Star, and I keep moving.',
+};
+
 export const ENDINGS = {
   exposed: { title: 'Signal received', text: 'Wren sends all three files to the police from the roof. When Dex pulls up in the getaway van, the sirens are already waiting.' },
   alone: { title: 'Gone', text: 'Wren ziplines into the rain with the Kestrel Star. Dex is never heard from again, and neither is the truth about Marlowe.' },
@@ -262,6 +297,7 @@ export const ENDINGS = {
 export const endingFor = (evidenceFound) => (evidenceFound >= 3 ? ENDINGS.exposed : ENDINGS.alone);
 
 export function cinematicFor(key, evidenceFound = 0) {
+  if (key === 'after3') return [...AFTER3, evidenceFound >= 3 ? AFTER3_PROOF : AFTER3_NO_PROOF];
   if (key !== 'ending') return CINEMATICS[key] ?? [];
   const ending = endingFor(evidenceFound);
   return [

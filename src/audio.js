@@ -292,8 +292,29 @@ export function createAudio({ surfaceAt = () => 'marble' } = {}) {
     }
   }
 
+  let sirenNodes = null;
+  function siren(on) {
+    if (!ready()) return;
+    if (!sirenNodes) {
+      if (!on) return;
+      const osc = ctx.createOscillator(); osc.type = 'sawtooth'; osc.frequency.value = 760;
+      const lfo = ctx.createOscillator(); lfo.type = 'triangle'; lfo.frequency.value = 0.55;
+      const depth = ctx.createGain(); depth.gain.value = 230;
+      const filter = ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 1900;
+      const gain = ctx.createGain(); gain.gain.value = 0;
+      lfo.connect(depth); depth.connect(osc.frequency);
+      osc.connect(filter); filter.connect(gain); gain.connect(sfxBus);
+      osc.start(); lfo.start();
+      sirenNodes = { gain, on: false };
+    }
+    if (sirenNodes.on === Boolean(on)) return;
+    sirenNodes.on = Boolean(on);
+    sirenNodes.gain.gain.setTargetAtTime(on ? 0.06 : 0, ctx.currentTime, on ? 0.15 : 0.4);
+  }
+
   return {
     unlock,
+    siren,
     connectVoice(element, { radio = false } = {}) {
       unlock();
       if (!ready()) return null;

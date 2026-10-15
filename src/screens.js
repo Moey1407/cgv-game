@@ -229,14 +229,14 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
     root.querySelector('.speaker-portrait').textContent = frame.speaker?.slice(0, 1) ?? '';
     root.querySelector('.interlude-dialogue').textContent = conversation.text;
     root.querySelector('.interlude-count').textContent = `${conversation.index + 1} / ${conversation.count}`;
-    root.querySelector('[data-action="interlude-next"]').textContent = conversation.index === conversation.count - 1 ? `PREPARE LEVEL ${interlude.done + 1} →` : 'NEXT LINE →';
+    root.querySelector('[data-action="interlude-next"]').textContent = conversation.index === conversation.count - 1 ? (interlude.done >= 3 ? 'SEE HOW IT ENDS →' : `PREPARE LEVEL ${interlude.done + 1} →`) : 'NEXT LINE →';
     sceneEvent('signal:cinematic-line', { who: frame.speaker, text: frame.dialogue, clip: `cinematic-after${interlude.done}-${conversation.index + 1}` });
   }
 
   function stageComplete(done, onContinue = () => actions.loadLevel?.(done + 1)) {
     clearTimeout(resultsTimer); clearInterval(interludeTimer);
     const chapter = chapterFor(done), root = el.interlude;
-    interlude = { done, onContinue, conversation: createChapterConversation(cinematicFor('after' + done)), busy: false };
+    interlude = { done, onContinue, conversation: createChapterConversation(cinematicFor('after' + done, tracker.snapshot().evidence)), busy: false };
     root.querySelector('.completion-stamp').textContent = `LEVEL ${done} COMPLETED`;
     root.querySelector('.completion-title').textContent = chapter.result;
     root.querySelector('.completion-checks').replaceChildren(...chapter.checks.map((text) => make('li', { textContent: text })));
@@ -258,8 +258,9 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
     if (outcome === 'line') { paintInterlude(); return; }
     if (outcome !== 'complete') return;
     const active = interlude, button = el.interlude.querySelector('[data-action="interlude-next"]');
-    active.busy = true; button.disabled = true; button.textContent = 'PREPARING NEXT LEVEL…';
+    active.busy = true; button.disabled = true; button.textContent = active.done >= 3 ? 'ROLLING…' : 'PREPARING NEXT LEVEL…';
     sceneEvent('signal:cinematic-stop');
+    if (active.done >= 3) { clearInterval(interludeTimer); interlude = null; active.onContinue(); return; }
     try {
       await active.onContinue();
       if (interlude !== active) return;
@@ -517,7 +518,7 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
     clearTimeout(resultsTimer);
     resultsTimer = setTimeout(() => {
       if (qa) return;
-      if (done >= 3) showCinematic('ending', () => { showResults(); try { el.credits?.showModal(); } catch { /* already open */ } });
+      if (done >= 3) stageComplete(3, () => showCinematic('ending', () => { showResults(); try { el.credits?.showModal(); } catch { /* already open */ } }));
       else stageComplete(done);
     }, done >= 3 ? 2200 : 1200);
   });

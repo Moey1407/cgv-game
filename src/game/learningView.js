@@ -11,6 +11,7 @@ export function createLearningView(doc = document) {
     if (current !== lesson.id) {
       current = lesson.id; typed = 0; title.textContent = lesson.title;
       keys.textContent = lesson.keys;
+      keys.hidden = !lesson.keys;
     }
     typed = Math.min(lesson.text.length, typed + dt * 65);
     text.textContent = lesson.text.slice(0, Math.ceil(typed));

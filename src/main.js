@@ -213,8 +213,18 @@ async function start() {
   const LAYER_AVATAR = 3;
   const avatar = new THREE.Group();
   const avatarBody = new THREE.Group();
-  const wren = createPerson({ style: 'suit', colour: 0x1d2129, trouser: 0x16181d, shirt: 0x2c313b, accent: 0x72efff, hair: 0x1b1412, skin: 0xb07a5c });
-  avatarBody.add(wren.root);
+  const outfits = {
+    gala: createPerson({ style: 'dress', colour: 0x123f3a, accent: 0xd8b56a, hair: 0x1b1412, skin: 0xb07a5c, hairStyle: 'bun' }),
+    night: createPerson({ style: 'suit', colour: 0x1d2129, trouser: 0x16181d, shirt: 0x2c313b, accent: 0x72efff, hair: 0x1b1412, skin: 0xb07a5c })
+  };
+  let wren = outfits.gala;
+  avatarBody.add(outfits.gala.root, outfits.night.root);
+  outfits.night.root.visible = false;
+  function dressWren(n) {
+    wren = n === 1 ? outfits.gala : outfits.night;
+    outfits.gala.root.visible = wren === outfits.gala;
+    outfits.night.root.visible = wren === outfits.night;
+  }
   avatar.add(avatarBody);
   scene.add(avatar);
   avatar.traverse((o) => { o.layers.set(LAYER_AVATAR); if (o.isMesh) o.castShadow = false; });
@@ -464,6 +474,7 @@ async function start() {
       built.collision.block('shutter', { pos: [0, 2, -20.1], size: [4.2, 4, 0.4] });
       built.collision.block('hatch', { pos: [0, 21.2, -67], size: [3.2, 2.4, 0.4] });
     }
+    dressWren(n);
     ui.mode.textContent = LEVEL_LABEL[n];
     setMode(LEVEL_MODE[n]);
     const loaded = cur;
@@ -641,8 +652,8 @@ async function start() {
     cur.props.reset(payload.collected);
     cur.flags = { ...payload.flags };
     if (cur.flags.safeOpened && cur.props.safe) {
-      cur.props.safe.open = 1;
-      cur.props.safe.hinge.rotation.y = -Math.PI * 0.6;
+      cur.props.safe.open = state.hasStar ? 0 : 1;
+      cur.props.safe.hinge.rotation.y = state.hasStar ? 0 : -Math.PI * 0.6;
       cur.props.safe.gem.visible = !state.hasStar;
     }
     if (cur.flags.sensorDisabled) cur.props.setPanel('tamper_panel', 0x23ff7a);
@@ -672,7 +683,7 @@ async function start() {
     state.witnessCooldown = 0;
     state.spawnGrace = 2.5;
     state.zip = null;
-    zipRig.hide();
+    endZip();
     camera.fov = 68; camera.updateProjectionMatrix();
     state.vent = null;
     state.climb = null;
@@ -757,6 +768,7 @@ async function start() {
   }
 
   function startPassage(level) {
+    audio.siren(false);
     if (state.transit) return;
     state.transit = { stage: 'entering', lock: outLock, level, timer: 0, sealed: false };
     outLock.setDoor('near', 1);
@@ -811,7 +823,9 @@ async function start() {
       return true;
     }
     if (t.stage === 'arriving') {
-      if (!inLock.contains(player.position.x, player.position.z, player.base)) {
+      const p = inLock.local(player.position.x, player.position.z);
+      const clear = p.z < -AIRLOCK.length - 0.7 || Math.abs(p.x) > AIRLOCK.half + 0.8;
+      if (clear && !inLock.contains(player.position.x, player.position.z, player.base) && cur.collision.inside(player.position.x, player.position.z, 0.4, player.base)) {
         inLock.setDoor('far', 0);
         state.transit = null;
       }
@@ -939,8 +953,8 @@ async function start() {
   events.on('camera:detected', ({ id }) => {
     if (cur.n === 1) cur.flags.coverBlown = true;
     alarm.raise(ALARM_RAISE.camera, 'camera');
-    hud.toast((cur.cameraDefs[id]?.name ?? 'A CAMERA') + ' SAW YOU');
-    for (const g of cur.guards) g.hear(player.position, 0.6);
+    hud.toast((cur.cameraDefs[id]?.name ?? 'A CAMERA') + ' SAW YOU · SECURITY IS ON THE WAY', 3);
+    for (const g of cur.guards) g.hear(player.position, 1, { urgent: true });
   });
   events.on('alarm:lockdown', () => {
     alarm.setFloor(90, 'lockdown');
@@ -1068,25 +1082,111 @@ async function start() {
     hud.echo({ enabled: cur.n === 3, ...m });
   }
 
+  const trolley = new THREE.Group();
+  {
+    const steel = new THREE.MeshStandardMaterial({ color: 0x9aa3a6, metalness: 0.8, roughness: 0.35 });
+    const orange = new THREE.MeshStandardMaterial({ color: 0xd9822b, metalness: 0.3, roughness: 0.6 });
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.26, 0.34), orange);
+    plate.position.y = -0.06;
+    trolley.add(plate);
+    trolley.userData.wheels = [-0.1, 0.1].map((z) => {
+      const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.04, 14), steel);
+      wheel.rotation.z = Math.PI / 2;
+      wheel.position.set(0.04, 0, z);
+      trolley.add(wheel);
+      return wheel;
+    });
+    const hanger = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.42, 6), steel);
+    hanger.position.y = -0.38;
+    const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.5, 8), steel);
+    grip.rotation.z = Math.PI / 2;
+    grip.position.y = -0.6;
+    trolley.add(hanger, grip);
+    trolley.visible = false;
+    scene.add(trolley);
+    minimap.hideFromMap(trolley);
+  }
+  const zipPose = { cable: new THREE.Vector3(), dir: new THREE.Vector3(), side: new THREE.Vector3(), eye: new THREE.Vector3() };
+
+  function hangPose() {
+    const bones = wren.model.skeleton.bones;
+    const bone = (name) => bones.find((b) => b.name === name);
+    bone('arm--1')?.rotation.set(0, 0, -(Math.PI - 0.22));
+    bone('arm-1')?.rotation.set(0, 0, Math.PI - 0.22);
+    bone('elbow-0') && (bone('elbow-0').rotation.x = 0);
+    bone('elbow-1') && (bone('elbow-1').rotation.x = 0);
+    bone('leg--1') && (bone('leg--1').rotation.x = -0.35);
+    bone('leg-1') && (bone('leg-1').rotation.x = -0.2);
+    bone('knee-0') && (bone('knee-0').rotation.x = 0.5);
+    bone('knee-1') && (bone('knee-1').rotation.x = 0.3);
+  }
+
+  function endZip() {
+    trolley.visible = false;
+    avatar.visible = true;
+    zipRig.hide();
+  }
+
   function updateZip(dt) {
     const z = state.zip;
     z.elapsed += dt;
-    const mount = Math.min(1, z.elapsed / 0.7);
-    z.t = THREE.MathUtils.clamp((z.elapsed - 0.7) / 7.2, 0, 1);
+    const mount = Math.min(1, z.elapsed / 0.9);
+    z.t = THREE.MathUtils.clamp((z.elapsed - 0.9) / 7.6, 0, 1);
     const { start, end } = cur.props.zip;
     const e = Math.pow(z.t, 1.3);
-    camera.position.lerpVectors(start, end, e);
-    camera.position.y -= 1.1 + Math.sin(e * Math.PI) * 0.35;
-    camera.position.lerp(z.from, 1 - mount);
+    const sag = Math.sin(e * Math.PI) * 0.35;
+    zipPose.cable.lerpVectors(start, end, e);
+    zipPose.cable.y -= sag;
+    zipPose.dir.copy(end).sub(start).normalize();
+    zipPose.side.set(-zipPose.dir.z, 0, zipPose.dir.x).normalize();
     const wantLean = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
     z.lean += (wantLean - z.lean) * Math.min(1, dt * 4);
-    camera.position.x += z.lean * 0.25 * Math.sin(e * Math.PI);
-    tmp.look.copy(end).sub(start).normalize();
-    camera.rotation.set(-0.12 + Math.sin(elapsed * 7) * 0.008 * e, facing(tmp.look.x, tmp.look.z), -z.lean * 0.045);
-    camera.fov = 68 + Math.sin(e * Math.PI) * 8; camera.updateProjectionMatrix();
-    zipRig.update(mount, e, z.lean, elapsed);
-    if (z.t >= 1 && !z.done) {
+    const swing = Math.sin(elapsed * 2.2) * 0.05 * Math.sin(e * Math.PI) + z.lean * 0.25 * Math.sin(e * Math.PI);
+    const ride = facing(zipPose.dir.x, zipPose.dir.z);
+    trolley.visible = true;
+    trolley.position.copy(zipPose.cable);
+    trolley.rotation.set(0, ride + Math.PI, swing * 0.4);
+    for (const w of trolley.userData.wheels) w.rotation.x += dt * (z.t > 0 && z.t < 1 ? 40 : 0);
+    zipPose.eye.copy(zipPose.cable).addScaledVector(zipPose.side, swing);
+    zipPose.eye.y -= 1.1;
+    const outside = z.t > 0.32 && z.t < 0.7;
+    if (outside) {
+      zipRig.hide();
+      avatar.visible = true;
+      avatar.position.copy(zipPose.eye).setY(zipPose.eye.y - 1.55);
+      avatar.rotation.set(0, ride + Math.PI, swing * 0.5);
+      avatarBody.rotation.set(0, 0, 0); avatarBody.position.set(0, 0, 0); avatarBody.scale.set(1, 1, 1);
+      wren.play('idle');
+      wren.update(dt);
+      hangPose();
+      const k = (z.t - 0.32) / 0.38;
+      camera.position.copy(zipPose.eye)
+        .addScaledVector(zipPose.side, 2.4 - k * 0.5)
+        .addScaledVector(zipPose.dir, 1.6 - k * 3.4);
+      camera.position.y += 0.1 - k * 0.3;
+      camera.layers.enable(LAYER_AVATAR);
+      camera.lookAt(zipPose.eye.x, zipPose.eye.y - 0.15, zipPose.eye.z);
+      camera.fov = 66; camera.updateProjectionMatrix();
+    } else {
+      avatar.visible = false;
+      camera.layers.enable(LAYER_AVATAR);
+      camera.position.copy(zipPose.eye);
+      camera.position.lerp(z.from, 1 - mount);
+      let pitch = -0.12 + Math.sin(elapsed * 7) * 0.008 * e - (1 - mount) * 0.5;
+      if (z.t >= 1) {
+        z.land = (z.land ?? 0) + dt;
+        const k = Math.min(1, z.land / 0.9);
+        camera.position.addScaledVector(zipPose.dir, k * 1.2);
+        camera.position.y -= Math.sin(k * Math.PI) * 0.7 + k * 0.25;
+        pitch -= Math.sin(k * Math.PI) * 0.45;
+      }
+      camera.rotation.set(pitch, ride, -z.lean * 0.045);
+      camera.fov = 68 + Math.sin(e * Math.PI) * 8; camera.updateProjectionMatrix();
+      zipRig.update(z.t >= 1 ? Math.max(0, 1 - (z.land ?? 0) * 2) : mount, e, z.lean, elapsed);
+    }
+    if (z.t >= 1 && (z.land ?? 0) > 0.9 && !z.done) {
       z.done = true;
+      endZip();
       events.emit('zipline:complete', { id: 'roof-line' });
       complete(3, 'OUT OVER THE RAIN');
     }
@@ -1203,6 +1303,7 @@ async function start() {
     player.yaw += ((keys.ArrowLeft ? 1 : 0) - (keys.ArrowRight ? 1 : 0)) * 2.1 * dt;
     player.pitch = THREE.MathUtils.clamp(player.pitch + ((keys.ArrowUp ? 1 : 0) - (keys.ArrowDown ? 1 : 0)) * 1.5 * dt, -1.3, 1.3);
     player.moving = (f !== 0 || s !== 0) && state.stun <= 0;
+    if (!canStand(player.position.x, player.position.z)) unstick();
     stamina.update(dt, player.moving && profile.id === 'sprint');
     if (player.moving) {
       tmp.dir.set(s, 0, -f).normalize().applyAxisAngle(tmp.up, player.yaw).multiplyScalar(profile.speed * dt);
@@ -1296,6 +1397,20 @@ async function start() {
     state.stun = 0.5;
   }
 
+  function unstick() {
+    const { x, z } = player.position;
+    const level = (nx, nz) => cur.collision.inside(nx, nz, 0.35, player.base);
+    for (const ok of state.transit?.sealed ? [canStand] : [level, canStand]) {
+      for (let r = 0.1; r <= 1.6; r += 0.1) {
+        for (let a = 0; a < 24; a += 1) {
+          const nx = x + Math.cos(a / 24 * Math.PI * 2) * r, nz = z + Math.sin(a / 24 * Math.PI * 2) * r;
+          if (ok(nx, nz) && canStand(nx, nz)) { player.position.x = nx; player.position.z = nz; return true; }
+        }
+      }
+    }
+    return false;
+  }
+
   function updateExposure(dt) {
     let lit = state.mode !== 'night';
     if (!lit && !state.dampen) {
@@ -1328,7 +1443,7 @@ async function start() {
     if (cur.n === 2) {
       const panel = cur.use.tamper_panel;
       if (!cur.flags.sensorDisabled && near(player.position, panel.usePos, 1.4)) return { id: 'tamper_panel', text: 'HOLD E · ISOLATE TAMPER CIRCUIT', progress: (cur.flags.panelProgress ?? 0) / panel.holdSeconds };
-      if (cur.props.safe.open === 0 && near(player.position, cur.use.safe.usePos, 1.6)) return { id: 'safe', text: cur.flags.sensorDisabled ? 'E · CRACK THE SAFE' : 'TAMPER SENSOR LIVE · ISOLATE WEST SERVICE PANEL' };
+      if (cur.props.safe.open === 0 && !cur.flags.safeOpened && near(player.position, cur.use.safe.usePos, 1.6)) return { id: 'safe', text: cur.flags.sensorDisabled ? 'E · CRACK THE SAFE' : 'TAMPER SENSOR LIVE · ISOLATE WEST SERVICE PANEL' };
       if (!state.transit && near(player.position, cur.use.service_exit.usePos, 1.25)) return { id: 'service_exit', text: state.hasStar ? 'E · TAKE THE SERVICE FIRE DOOR' : 'SERVICE FIRE DOOR · RECOVER THE STAR FIRST' };
     }
     if (cur.n === 3) {
@@ -1519,9 +1634,17 @@ async function start() {
     if (!s) return;
     const snap = safe.snapshot();
     s.dial.rotation.z = -snap.dial / 100 * Math.PI * 2;
-    if (s.open > 0 && s.open < 1) {
-      s.open = Math.min(1, s.open + dt * 0.6);
-      s.hinge.rotation.y = -s.open * Math.PI * 0.6;
+    if (s.open > 0) {
+      const want = state.hasStar ? 0 : 1;
+      if (s.open !== want) {
+        s.open = want ? Math.min(1, s.open + dt * 0.6) : Math.max(0, s.open - dt * 0.45);
+        s.hinge.rotation.y = -s.open * Math.PI * 0.6;
+        if (s.open === 0) {
+          events.emit('door:opened', { id: 'safe', closing: true });
+          emitNoise(v3(cur.use.safe.usePos), RING_COLOURS.player, 3, { source: 'safe', damped: true, strength: 0.7 });
+          hud.toast('THE SAFE SWINGS SHUT BEHIND YOU');
+        }
+      }
     }
     if (!state.inSafe) return;
     const fb = safe.feedback();
@@ -1576,8 +1699,8 @@ async function start() {
     const col = cur.built.collision;
     if (sh.lift > 1.9) col.unblock('shutter');
     else {
-      const inDoor = Math.abs(player.position.x) < 2.4 && player.position.z < -19.7 && player.position.z > -20.5 && player.base < 10;
-      if (inDoor) player.position.z = player.position.z < -20.1 ? -20.65 : -19.6;
+      const inDoor = Math.abs(player.position.x) < 2.6 && player.position.z < -19.45 && player.position.z > -20.75 && player.base < 10;
+      if (inDoor) player.position.z = player.position.z < -20.1 ? -20.8 : -19.4;
       col.block('shutter', { pos: [0, 2, -20.1], size: [4.2, 4, 0.4] });
     }
     if (!f.pastShutter && player.position.z < -21.5 && player.base < 10) {
@@ -1771,6 +1894,7 @@ async function start() {
       }
       const menuDt = menuFrame;
       menuFrame = 0;
+      audio.siren(false);
       camera.layers.disable(LAYER_AVATAR);
       attractCamera(menuDt);
       updateCrowd(menuDt);
@@ -1814,6 +1938,8 @@ async function start() {
       onPulse: (g) => field.emit(tmp.next.set(g.position.x, 0.02, g.position.z), RING_COLOURS.guard, 6, { speed: 4.5, strength: 0.9, source: 'guard' })
     };
     if (playing && dt > 0) for (const g of cur.guards) g.update(dt, ctx);
+    const chased = cur.n === 2 && playing && dt > 0 && cur.guards.some((g) => g.state === 'pursue');
+    audio.siren(chased);
     if (playing && cur.cctv.feeds.length) cur.cctvSystem.update(dt, player.position, {
       clear: () => state.spawnGrace <= 0 && (cur.n !== 1 || !cover.safe)
     });
@@ -1853,7 +1979,7 @@ async function start() {
     state.sonarCooldown = Math.max(0, state.sonarCooldown - dt);
     const alarmGlow = Math.max(0, (alarmSnap.value - 25) / 75);
     fx.set({
-      alarm: state.mode === 'lockdown' ? 1 : alarmGlow * 0.6,
+      alarm: state.mode === 'lockdown' || chased ? 1 : alarmGlow * 0.6,
       glitch: state.mode === 'lockdown' ? 0.22 : 0,
       dampen: state.dampen ? 1 : state.safeGlow,
       damage: state.damage
@@ -2123,7 +2249,7 @@ async function start() {
         'Open hatch': () => { game.view(0, -65.8, 0, 0, 20); keys.KeyE = true; simulate(3.7); keys.KeyE = false;
           return check(cur.flags.hatch, 'roof hatch released'); },
         'Zipline ride': () => { useAt(0, -78, 0, 20); simulate(4); return check(Boolean(state.zip), 'trolley mounted; ride is animated'); },
-        'Finish ride': () => { simulate(5); return check(state.ended === 'won', 'line reaches the service roof'); },
+        'Finish ride': () => { simulate(6.5); return check(state.ended === 'won', 'line reaches the service roof'); },
         'CCTV view': () => { game.cctv(0); simulate(0.1); },
         'Close CCTV': () => { game.cctv(-1); simulate(0.1); },
       }, game.state);

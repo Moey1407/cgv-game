@@ -34,30 +34,30 @@ export function createLearningGuide() {
       return lesson('lobby', 'Leave normally', 'Access is ready. The Star is moved into the safe after closing; that is when you return.', 'E AT LOBBY EXIT', 'Return to the entrance and leave through the marked doors.');
     }
     if (s.level === 2) {
-      if (s.inSafe) return lesson('dial', 'Listen for the contact', 'Move the mouse slowly to turn the dial. Press E at the strongest click. Set all three tumblers.', 'MOUSE → E', 'Fast turning makes noise. Backspace closes the dial if Briggs returns.');
+      if (s.inSafe) return lesson('dial', 'Listen for the contact', 'Turn the dial slowly and stop on the strongest click. Three tumblers open the door.', '', 'Rushed turning is loud. Leave the dial if Briggs comes back.');
       if (!f.sensorDisabled) {
-        if (s.z > -7) return lesson('crawl-beam', 'Go under the first beam', 'Tonight you are trespassing. The first beam is too low to walk under.', 'HOLD Z + W', 'Keep Z held to crawl until you are clear of the beam.');
-        if (s.z > -13) return lesson('jump-beam', 'Go over the low beam', 'Release Z first. Move forward and jump over the next beam.', 'RELEASE Z · W + SPACE', 'Take a short run-up. Do not jump while crawling.');
-        if (s.z > -20) return lesson('moving-beam', 'Watch one full cycle', 'This beam moves. Wait for a high gap and crawl under, or time a jump over a low gap.', 'Z / SPACE', 'Observe before moving. A laser strike raises the alarm.');
-        return lesson('panel', 'Isolate the safe sensor', 'Follow the gold service-panel marker. Watch Briggs; crates hide you and a decoy draws him away.', 'HOLD E AT PANEL', 'The side vent is optional. Crouch or crawl, then E at its entrance.');
+        if (s.z > -7) return lesson('crawl-beam', 'Go under the first beam', 'Tonight you are trespassing. The first beam is too low to walk under.', '', 'Stay low until you are clear of the beam.');
+        if (s.z > -13) return lesson('jump-beam', 'Go over the low beam', 'This one sits near the floor. Stand up and clear it.', '', 'Take a short run-up first.');
+        if (s.z > -20) return lesson('moving-beam', 'Watch one full cycle', 'This beam moves. Wait for a gap, then go under it or over it.', '', 'Observe before moving. A laser strike raises the alarm.');
+        return lesson('panel', 'Isolate the safe sensor', 'Follow the gold service-panel marker. Watch Briggs; crates hide you and a decoy draws him away.', '', 'The side vent is an optional quiet route.');
       }
-      if (!f.safeOpened) return lesson('safe', 'Reach the safe', 'The tamper circuit is off. Approach the gold safe marker while Briggs is away.', 'E AT SAFE', 'Use the patrol countdown. Left click throws a decoy if you need time.');
-      if (!s.hasStar) return lesson('star', 'Take the Kestrel Star', 'Opening the safe did not put the diamond in your pocket.', 'E AT OPEN SAFE', 'Step up to the open safe and collect the Star.');
-      return lesson('fire-door', 'Get out of the vault', 'You have the Star. Return through the guarded passage to the service fire door.', 'E AT FIRE DOOR', 'Follow the gold marker; keep the Star and evidence on you.');
+      if (!f.safeOpened) return lesson('safe', 'Reach the safe', 'The tamper circuit is off. Approach the gold safe marker while Briggs is away.', '', 'Use the patrol countdown. A decoy buys you time.');
+      if (!s.hasStar) return lesson('star', 'Take the Kestrel Star', 'Opening the safe did not put the diamond in your pocket.', '', 'Step up to the open safe and collect the Star.');
+      return lesson('fire-door', 'Get out of the vault', 'You have the Star. Return through the guarded passage to the service fire door.', '', 'Follow the gold marker; keep the Star and evidence on you.');
     }
     if (!f.pastShutter) {
-      if (s.echo === 'recording') return lesson('record-hold', 'Record the override', 'Keep E held at the yellow override for about six seconds. Then press R again to rewind and replay.', 'HOLD E · THEN R', `Recorded: ${Math.floor(s.echoElapsed ?? 0)} seconds. Your Echo must hold long enough for you to cross.`);
-      if (s.echo === 'replaying') return lesson('cross-shutter', 'Let your Echo hold it', 'The replay repeats your E input. Leave it at the override and cross the open shutter now.', 'W THROUGH SHUTTER', 'If it closes too soon, record a longer hold and retry.');
-      return lesson('record-start', 'Make a second operator', 'Dex cut the radio, not your local rig. Go to the gold override marker and start recording.', 'R AT OVERRIDE', 'Next, hold E to open the shutter. Your Echo will repeat that input.');
+      if (s.echo === 'recording') return lesson('record-hold', 'Record the override', 'Keep holding the yellow override for about six seconds, then rewind and replay.', '', `Recorded: ${Math.floor(s.echoElapsed ?? 0)} seconds. Your Echo must hold long enough for you to cross.`);
+      if (s.echo === 'replaying') return lesson('cross-shutter', 'Let your Echo hold it', 'The replay repeats what you did. Leave it at the override and cross the open shutter now.', '', 'If it closes too soon, record a longer hold and retry.');
+      return lesson('record-start', 'Make a second operator', 'Dex cut the radio, not your local rig. Go to the gold override marker and start an Echo.', '', 'Your Echo will repeat whatever you do at the switch.');
     }
-    if (s.base < 10) return lesson('stairs', 'Reach the stairs', 'Avoid the patrols and head for the gold stairwell marker. The duct is a quieter optional route.', 'E AT STAIRS · W TO CLIMB', 'Q pauses and opens the full controls. Escape closes a device first.');
+    if (s.base < 10) return lesson('stairs', 'Reach the stairs', 'Avoid the patrols and head for the gold stairwell marker. The duct is a quieter optional route.', '', 'The sweep team listens for footsteps. Move slowly near them.');
     if (!f.armed) {
-      if (s.echo === 'recording') return lesson('plate-record', 'Stay on this plate', 'Stand still on one sensor for about six seconds. Press R again, then walk onto the other sensor.', 'WAIT · R · OTHER PLATE', 'Your replay occupies the first plate while you occupy the second.');
-      if (s.echo === 'replaying') return lesson('plate-replay', 'Take the other plate', 'Leave the first sensor to your Echo. Stand on the other until both lock green.', 'W A S D', 'Both plates need a different operator at the same time.');
-      return lesson('plate-start', 'One person, two plates', 'Step onto either floor sensor, then record yourself standing there.', 'R ON A SENSOR PLATE', 'You need an Echo on one plate and Wren on the other.');
+      if (s.echo === 'recording') return lesson('plate-record', 'Stay on this plate', 'Stand still on one sensor for about six seconds, then rewind and take the other sensor.', '', 'Your replay occupies the first plate while you occupy the second.');
+      if (s.echo === 'replaying') return lesson('plate-replay', 'Take the other plate', 'Leave the first sensor to your Echo. Stand on the other until both lock green.', '', 'Both plates need a different operator at the same time.');
+      return lesson('plate-start', 'One person, two plates', 'Step onto either floor sensor, then record yourself standing there.', '', 'You need an Echo on one plate and Wren on the other.');
     }
-    if (!f.hatch) return lesson('hatch', 'Release the roof hatch', 'Both plates are locked. Use the gold override marker. Three evidence files will upload here if collected.', 'HOLD E AT OVERRIDE', 'Wait for the progress bar to fill.');
-    return lesson('zipline', 'Your way out', 'Reach the line you rigged before the job. Clip on to escape.', 'E · THEN A / D TO LEAN', 'The building timer stops once you are on the line.');
+    if (!f.hatch) return lesson('hatch', 'Release the roof hatch', 'Both plates are locked. Use the gold override marker. Three evidence files will upload here if collected.', '', 'Wait for the progress bar to fill.');
+    return lesson('zipline', 'Your way out', 'Reach the line you rigged before the job. Clip on to escape.', '', 'The building timer stops once you are on the line.');
   }
   return { update, reset };
 }
