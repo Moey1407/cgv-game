@@ -5,10 +5,16 @@ const cloneFrame = (frame) => ({
   yaw: frame.yaw ?? 0,
   pitch: frame.pitch ?? 0,
   crouching: Boolean(frame.crouching),
-  interacting: Boolean(frame.interacting)
+  interacting: Boolean(frame.interacting),
+  mode: frame.mode ?? 'walk'
 });
 
 const lerp = (a, b, t) => a + (b - a) * t;
+
+export function lerpAngle(a, b, t) {
+  const delta = Math.atan2(Math.sin(b - a), Math.cos(b - a));
+  return a + delta * t;
+}
 
 export function createEchoSystem({ events, sampleHz = 20, maxSeconds = 20 } = {}) {
   const sampleStep = 1 / sampleHz;
@@ -71,10 +77,11 @@ export function createEchoSystem({ events, sampleHz = 20, maxSeconds = 20 } = {}
       x: lerp(a.x, b.x, mix),
       y: lerp(a.y, b.y, mix),
       z: lerp(a.z, b.z, mix),
-      yaw: lerp(a.yaw, b.yaw, mix),
+      yaw: lerpAngle(a.yaw, b.yaw, mix),
       pitch: lerp(a.pitch, b.pitch, mix),
       crouching: mix < 0.5 ? a.crouching : b.crouching,
       interacting: mix < 0.5 ? a.interacting : b.interacting,
+      mode: mix < 0.5 ? a.mode : b.mode,
       done: false
     };
   }

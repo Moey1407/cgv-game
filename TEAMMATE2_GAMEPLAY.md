@@ -23,8 +23,9 @@ This branch owns behaviour, not final art, dialogue, level dressing or deploymen
 
 ## Shared integration contracts
 
-- `src/core/level-schema.js`: shared contract for level-owned cameras, pickups and checkpoints.
-- `src/gameplay/zipline.js`: map-independent mount, ride, lean, drop and completion logic ready for teammate-owned anchors.
+- `levels/schema.js`: the active data-driven museum contract used by all three playable levels.
+- `src/core/level-schema.js`: the earlier gameplay hook contract retained for compatibility tests, not the lead level format.
+- `src/gameplay/zipline.js`: map-independent mount, ride, lean, drop and completion logic ready for teammate-owned anchors or a later replacement of the current scripted finale.
 
 ## Ownership boundary
 
@@ -47,7 +48,11 @@ Visual guardrails for the final pass: every visible element must communicate a g
 
 Huzaifa can subscribe visual effects to these events. Teammate 3 can subscribe UI, radio and audio without importing or changing gameplay internals.
 
-## Current controls
+## Merged into the museum
+
+Huzaifa's data-driven museum and renderer are now the branch baseline. These systems run in that version through `src/main.js`: alarm, stamina and movement profiles, rechargeable decoys, pickpocketing Okafor's keycard, pickups, four-feed CCTV viewing/detection/looping, local/full-sonar minimap states, the guided Echo flow, safecracking and checkpoints. Guard hearing, sight, pursuit and search live in `src/game/guardAI.js`. The Echo replay turns the short way round (`lerpAngle`) and records the movement mode.
+
+## Original controls
 
 - `Shift`: quiet walk
 - `C`: crouch
@@ -57,12 +62,12 @@ Huzaifa can subscribe visual effects to these events. Teammate 3 can subscribe U
 - `G`: sonar in Levels 2 and 3
 - `E`: interact, pickpocket or hold an override
 - `Q`: start/stop Echo recording in Level 3
-- `Tab`: open/close the Level 1 CCTV console
-- `1–4` in CCTV: select one of the four visible feeds
+- `Tab`: open/close the CCTV wall
+- `1–4` in CCTV: select one of the simultaneously visible feeds
 - `E` in CCTV: loop the selected feed for eight seconds
 - Mouse + `E` at the correct Level 2 case: turn and set safe tumblers
 
-Reserved zipline controls when a future level supplies anchors:
+Reserved controller API for the team (the current Level 3 finale is still scripted):
 
 - `E`: mount the nearest anchor
 - `A / D`: lean left or right while riding

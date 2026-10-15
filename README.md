@@ -1,78 +1,92 @@
-# SIGNAL - Alpha
+# SIGNAL
 
-SIGNAL is a browser-based Three.js stealth game for COMS3006A / COMS3025A. Sound is both the player's map and their greatest risk: every footstep, decoy, guard pulse, and active sonar wave reveals the Halvard Archive through a custom shader.
+A Three.js heist game for COMS3006A / COMS3025A. Wren, a safecracker who works by ear, hits the Varga Museum over three visits: the closing-night gala, a return at night, and a lockdown escape. Sound shows up as rings of light on the floor, and the same rings are how guards notice you.
 
-You play Imani Sulé, a former Halvard Archive conservator. Eighteen months after the archive dismissed her, she returns to recover Accession H-1968-07, a sealed recording reel that was removed from the catalogue and scheduled for destruction. Her homemade echo rig is off-band, so her returns appear cyan while the guards' licensed rigs answer in red.
+## Run it
 
-## Three-level mission
+```bash
+npm ci
+npm run dev
+```
 
-1. **Upper Galleries** - cross the archive's low-lit public floor, learn sonar, quiet movement and decoys, steal the staff key from the east security room, and descend to the deep store.
-2. **Deep Store** - scan three sealed cases, compare their acoustic patterns with the signature stored on the key, and recover H-1968-07 from the matching case. The signatures randomize on each new run; retry preserves the current puzzle. A patrol, moving laser grids and pressure plates keep the search dangerous.
-3. **Containment** - removing the reel cuts the licensed echo network and brings down a sweep team. Carry H-1968-07 through two noisy overrides with two independent guards, then reach the emergency lift. The reel itself is silent; footsteps, guards, sonar and overrides remain the sources of exposure.
+Open http://localhost:5173/. The title page runs a slow camera through the museum. Press Play, read the briefing for the level, then press Enter the Museum to lock the mouse and start.
 
-Opening the Galleries descent advances to Level 2. Recovering H-1968-07 triggers containment and advances directly to Level 3 with the reel already carried. Reaching the emergency lift completes the current run. Number keys 1-3 remain available as practice jumps for demonstrations; later-level practice starts include the correct inventory. Failure retries the current level with its starting inventory and closed doors.
+| Key | Action |
+| --- | --- |
+| W A S D | Move (running is the default) |
+| Shift | Walk quietly |
+| C / Z | Crouch / crawl |
+| X | Sprint (uses stamina) |
+| Space | Jump |
+| Mouse or arrow keys | Look |
+| G | Sonar pulse; briefly reveals the complete tactical map |
+| Left click | Throw a decoy (three charges, one restored every six seconds) |
+| E | Interact: take loot, swipe the keycard, use a vent or the stairs, set a tumbler, loop the selected CCTV feed |
+| Hold E | Pickpocket from behind a guard, hold an override |
+| Q | Level 3 only: record your Echo, press again to rewind and replay it |
+| Tab | Open/close the CCTV wall; all feeds remain visible |
+| 1–4 | Select a CCTV feed; E loops the selected feed for eight seconds |
+| F | Dampener (your rings stop being heard while it lasts) |
+| P / M | Toggle picture-in-picture / minimap. The map is local until sonar resolves the full floor |
+| Esc | Pause (resume, restart from checkpoint, options, quit to title) |
+| R / N | After a capture: restart from checkpoint / back to title |
 
-## Controls
+## The three levels
 
-- **WASD** - move
-- **Mouse** - look
-- **Shift** - hold to walk quietly (Valorant-style); normal movement runs
-- **C** or **Ctrl** - crouch / quiet movement
-- **Z / X** - crawl / sprint (sprint is used in Level 3)
-- **Space / G** - Level 1 sonar; Levels 2–3 jump / sonar respectively
-- **Left click** - throw a sound decoy (3 charges; one charge returns every 6 seconds)
-- **Tab** - open/close the Level 1 four-feed CCTV console; `1–4` selects a feed and `E` loops it
-- **Q** - record, rewind and replay Echo in Level 3
-- **E** - take the staff key / open the descent in Level 1; try a scanned case in Level 2; hold to override doors in Level 3. Interactions require range, clear access and unpaused gameplay. Case readers and door overrides are accessed from their front faces; overrides also require facing the door.
-- **1 / 2 / 3** - practice-select a level
-- **R** - retry the current level after failure; restart the run after success
-- **Esc** - release the mouse and pause
+Each level has its own briefing page. Finishing one loads the next and shows its briefing. Cash and evidence carry across the whole run, and the grade and ending come at the end of Level 3.
 
-## Technical evidence
+1. **The Gala.** The Grand Hall during the party. Use the cameras (Tab) to watch Okafor, lift his keycard by holding E behind him, grab what you can from the tables, then swipe the keycard at the vault wing door at the end of the corridor.
+2. **The Vault.** The next night, in the dark. Crawl under the first laser, jump the second, time the third, or crouch into the vent on the west wall to skip most of it. Briggs loops the vault room. Crack the three tumblers by ear. Turning fast is loud.
+3. **The Double-Cross.** Dex sells you out and the building starts sealing (four minutes). The Echo comes online: record yourself holding the shutter override, rewind, and walk through while your Echo holds it. Lure the sweep team away from the stairwell, then put you and your Echo on both plates on the top floor to arm the roof override. Hold it to open the hatch and take the zipline.
 
-- Three.js realtime 3D scene with procedural archive geometry
-- Original GLSL vertex and fragment shader for expanding acoustic wavefronts
-- High-performance static Vite deployment with relative asset paths
-- Cacheable Three.js vendor chunk with a compact game entry (approximately 20 KB gzip)
-- Adaptive render resolution and suspended idle rendering to reduce GPU work
-- Keyboard, mouse, pointer-lock, audio, collision, interaction, and state-transition systems
-- Independent guard routes and hearing targets; Level 3 adds exposure/FOV/line-of-sight suspicion, pursuit and bounded last-seen search
-- Speed-driven player noise, three-charge throwable decoys, sonar cooldown, moving lasers, floor traps, extraction, and scoring
-- Level-specific procedural Web Audio ambience and transition cues with no external sound files
-- Dedicated 2D tactical map showing only nearby geometry until active sonar temporarily resolves the complete floor
-- Responsive cinematic UI, level transitions, progress indicators, success, failure, and restart screens
-- No external runtime assets, database, or backend services
+Footsteps, sonar, lasers, cameras and the safe all raise the alarm. It climbs from Quiet to Suspicious, Alert and Lockdown, and guards get faster as it rises. Guards hear rings, see you when you are lit and inside their view cone, then investigate, pursue and search. Getting caught sends you back to the last checkpoint.
 
-## Local development
+The game starts on medium quality and drops to low by itself if it runs under 40 FPS. The FPS counter is in the bottom-left corner.
 
-1. Install dependencies with `npm install`.
-2. Start development with `npm run dev`.
-3. Build production files with `npm run build`.
-4. Test the production build with `npm run preview`.
+## Build for the LAMP server
 
-The production output is in `dist/`. Upload the contents of `dist/` to the department LAMP web directory.
+```bash
+npm run build
+```
 
-## Main source files
+Zip the contents of `dist/` so `index.html` sits at the top of the archive. All paths are relative, so it works from a subfolder.
 
-- `src/main.js` - renderer, controls, state, guard AI, interaction, progression, and audio
-- `src/stages.js` - Deep Store and Containment geometry, hazards, objectives, patrol routes, and level settings
-- `src/galleries.js` - Level 1 security room, keycard, vault entrance and fixed mission signs
-- `src/vault.js` - Level 2 cases, signature comparison, sonar arrival and puzzle/reset state
-- `src/navigation.js` - Levels 2–3 guard grid routing, obstacle clearance and swept movement checks
-- `src/escape.js` - carried-reel escape, cancellable door overrides, collision updates and final exit
-- `src/visibility.js` - acoustic exposure, independent hearing/decoy commitment and Level 3 visual detection
-- `src/interactions.js` - stage-filtered range and wall-access checks
-- `src/shaders.js` - custom acoustic wavefront shader
-- `src/styles.css` and `src/screens.css` - HUD and screen presentation
+## Layout
 
-Focused checks: `node tests/galleries.test.js`, `node tests/vault.test.js` and `node tests/escape.test.js` (23 checks total). Zidan confirmed Level 1 and Level 2's revised spawn/patrol/randomization in the browser. Level 3 browser acceptance and difficulty tuning remain pending. Scored time, AI, hazards, projectiles, cooldowns and wave aging freeze while paused. Focus loss clears held input and cancels overrides.
+| Path | What it is |
+| --- | --- |
+| `index.html`, `src/main.js`, `src/styles.css` | The game page, the game loop and controls |
+| `src/world/hall.js` | The Grand Hall and vault corridor (Level 1) |
+| `src/world/levelBuilder.js` | Builds Levels 2 and 3 from their data files: floors, walls, ceilings, lights, rain, collision and line of sight |
+| `src/world/levelProps.js` | Per-level props: loot, keycard reader, safe and dial, vents, shutter, plates, hatch, zipline |
+| `levels/` | Level data (teammate 3), with `levels/index.js` gathering all three |
+| `src/screens.js`, `src/story.js`, `src/audio.js` | Title page, briefings, pause, results, Dex's radio and sound (teammate 3) |
+| `src/render/` | The rendering layer (Huzaifa) |
+| `src/gameplay/`, `src/core/` | Gameplay systems and the event bus (teammate 2), including the reserved map-independent zipline controller |
+| `src/game/guardAI.js`, `src/game/hud.js` | Guard behaviour and the HUD that connect the two |
+| `public/models/`, `public/textures/` | Character models and paintings |
+| `tests/` | Unit tests, run with `npm test` |
 
-Sonar responses animate for 10 seconds; scanned patterns remain in the comparison HUD until retry. Only player sonar scans cases; footsteps, guard waves and decoys do not. Case locations stay fixed; their echo assignments and the key target change. Reload for a new campaign or press 2 for a fresh practice puzzle; consecutive rolls can repeat by chance.
+### Rendering layer
 
-Level 3 exposure uses the same spherical wave bands as the shader (`WAVE_BAND`, `ECHO_OFFSET`, `ECHO_BAND` in `src/shaders.js`) with a 0.65-second visibility grace period. Seeing an exposed player for 0.5 seconds starts pursuit. Cover blocks vision; search uses the last seen position and ends after four seconds. Decoys give a 5-second investigation commitment while visual detection can still interrupt it.
+| File | Provides |
+| --- | --- |
+| `soundField.js` | Sound rings on lit materials, injected with `onBeforeCompile`. `emit(position, colour, radius)`, `update(dt)`, `patch(material)`, `reached(point, ring)` |
+| `materials.js` | Marble, damask and steel textures with generated normal maps |
+| `lighting.js` | Gala, night and lockdown lighting, rotating beacons |
+| `skybox.js` | Night sky shader with stars, moon, clouds and a city skyline |
+| `postfx.js` | Bloom plus a grading shader: vignette, grain, alarm pulse, glitch, dampener, damage. Quality presets |
+| `cctv.js` | Security cameras, CRT shader, camera looping, picture-in-picture, `canSee(index, point)` |
+| `minimap.js` | Orthographic top-down map rendered from a real camera |
+| `lasers.js` | Laser beam shader, rise / sweep / blink patterns, `hits(point, radius)` |
+| `hologram.js` | Echo hologram shader with scanlines, rim glow and dissolve |
+| `props.js` | Chandelier, framed painting, cocktail table, velvet rope, column, banner |
+| `characters.js` | Model loading, animation, facing offsets, blob shadows |
+| `dispose.js` | Frees geometry, materials and textures when a level unloads |
 
 ## Credits
 
-- Three.js - MIT Licence
-- Vite - MIT Licence
-- All geometry, shaders, interface graphics, game logic, and sound synthesis in this Alpha are original procedural work created for SIGNAL.
+- Three.js and Vite, MIT Licence.
+- Soldier, Xbot and Michelle models and animations from the Three.js examples (Mixamo, Adobe).
+- Public-domain paintings: The Starry Night (van Gogh), The Scream (Munch), The Great Wave off Kanagawa (Hokusai), The Shipwreck (Turner).
+- Everything else was made by the SIGNAL team.

@@ -1,136 +1,154 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#03070d" />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Ccircle cx=%2732%27 cy=%2732%27 r=%278%27 fill=%27%2372efff%27/%3E%3Ccircle cx=%2732%27 cy=%2732%27 r=%2724%27 fill=%27none%27 stroke=%27%2372efff%27 stroke-width=%273%27/%3E%3C/svg%3E" />
-  <meta name="description" content="SIGNAL — a stealth game where sound is the only thing you can see." />
-  <title>SIGNAL — Alpha</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIGNAL</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="./src/styles.css">
 </head>
-<body>
-  <canvas id="game" aria-label="SIGNAL 3D game canvas"></canvas>
-  <div id="grain" aria-hidden="true"></div>
-  <div id="vignette" aria-hidden="true"></div>
-  <div id="dampener-veil" aria-hidden="true"></div>
-
-  <header id="hud" class="is-hidden">
-    <div class="stage-lockup"><span>LOCATION</span><strong id="stage-label">ACT I / UPPER GALLERIES</strong><i id="practice-flag" class="practice-flag is-hidden">PRACTICE</i></div>
-    <div class="objective-block"><span class="eyebrow">CURRENT OBJECTIVE</span><strong id="objective">Recover a staff key, then descend to the deep store</strong><div id="level-progress" class="level-progress"><i class="active">01</i><i>02</i><i>03</i></div></div>
-    <div class="status-cluster">
-      <div id="movement-state" class="movement-state">RUNNING</div>
-      <div class="noise-readout"><span>NOISE</span><div class="noise-track"><i id="noise-fill"></i></div></div>
-      <div id="surface-state" class="surface-state is-hidden">CARPET</div>
-      <div id="guard-state" class="guard-state">UNDETECTED</div>
-    </div>
-  </header>
-
-  <div id="reticle" class="is-hidden" aria-hidden="true"><i></i></div>
-  <section id="cctv-filter" class="cctv-filter is-hidden" aria-label="Security camera console">
-    <div class="cctv-grid">
-      <div class="cctv-cell selected" data-cctv-index="0"><span>1 · ATRIUM</span><b>LIVE</b></div>
-      <div class="cctv-cell" data-cctv-index="1"><span>2 · WEST WING</span><b>LIVE</b></div>
-      <div class="cctv-cell" data-cctv-index="2"><span>3 · TRANSIT</span><b>LIVE</b></div>
-      <div class="cctv-cell" data-cctv-index="3"><span>4 · NORTH HALL</span><b>LIVE</b></div>
-    </div>
-    <div class="cctv-console"><strong>SECURITY</strong><span><kbd>1–4</kbd> SELECT CAMERA</span><span><kbd>E</kbd> LOOP SELECTED FEED</span><span><kbd>TAB</kbd> CLOSE</span></div>
-  </section>
-  <div id="vault-signature" class="vault-signature is-hidden" aria-label="Acoustic signature comparison"></div>
-  <section id="safecrack" class="safecrack is-hidden" aria-label="Vault safe dial">
-    <span class="safe-kicker">MECHANICAL OVERRIDE // CASE LOCK</span>
-    <div class="safe-dial-wrap">
-      <div id="safe-dial" class="safe-dial"><i></i><b id="safe-number">00</b></div>
-      <div id="safe-signal" class="safe-signal"><i></i></div>
-    </div>
-    <strong id="safe-progress">TUMBLER 1 / 3</strong>
-    <p id="safe-hint">MOVE MOUSE LEFT / RIGHT SLOWLY · PRESS E TO SET · ESC TO CANCEL</p>
-  </section>
-  <div id="door-override" class="door-override is-hidden"><span id="override-text"></span><div class="override-track"><i id="override-fill"></i></div></div>
-  <div id="interaction" class="interaction is-hidden"></div>
-  <aside id="lesson" class="lesson is-hidden">
-    <span id="lesson-step" class="lesson-step">1 / 6</span>
-    <strong id="lesson-title">LOOK AROUND</strong>
-    <span id="lesson-hint">Move the mouse, or hold the arrow keys.</span>
-  </aside>
-  <div id="toast" class="toast is-hidden" role="status"></div>
-  <div class="ability-stack">
-    <div id="sonar-status" class="sonar-status is-hidden">SONAR READY <kbd>SPACE</kbd></div>
-    <div id="decoy-status" class="decoy-status is-hidden">DECOY ×3 <kbd>CLICK</kbd></div>
-    <div id="dampener-status" class="decoy-status is-hidden">DAMPENER READY <kbd>F</kbd></div>
-    <aside id="echo-status" class="echo-panel is-hidden">
-      <div class="echo-heading"><span id="echo-step">ECHO · READY</span><b id="echo-time">20.0s MAX</b></div>
-      <strong id="echo-action"><kbd>Q</kbd> START RECORDING</strong>
-      <span id="echo-help">Record a path you want Echo to repeat.</span>
-      <div class="echo-track"><i id="echo-fill"></i></div>
-    </aside>
-    <div id="exposure-state" class="sonar-status is-hidden">REEL SECURED // LOW EXPOSURE</div>
+<body class="in-menu">
+<canvas id="view"></canvas>
+<div id="loading" class="loading">
+  <div class="loading-box">
+    <b class="logo">SIGNAL</b>
+    <span>LOADING THE VARGA MUSEUM</span>
+    <div class="loading-track"><i id="loading-fill"></i></div>
+    <small id="loading-tip"></small>
   </div>
-  <aside id="minimap" class="minimap is-hidden" aria-label="Museum floor minimap"><canvas id="map-canvas" class="map-canvas" width="440" height="304"></canvas><span>TACTICAL MAP <b id="map-status">LIVE</b></span><div class="map-grid"></div><div class="map-legend"><i class="you"></i>YOU <i class="target"></i>TARGET <i class="hostile"></i>GUARD</div></aside>
-
-  <section id="start-screen" class="screen start-screen">
-    <div class="start-copy">
-      <div class="kicker"><span></span> HALVARD ARCHIVE / 02:17</div>
-      <h1>SIGNAL</h1>
-      <p class="tagline">Sound is the only thing you can see.</p>
-      <p class="premise"><strong>Imani Sulé</strong> spent eight years preserving Halvard&rsquo;s collection. Eighteen months after they dismissed her, she returns for the recording reel they erased from the catalogue&mdash;before it is destroyed at dawn.</p>
-      <div class="story-brief" aria-label="Three act mission">
-        <div><b>01 / THE KEY</b><span>Cross the low-lit upper galleries and enter the security office.</span></div>
-        <div><b>02 / THE REEL</b><span>Find H-1968-07 by matching its acoustic signature.</span></div>
-        <div><b>03 / THE ESCAPE</b><span>Survive containment and reach the emergency lift.</span></div>
-      </div>
-      <div class="start-actions">
-        <button id="start-button" class="primary-button"><span>ENTER THE ARCHIVE</span><b>ENTER</b></button>
-        <button id="training-button" class="primary-button secondary"><span>TRAINING FLOOR</span><b>T</b></button>
-      </div>
-      <div class="controls-grid">
-        <div><kbd>WASD</kbd><span>MOVE</span></div><div><kbd>MOUSE</kbd><span>LOOK</span></div>
-        <div><kbd>&#8592;&#8593;&#8595;&#8594;</kbd><span>LOOK (KEYS)</span></div><div><kbd>SHIFT</kbd><span>WALK / QUIET</span></div>
-        <div><kbd>C / Z</kbd><span>CROUCH / CRAWL</span></div><div><kbd>F</kbd><span>DAMPENER</span></div>
-        <div><kbd>CLICK</kbd><span>THROW DECOY</span></div><div><kbd>RIGHT CLICK</kbd><span>AIM THROW</span></div>
-        <div><kbd>E</kbd><span>INTERACT</span></div><div><kbd>SPACE / G</kbd><span>JUMP / SONAR</span></div>
-        <div><kbd>X</kbd><span>SPRINT</span></div><div><kbd>Q</kbd><span>RECORD ECHO (L3)</span></div>
-        <div><kbd>TAB</kbd><span>CCTV FEEDS (L1)</span></div>
-        <div><kbd>1/2/3</kbd><span>PRACTICE SELECT</span></div>
-        <div><kbd>R</kbd><span>RETRY</span></div>
-      </div>
-      <p class="premise surface-hint">Your off-band echo rig draws the world in cyan. The guards&rsquo; licensed rigs answer in red. Every pulse helps you see&mdash;and helps them find you.</p>
+</div>
+<div class="top-left">
+  <div id="mode" class="mode">LEVEL 1 · THE GALA · 19:40</div>
+  <div id="timer" class="timer is-hidden"></div>
+  <div id="objective" class="objective">Lift Okafor's keycard</div>
+</div>
+<div id="alarm" class="alarm quiet">
+  <span class="alarm-name">ALARM</span><strong id="alarm-label">QUIET</strong>
+  <div class="alarm-track"><i id="alarm-fill"></i></div>
+  <span id="guard-state" class="guard-state">GUARDS · PATROL</span>
+</div>
+<div class="status">
+  <div class="status-row"><span id="movement">RUNNING</span><div class="stamina"><i id="stamina-fill"></i></div></div>
+  <div class="status-row items"><span id="item-keycard">KEYCARD —</span><span id="item-take">TAKE $0</span><span id="item-evidence">EVIDENCE 0/1</span><span id="item-decoy">DECOY ×3</span></div>
+  <div id="echo-state" class="echo-state is-hidden">
+    <div class="echo-head"><strong id="echo-step">ECHO · READY</strong><span id="echo-time">20.0s MAX</span></div>
+    <b id="echo-action">Q · START RECORDING</b>
+    <p id="echo-help">Record a path, then press Q again to rewind and replay it.</p>
+    <div class="echo-track"><i id="echo-fill"></i></div>
+  </div>
+</div>
+<div id="stats" class="stats"></div>
+<div id="toast" class="toast is-hidden" role="status"></div>
+<div id="prompt" class="prompt is-hidden"><span id="prompt-text"></span><div class="prompt-track"><i id="prompt-fill"></i></div></div>
+<div id="radio" class="radio is-hidden" data-who="dex" aria-live="polite"><span class="radio-who">DEX · RADIO</span><p class="radio-text"></p></div>
+<div id="bark" class="bark is-hidden"><b class="bark-who"></b><span class="bark-text"></span></div>
+<aside id="evidence-card" class="evidence-card is-hidden"><span class="evidence-kicker"></span><h3 class="evidence-title"></h3><p class="evidence-body"></p></aside>
+<div id="pip-frame" class="frame pip"><span>LAST CCTV FEED</span></div>
+<div id="map-frame" class="frame map"><span>TACTICAL MAP</span></div>
+<div id="feed" class="feed is-hidden">
+  <div id="cctv-grid" class="cctv-grid">
+    <div class="cctv-cell" data-feed="0"><div><span class="rec">LIVE</span><b></b><small></small></div></div>
+    <div class="cctv-cell" data-feed="1"><div><span class="rec">LIVE</span><b></b><small></small></div></div>
+    <div class="cctv-cell" data-feed="2"><div><span class="rec">LIVE</span><b></b><small></small></div></div>
+    <div class="cctv-cell" data-feed="3"><div><span class="rec">LIVE</span><b></b><small></small></div></div>
+  </div>
+  <div class="feed-console"><span>SECURITY DESK</span><b id="feed-name"></b><span id="feed-state"></span></div>
+  <div class="feed-keys">1–4 SELECT FEED · E LOOP 8s · TAB OR Q EXIT</div>
+</div>
+<section id="safe" class="safe is-hidden" aria-label="Vault dial">
+  <span class="safe-kicker">VAULT DIAL</span>
+  <div class="safe-face"><div id="safe-dial" class="safe-dial"><i></i></div><b id="safe-number">00</b></div>
+  <strong id="safe-tumbler">TUMBLER 1 / 3</strong>
+  <div class="safe-signal-track"><i id="safe-signal"></i></div>
+  <p>Move the mouse slowly. Press E when the signal peaks. Fast turning is loud. Q to step back.</p>
+</section>
+<section id="end" class="end is-hidden">
+  <span id="end-kicker" class="kicker"></span>
+  <h2 id="end-title"></h2>
+  <p id="end-copy"></p>
+  <p id="end-stats" class="end-stats"></p>
+  <p class="end-keys">R restart from checkpoint · N back to title</p>
+</section>
+<section id="home" class="page home is-hidden" aria-label="Title">
+  <div class="home-panel">
+    <span class="kicker">THE VARGA MUSEUM · CLOSING NIGHT</span>
+    <b class="logo home-logo">SIGNAL</b>
+    <p class="home-tag">You hear the building. It hears you back. One safecracker, one rig that turns sound into light, and three chances to get out with the Kestrel Star.</p>
+    <div class="buttons column home-buttons">
+      <button type="button" class="primary" data-action="play">PLAY</button>
+      <button type="button" data-action="options">OPTIONS</button>
+      <button type="button" data-action="credits">CREDITS</button>
     </div>
-    <div class="start-visual" aria-hidden="true">
-      <div class="orb orb-one"></div><div class="orb orb-two"></div><div class="orb-core"></div><div class="scan-line"></div>
-      <span class="visual-label label-a">PLAYER / CYAN</span><span class="visual-label label-b">HOSTILE / RED</span>
+    <small class="home-foot">Best with headphones. The mouse locks when you enter, Esc frees it.</small>
+  </div>
+</section>
+<section id="briefing" class="page briefing is-hidden" aria-label="Briefing">
+  <div class="briefing-panel">
+    <div class="briefing-steps"></div>
+    <span class="kicker briefing-kicker"></span>
+    <h2 class="briefing-title"></h2>
+    <span class="briefing-place"></span>
+    <div class="briefing-body"></div>
+    <h3>Tonight</h3>
+    <ol class="briefing-objectives"></ol>
+    <h3>Controls</h3>
+    <ul class="controls"></ul>
+    <div class="buttons">
+      <button type="button" class="primary" data-action="enter">ENTER THE MUSEUM</button>
+      <button type="button" data-action="options">OPTIONS</button>
+      <button type="button" data-action="home">TITLE</button>
     </div>
-    
-  </section>
-
-  <section id="stage-transition" class="stage-transition is-hidden" aria-live="polite">
-    <span id="transition-kicker" class="kicker">STAFF KEY ACQUIRED // DESCENDING</span>
-    <h2 id="transition-title">DEEP STORE</h2>
-    <p id="transition-copy">The archive catalogues sealed material by resonance. Find the reel that answers like the key.</p>
-  </section>
-
-  <section id="result-screen" class="screen result-screen is-hidden">
-    <div class="result-card">
-      <span id="result-kicker" class="kicker">MISSION COMPLETE</span><h2 id="result-title">SIGNAL LOST.</h2>
-      <p id="result-copy">H-1968-07 is safe. Halvard can erase an accession number, but not what the reel remembers.</p>
-      <div class="result-stats">
-        <div><span>ACTIVE TIME</span><strong id="stat-time">00:00</strong></div>
-        <div><span>SONAR USED</span><strong id="stat-rings">0</strong></div>
-        <div><span>DETECTED</span><strong id="stat-alerts">0</strong></div>
-      </div>
-      <p id="result-campaign" class="result-campaign"></p>
-      <div class="result-actions">
-        <button id="restart-button" class="primary-button"><span>RUN AGAIN</span><b>R</b></button>
-        <button id="newheist-button" class="primary-button secondary"><span>RESTART HEIST</span><b>N</b></button>
-      </div>
+    <p class="lock-note"></p>
+  </div>
+</section>
+<section id="pause" class="screen is-hidden" aria-label="Paused">
+  <div class="screen-box">
+    <span class="kicker">PAUSED</span>
+    <div class="buttons column">
+      <button type="button" class="primary" data-action="resume">RESUME</button>
+      <button type="button" data-action="restart">RESTART FROM CHECKPOINT</button>
+      <button type="button" data-action="options">OPTIONS</button>
+      <button type="button" data-action="new-heist">QUIT TO TITLE</button>
     </div>
-  </section>
-
-  <dialog id="credits-dialog">
-    <button id="close-credits" aria-label="Close credits">×</button><span class="kicker">PROJECT CREDITS</span><h2>Built in the dark.</h2>
-    <p>Three.js — 3D rendering library, MIT Licence.</p><p>Vite — development and production bundler, MIT Licence.</p>
-    <p>All geometry, shaders, interface graphics and game logic in this Alpha are original procedural work created for SIGNAL.</p>
-  </dialog>
-  <button id="credits-button" class="credits-button">CREDITS</button>
-  <script type="module" src="./src/main.js"></script>
+    <p class="lock-note"></p>
+  </div>
+</section>
+<section id="options" class="screen is-hidden" aria-label="Options">
+  <div class="screen-box">
+    <span class="kicker">OPTIONS</span>
+    <label>Mouse sensitivity <output data-out="sensitivity"></output><input type="range" name="sensitivity" min="0.3" max="2.5" step="0.05"></label>
+    <label>Volume <output data-out="master"></output><input type="range" name="master" min="0" max="1" step="0.05"></label>
+    <label>Music <output data-out="music"></output><input type="range" name="music" min="0" max="1" step="0.05"></label>
+    <label>Graphics quality
+      <select name="quality"><option value="auto">Auto</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select>
+    </label>
+    <div class="buttons"><button type="button" class="primary" data-action="back">BACK</button></div>
+  </div>
+</section>
+<section id="results" class="screen is-hidden" aria-label="Results">
+  <div class="screen-box">
+    <span class="kicker">OFF THE ROOF</span>
+    <h2>The Kestrel Star is out of the building.</h2>
+    <div class="results-grade"></div>
+    <p class="results-score"></p>
+    <dl class="results-stats"></dl>
+    <p class="results-ending is-hidden"></p>
+    <div class="buttons">
+      <button type="button" class="primary" data-action="new-heist">BACK TO TITLE</button>
+      <button type="button" data-action="credits">CREDITS</button>
+    </div>
+  </div>
+</section>
+<div id="fade" class="fade"></div>
+<div id="card" class="card is-hidden"><b class="card-title"></b><span class="card-text"></span></div>
+<dialog id="credits" class="credits">
+  <h2>Credits</h2>
+  <p>Three.js, MIT Licence. Vite, MIT Licence.</p>
+  <p>Soldier, Xbot and Michelle character models and animations from the Three.js examples (Mixamo, Adobe).</p>
+  <p>Paintings, public domain: The Starry Night (Vincent van Gogh, 1889), The Scream (Edvard Munch, 1893), The Great Wave off Kanagawa (Katsushika Hokusai, c. 1831), The Shipwreck (J. M. W. Turner, 1805).</p>
+  <p>All other geometry, textures, shaders, sound and code were made by the SIGNAL team. Music and sound effects are synthesised in the browser.</p>
+  <button id="close-credits" type="button">CLOSE</button>
+</dialog>
+<script type="module" src="./src/main.js"></script>
 </body>
 </html>
