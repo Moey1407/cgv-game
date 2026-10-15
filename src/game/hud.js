@@ -13,6 +13,7 @@ export function createHud(doc = document) {
     take: $('item-take'),
     evidence: $('item-evidence'),
     decoy: $('item-decoy'),
+    doses: $('item-doses'),
     echo: $('echo-state'),
     echoStep: $('echo-step'),
     echoTime: $('echo-time'),
@@ -64,6 +65,11 @@ export function createHud(doc = document) {
     el.keycard.classList.toggle('have', keycard);
     text(el.take, 'take', star ? 'KESTREL STAR ✓' : 'KESTREL STAR —');
     text(el.evidence, 'evidence', 'EVIDENCE ' + evidence + '/' + evidenceTotal);
+  }
+  function doses(count, enabled = true) {
+    if (!el.doses) return;
+    el.doses.classList.toggle('is-hidden', !enabled);
+    text(el.doses, 'doses', count > 0 ? 'SEDATIVE ×' + count : 'SEDATIVE EMPTY');
   }
   function decoy(charges, recharge = 0) {
     text(el.decoy, 'decoy', charges > 0 ? 'DECOY ×' + charges + (charges < 3 ? ' · ' + recharge.toFixed(1) + 's' : '') : 'DECOY EMPTY · ' + recharge.toFixed(1) + 's');
@@ -159,6 +165,6 @@ export function createHud(doc = document) {
     if (toastTimer <= 0) el.toast.classList.add('is-hidden');
   }
 
-  return { alarm, guard, movement, items, decoy, echo, objective, hint, prompt, toast, safe, end, update,
+  return { alarm, guard, movement, items, decoy, doses, echo, objective, hint, prompt, toast, safe, end, update,
     clearTransient() { toastTimer = 0; el.toast.classList.add('is-hidden'); prompt(null); } };
 }

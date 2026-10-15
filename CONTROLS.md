@@ -20,6 +20,7 @@ This document describes the current data-driven museum build. The older prototyp
 | `R` | Start/finish Echo recording in Level 3 |
 | `Tab` | Open/close the CCTV wall |
 | `P` / `M` | Toggle the last-feed view / tactical map |
+| `T` | Hold behind a guard for about a second to sedate him. He sleeps for about 40 seconds, then wakes and searches. Two doses on Levels 1 and 2, refilled at each level |
 | `V` | Switch between first-person and third-person view (the safe, ducts, stairs, zipline and cameras stay first person) |
 | `Esc` | Close the camera feeds or step back from the safe |
 | `Q` | Pause menu (resume, controls, restart, options, quit). `Q` again resumes |

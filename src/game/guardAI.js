@@ -65,7 +65,20 @@ export function createGuardAI({ id, actor, torch, waypoints, speed, pauseSeconds
     events?.emit('guard:state', { id, state: next, previous });
   }
 
+  function sedate(seconds = 40) {
+    if (guard.sleep > 0) return false;
+    guard.sleep = seconds;
+    guard.suspicion = 0;
+    guard.pauseTimer = 0;
+    route = []; stuck = 0;
+    setState('sedated');
+    actor.play('Idle');
+    if (torch) torch.visible = false;
+    return true;
+  }
+
   function hear(position, strength = 1) {
+    if (guard.sleep > 0) return false;
     if (guard.state === 'pursue') return false;
     target.set(position.x, 0, position.z);
     guard.timer = 0;
@@ -120,6 +133,19 @@ export function createGuardAI({ id, actor, torch, waypoints, speed, pauseSeconds
   }
 
   function update(dt, ctx) {
+    if (guard.sleep > 0) {
+      guard.sleep = Math.max(0, guard.sleep - dt);
+      root.rotation.z += (1.45 - root.rotation.z) * Math.min(1, dt * 4);
+      if (guard.sleep > 0) return;
+      root.rotation.z = 0;
+      if (torch) torch.visible = true;
+      target.copy(root.position);
+      lastSeen.copy(root.position);
+      guard.suspicion = 0.55;
+      guard.timer = 7;
+      setState('search');
+      return;
+    }
     const pace = guard.speed * ctx.alarm.guardSpeed;
     const sight = SIGHT[ctx.mode] ?? SIGHT.night;
     const crouchFactor = ctx.player.crouching ? 0.6 : 1;
@@ -223,6 +249,9 @@ export function createGuardAI({ id, actor, torch, waypoints, speed, pauseSeconds
     guard.pauseTimer = pauseSeconds;
     guard.proximityTime = 0;
     guard.checkingGuest = 0;
+    guard.sleep = 0;
+    root.rotation.z = 0;
+    if (torch) torch.visible = true;
     route = []; stuck = 0; navGoal.set(Infinity, 0, Infinity);
     guard.state = 'investigate';
     setState('patrol');
@@ -230,6 +259,7 @@ export function createGuardAI({ id, actor, torch, waypoints, speed, pauseSeconds
   }
 
   guard.hear = hear;
+  guard.sedate = sedate;
   guard.update = update;
   guard.reset = reset;
   return guard;

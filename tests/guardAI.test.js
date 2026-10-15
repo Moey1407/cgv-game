@@ -52,3 +52,25 @@ test('a noise behind a wall: the guard stops pushing at the wall within a few se
   assert.ok(g.timer > 0 || g.state === 'patrol', 'gave up walking toward the noise');
   assert.ok(pushing < INVESTIGATE_NO_PROGRESS + 1, `pressed against the wall for ${pushing.toFixed(1)} s`);
 });
+
+test('a sedated guard ignores noise and the player, then wakes up searching', async () => {
+  const THREE = await import('three');
+  const { createGuardAI } = await import('../src/game/guardAI.js');
+  const root = new THREE.Group();
+  const actor = { root, play() {}, update() {} };
+  const g = createGuardAI({ id: 'hale', actor, waypoints: [new THREE.Vector3(0, 0, 0), new THREE.Vector3(5, 0, 0)], speed: 1 });
+  g.reset();
+  assert.equal(g.sedate(10), true);
+  assert.equal(g.state, 'sedated');
+  assert.equal(g.hear(new THREE.Vector3(1, 0, 0), 1), false);
+  const ctx = { mode: 'night', time: 0, alarm: { guardSpeed: 1, pulseInterval: 1 }, canStand: () => true, player: { position: new THREE.Vector3(0, 0, 0.5), crouching: false, visible: true } };
+  const start = root.position.clone();
+  for (let t = 0; t < 9.5; t += 0.1) g.update(0.1, ctx);
+  assert.equal(g.state, 'sedated');
+  assert.ok(root.position.distanceTo(start) < 1e-6, 'a sleeping guard does not move');
+  for (let t = 0; t < 1; t += 0.1) g.update(0.1, ctx);
+  assert.equal(g.state === 'search' || g.state === 'pursue', true);
+  assert.equal(root.rotation.z, 0);
+  g.reset();
+  assert.equal(g.sleep, 0);
+});

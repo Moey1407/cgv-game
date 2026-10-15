@@ -90,8 +90,8 @@ const money = (n) => '$' + Math.round(n).toLocaleString('en-US');
 
 
 const CONTROLS = {
-  1: [['WASD', 'move'], ['Mouse', 'look'], ['Shift', 'walk quietly'], ['C', 'crouch'], ['Z', 'crawl'], ['X', 'sprint'], ['Click', 'throw a decoy'], ['G', 'sonar pulse'], ['Tab', 'open all camera feeds'], ['1–4', 'select a camera, E loops it'], ['E', 'interact, hold to pickpocket'], ['F', 'dampener'], ['V', 'first or third person'], ['Esc', 'close a camera or the safe'], ['Q', 'pause menu']],
-  2: [['WASD', 'move'], ['Z', 'crawl under a beam'], ['Space', 'jump a beam'], ['C', 'crouch, fits the vent'], ['Shift', 'walk quietly'], ['Click', 'throw a decoy'], ['G', 'sonar pulse'], ['E', 'vent, safe, loot'], ['Mouse', 'turn the dial slowly'], ['Tab', 'open all camera feeds'], ['Esc', 'step back from the safe'], ['Q', 'pause menu']],
+  1: [['WASD', 'move'], ['Mouse', 'look'], ['Shift', 'walk quietly'], ['C', 'crouch'], ['Z', 'crawl'], ['X', 'sprint'], ['Click', 'throw a decoy'], ['G', 'sonar pulse'], ['Tab', 'open all camera feeds'], ['1–4', 'select a camera, E loops it'], ['E', 'interact, hold to pickpocket'], ['F', 'dampener'], ['T', 'hold behind a guard to sedate him'], ['V', 'first or third person'], ['Esc', 'close a camera or the safe'], ['Q', 'pause menu']],
+  2: [['WASD', 'move'], ['Z', 'crawl under a beam'], ['Space', 'jump a beam'], ['C', 'crouch, fits the vent'], ['Shift', 'walk quietly'], ['Click', 'throw a decoy'], ['G', 'sonar pulse'], ['E', 'vent, safe, loot'], ['Mouse', 'turn the dial slowly'], ['Tab', 'open all camera feeds'], ['T', 'hold behind Briggs to sedate him'], ['Esc', 'step back from the safe'], ['Q', 'pause menu']],
   3: [['WASD', 'move'], ['R', 'record your Echo, R again to rewind'], ['E', 'hold an override'], ['Click', 'throw a decoy'], ['G', 'sonar, lures the sweep team'], ['Shift', 'walk quietly'], ['C', 'crouch'], ['Z', 'crawl'], ['X', 'sprint'], ['Q', 'pause menu']],
 };
 

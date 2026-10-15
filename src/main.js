@@ -272,8 +272,9 @@ async function start() {
     throwables.length = 0;
   }
 
-  function throwBlockedAt(x, y, z) {
-    return !canStand(x, z, THROW.radius, Math.max(0, y - THROW.radius));
+  function throwBlockedAt(x, y, z, base = player.base) {
+    const ceiling = cur.n === 1 && x < 11.3 ? 9.6 : cur.n === 1 ? 3.1 : 3.9;
+    return y > ceiling || !canStand(x, z, THROW.radius, base);
   }
 
   function throwDecoy() {
@@ -289,12 +290,13 @@ async function start() {
     const forward = tmp.dir.set(-Math.sin(player.yaw), 0, -Math.cos(player.yaw)).normalize();
     const mesh = new THREE.Mesh(decoyGeometry, decoyMaterial);
     mesh.castShadow = true;
-    mesh.position.set(player.position.x, player.base + player.y + player.height, player.position.z).addScaledVector(forward, 0.45);
+    mesh.position.set(player.position.x, player.base + player.y + Math.max(0.5, player.height - 0.25), player.position.z).addScaledVector(forward, 0.45);
     mesh.position.y -= 0.22;
     scene.add(mesh);
     minimap.hideFromMap(mesh);
     throwables.push({
       mesh,
+      base: player.base,
       velocity: { x: forward.x * THROW.speed, y: THROW.lift - player.pitch * 1.8, z: forward.z * THROW.speed, resting: false },
       impacts: 0,
       life: 0
@@ -319,7 +321,9 @@ async function start() {
     for (let index = throwables.length - 1; index >= 0; index -= 1) {
       const item = throwables[index];
       item.life += dt;
-      const impact = advanceThrow(item.mesh.position, item.velocity, dt, throwBlockedAt);
+      item.mesh.position.y -= item.base;
+      const impact = advanceThrow(item.mesh.position, item.velocity, dt, (x, y, z) => throwBlockedAt(x, y, z, item.base));
+      item.mesh.position.y += item.base;
       item.mesh.rotation.x += item.velocity.z * dt * 2;
       item.mesh.rotation.z -= item.velocity.x * dt * 2;
       if (impact && item.impacts < 3) {
@@ -421,6 +425,8 @@ async function start() {
     cur.guards = data.guards.map(makeGuard);
     state.mapReveal = 0;
     state.decoyCharges = data.decoys?.charges ?? 3;
+    state.doses = n <= 2 ? 2 : 0;
+    state.sedating = 0;
     state.decoyRecharge = 0;
     state.throwCooldown = 0;
     state.socialHeat = 0;
@@ -543,7 +549,7 @@ async function start() {
     if (cur.n === 1) {
       if (cur.flags.coverBlown) return 'Guest cover blown  ·  Stay out of sight and complete the exit route';
       if (cur.elapsed < 8) return 'WASD move  ·  Mouse look  ·  Shift quiet walk';
-      if (!cur.flags.rig) return player.position.x > 11.4 ? 'Staff area  ·  Your guest cover does not work here  ·  Hold E at the desk' : 'Staff door on the east wall  ·  Wait for the officer to leave the passage';
+      if (!cur.flags.rig) return player.position.x > 11.4 ? 'Staff area  ·  Your guest cover does not work here  ·  Hold E at the desk  ·  Hold T behind Hale to sedate him' : 'Staff door on the east wall  ·  Wait for the officer to leave the passage';
       if (!state.hasKeycard) return 'Tab CCTV  ·  Select Grand Hall, E to loop  ·  Copy during an inspection stop';
       return cur.flags.nightEntry ? 'Return to the lobby  ·  E at the public exit' : 'Beyond the velvet rope, your guest cover no longer works';
     }
@@ -551,7 +557,7 @@ async function start() {
       if (player.position.z > -7) return 'Z crawl under the high beam  ·  Hold Shift for quiet footsteps';
       if (player.position.z > -13) return 'Space jump the low beam  ·  Release Z before jumping';
       if (player.position.z > -23) return 'Watch the beam cycle  ·  The side duct is slower but avoids the inner checkpoint';
-      return state.hasStar ? 'Back to the marked staff fire door' : 'Click throws a decoy · one in the archive pulls Briggs from the safe  ·  Crates hide you when he checks it';
+      return state.hasStar ? 'Back to the marked staff fire door' : 'Click throws a decoy into the archive  ·  Hold T behind Briggs to sedate him  ·  Crates hide you';
     }
     if (!cur.flags.pastShutter) return 'R record  →  hold E at the override for several seconds  →  R rewind  →  walk through';
     if (player.base < 10) return 'Click throw a decoy  ·  Z + E enter a duct  ·  The stairwell is north-east';
@@ -565,6 +571,7 @@ async function start() {
       player: { x: player.position.x, y: player.base, z: player.position.z, yaw: player.yaw },
       hasKeycard: state.hasKeycard,
       hasStar: state.hasStar,
+      doses: state.doses,
       flags: { ...cur.flags },
       collected: pickups.items.filter((i) => i.collected).map((i) => i.id),
       alarm: Math.min(alarm.snapshot().value, 50),
@@ -595,6 +602,8 @@ async function start() {
     placePlayer(payload.player.x, payload.player.y ?? 0, payload.player.z, payload.player.yaw);
     state.hasKeycard = payload.hasKeycard;
     state.hasStar = Boolean(payload.hasStar);
+    if (payload.doses !== undefined) state.doses = payload.doses;
+    state.sedating = 0;
     if (cur.okafor && cur.props.keycard) {
       cur.okafor.root.add(cur.props.keycard);
     }
@@ -996,7 +1005,7 @@ async function start() {
           state.echoStep = 0;
           emitNoise(echoActor.root.position, RING_COLOURS.echo, frame.mode === 'run' || frame.mode === 'sprint' ? 5 : 2.6, { source: 'echo', strength: 0.7, cause: 'echo' });
         }
-        for (const g of cur.guards) if (g.position.distanceTo(echoActor.root.position) < 1.1) echo.shatter('guard');
+        for (const g of cur.guards) if (!(g.sleep > 0) && g.position.distanceTo(echoActor.root.position) < 1.1) echo.shatter('guard');
       }
     }
     if (state.fadeEcho > 0) {
@@ -1233,12 +1242,45 @@ async function start() {
     return null;
   }
 
+  const SEDATE_SECONDS = 1.1;
+  function sedationTarget() {
+    if (cur.n > 2 || state.doses <= 0) return null;
+    return cur.guards.find((g) => !(g.sleep > 0) && g.state !== 'pursue' && Math.abs(g.position.y - player.base) < 1.5
+      && pickpocketAccess(player.position, { position: g.position, yaw: g.yaw, state: g.state, stationary: true }, { range: 1.35 })) ?? null;
+  }
+
+  function updateSedation(dt) {
+    const g = sedationTarget();
+    if (!g) { state.sedating = 0; return false; }
+    const name = (g.def?.name ?? g.id).toUpperCase();
+    if (!(keys.KeyT && state.locked)) {
+      state.sedating = 0;
+      if (g === cur.okafor && !state.hasKeycard) return false;
+      hud.prompt('HOLD T · SEDATE ' + name + ' · ×' + state.doses, null);
+      return true;
+    }
+    state.sedating += dt;
+    hud.prompt('SEDATING ' + name, Math.min(1, state.sedating / SEDATE_SECONDS));
+    if (state.sedating < SEDATE_SECONDS) return true;
+    state.sedating = 0;
+    state.doses -= 1;
+    g.sedate(40);
+    emitNoise(g.position, RING_COLOURS.player, 2.2, { source: 'player', damped: true, strength: 0.4 });
+    hud.toast(name + ' IS OUT · ABOUT 40 SECONDS · ' + (state.doses > 0 ? state.doses + ' DOSE LEFT' : 'NO DOSES LEFT'), 3.5);
+    if (cur.n === 1 && player.position.x < 11.3 && galaWitnessNearby(player.position, GALA_GUESTS.slice(0, QUALITY[state.quality].crowdLimit))) {
+      events.emit('player:detected', { id: 'guest' });
+      hud.toast('A GUEST SAW YOU DO IT');
+    }
+    return true;
+  }
+
   function updateInteractions(dt) {
     state.lifting = false;
     if (state.vent || state.climb) return;
     if (state.ended || state.inSafe || state.zip || cur.cctv.active >= 0) { hud.prompt(null); return; }
+    if (updateSedation(dt)) return;
     if (!state.hasKeycard && cur.okafor) {
-      const target = { position: cur.okafor.position, yaw: cur.okafor.yaw, state: cur.okafor.state, stationary: cur.okafor.pauseTimer > 0.5 && cur.okafor.checkingGuest <= 0, id: 'okafor' };
+      const target = { position: cur.okafor.position, yaw: cur.okafor.yaw, state: cur.okafor.state, stationary: (cur.okafor.pauseTimer > 0.5 && cur.okafor.checkingGuest <= 0) || cur.okafor.sleep > 0, id: 'okafor' };
       const inPosition = pickpocketAccess(player.position, target);
       const witnessed = inPosition && galaWitnessNearby(player.position, GALA_GUESTS.slice(0, QUALITY[state.quality].crowdLimit));
       state.lifting = inPosition && Boolean(keys.KeyE) && state.locked;
@@ -1257,7 +1299,7 @@ async function start() {
         clear: !witnessed
       });
       if (witnessed) { hud.prompt('WAIT · GUESTS CAN SEE OKAFOR'); return; }
-      if (r.eligible) { hud.prompt('HOLD E · COPY BADGE CODE', r.progress / PICKPOCKET_SECONDS); return; }
+      if (r.eligible) { hud.prompt('HOLD E · COPY BADGE CODE' + (state.doses > 0 ? '  ·  HOLD T · SEDATE' : ''), r.progress / PICKPOCKET_SECONDS); return; }
       if (pickpocketAccess(player.position, { ...target, stationary: true })) { hud.prompt('WAIT FOR HIS INSPECTION STOP · NO NEED TO FOLLOW'); return; }
     }
     const item = nearbyPickup();
@@ -1391,6 +1433,15 @@ async function start() {
     const el = ui.guardEta;
     if (!el) return;
     const watcher = cur.n === 2 && !cur.flags.safeOpened && !state.ended ? cur.guards.find((g) => g.def.watchWaypoint !== undefined) : null;
+    if (watcher?.sleep > 0) {
+      const show = state.inSafe || near(player.position, cur.use.safe.usePos, 8);
+      el.classList.toggle('is-hidden', !show);
+      const text = watcher.def.name.toUpperCase() + ' SEDATED · WAKES IN ' + Math.ceil(watcher.sleep) + 's';
+      if (el.textContent !== text) el.textContent = text;
+      const level = watcher.sleep < 8 ? 'warn' : 'calm';
+      if (el.dataset.level !== level) el.dataset.level = level;
+      return;
+    }
     // Shown at the dial and from the cover around it, so a hiding player can time the return.
     const show = Boolean(watcher) && (state.inSafe || near(player.position, cur.use.safe.usePos, 8));
     el.classList.toggle('is-hidden', !show);
@@ -1478,7 +1529,7 @@ async function start() {
 
   function guardSummary() {
     if (!cur.guards.length) return 'GUARDS · NONE NEARBY';
-    const order = ['pursue', 'search', 'investigate', 'patrol'];
+    const order = ['pursue', 'search', 'investigate', 'patrol', 'sedated'];
     let worst = cur.guards[0];
     for (const g of cur.guards) if (order.indexOf(g.state) < order.indexOf(worst.state)) worst = g;
     const sus = Math.max(...cur.guards.map((g) => g.suspicion));
@@ -1702,6 +1753,7 @@ async function start() {
     const ps = pickups.snapshot();
     hud.items({ keycard: state.hasKeycard, star: state.hasStar, cash: ps.cash, evidence: ps.evidence.length, evidenceTotal: EVIDENCE_TOTAL });
     hud.decoy(state.decoyCharges, Math.max(0, state.decoyRecharge));
+    hud.doses(state.doses, cur.n <= 2);
     hud.objective(objectiveText());
     hud.hint(controlHint());
     updateGuide(dt);
@@ -1882,6 +1934,7 @@ async function start() {
         inSafe: state.inSafe, ended: state.ended, echo: echo.snapshot().mode, take: pickups.snapshot().cash,
         evidence: pickups.snapshot().evidence.length, safe: safe.snapshot(), mode: state.mode, timeLeft: cur.timeLeft,
         shutter: cur.props.shutter?.lift, zip: state.zip?.t, screen: screens.state,
+        decoys: throwables.map((t) => [t.mesh.position.x, t.mesh.position.y, t.mesh.position.z]), doses: state.doses,
         transit: state.transit?.stage ?? null, guide: guide.target?.label ?? null, ready: !cur.warming
       })
     };
