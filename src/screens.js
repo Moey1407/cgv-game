@@ -8,7 +8,7 @@ import { chapterFor, lessonDiagram } from './game/chapters.js';
 import { createChapterConversation } from './gameplay/chapterConversation.js';
 
 const OPTIONS_KEY = 'signal.options.v1';
-export const DEFAULT_OPTIONS = Object.freeze({ sensitivity: 1, master: 0.7, music: 0.6, voice: true, guided: true, quality: 'auto' });
+export const DEFAULT_OPTIONS = Object.freeze({ sensitivity: 1, master: 0.7, music: 0.6, voice: true, guided: true, quality: 'auto', renderScale: '1', shadows: true, bloom: true, grain: true });
 const ALARM_ORDER = ['quiet', 'suspicious', 'alert', 'lockdown'];
 const ALARM_PENALTY = { quiet: 0, suspicious: 5, alert: 12, lockdown: 25 };
 const TIPS = [
@@ -92,9 +92,9 @@ const money = (n) => '$' + Math.round(n).toLocaleString('en-US');
 
 
 const CONTROLS = {
-  1: [['WASD', 'move'], ['Mouse', 'look'], ['Shift', 'walk quietly'], ['C', 'crouch'], ['Z', 'crawl'], ['X', 'sprint'], ['Click', 'throw a decoy'], ['G', 'sonar pulse'], ['Tab', 'open all camera feeds'], ['1–4', 'select a camera, E loops it'], ['E', 'interact, hold to pickpocket'], ['F', 'dampener'], ['T', 'hold behind a guard to sedate him'], ['V', 'first or third person'], ['Esc', 'close a camera or the safe'], ['Q', 'pause menu']],
-  2: [['WASD', 'move'], ['Z', 'crawl under a beam'], ['Space', 'jump a beam'], ['C', 'crouch, fits the vent'], ['Shift', 'walk quietly'], ['Click', 'throw a decoy'], ['G', 'sonar pulse'], ['E', 'vent, safe, loot'], ['Mouse', 'turn the dial slowly'], ['Tab', 'open all camera feeds'], ['T', 'hold behind Briggs to sedate him'], ['Esc', 'step back from the safe'], ['Q', 'pause menu']],
-  3: [['WASD', 'move'], ['R', 'record your Echo, R again to rewind'], ['E', 'hold an override'], ['Click', 'throw a decoy'], ['G', 'sonar, lures the sweep team'], ['Shift', 'walk quietly'], ['C', 'crouch'], ['Z', 'crawl'], ['X', 'sprint'], ['Q', 'pause menu']],
+  1: [['WASD', 'move'], ['Mouse', 'look'], ['Shift', 'walk quietly'], ['C', 'crouch'], ['Z', 'crawl'], ['X', 'sprint'], ['Click', 'throw a decoy'], ['G', 'sonar pulse'], ['Tab', 'open all camera feeds'], ['1–4', 'select a camera, E loops it'], ['E', 'interact, hold to pickpocket'], ['F', 'dampener'], ['T', 'hold behind a guard to sedate him'], ['V', 'first or third person'], ['Esc', 'close camera/safe; press again to resume'], ['Q', 'pause menu']],
+  2: [['WASD', 'move'], ['Z', 'crawl under a beam'], ['Space', 'jump a beam'], ['C', 'crouch, fits the vent'], ['Shift', 'walk quietly'], ['Click', 'throw a decoy'], ['G', 'sonar pulse'], ['E', 'vent, safe, loot'], ['Mouse', 'turn the dial slowly'], ['Tab', 'open all camera feeds'], ['T', 'hold behind Briggs to sedate him'], ['Esc', 'leave safe; press again to resume'], ['Q', 'pause menu']],
+  3: [['WASD', 'move'], ['R', 'record your Echo, R again to rewind'], ['E', 'hold an override'], ['Click', 'throw a decoy'], ['G', 'sonar, lures the sweep team'], ['Shift', 'walk quietly'], ['C', 'crouch'], ['Z', 'crawl'], ['X', 'sprint'], ['Esc', 'pause; press again to resume'], ['Q', 'pause menu']],
 };
 
 export const LEVEL_MECHANICS = Object.freeze({
@@ -354,8 +354,18 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
     for (const n of el.lockNote) n.textContent = '';
     try {
       const p = actions.lock?.();
-      p?.catch?.(() => { for (const n of el.lockNote) n.textContent = 'The browser needs a moment. Click again.'; });
-    } catch { /* older browsers throw instead of rejecting */ }
+      p?.catch?.(() => {
+        if (state === 'paused' || state === 'relock') resumeWithoutMouse();
+        else for (const n of el.lockNote) n.textContent = 'Click to enter the museum.';
+      });
+    } catch {
+      if (state === 'paused' || state === 'relock') resumeWithoutMouse();
+    }
+  }
+
+  function resumeWithoutMouse() {
+    setState('playing');
+    actions.unlockedResume?.();
   }
 
   function unlock() {
@@ -384,18 +394,25 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
       const out = form.querySelector(`[data-out="${name}"]`);
       if (out) out.textContent = name === 'sensitivity' ? options[name].toFixed(2) + '×' : Math.round(options[name] * 100) + '%';
     }
-    const q = field('quality');
-    if (q) q.value = options.quality;
+    for (const name of ['quality', 'renderScale']) {
+      const select = field(name);
+      if (select) select.value = options[name];
+    }
     const voice = field('voice');
     if (voice) voice.checked = options.voice;
     const guided = field('guided');
     if (guided) guided.checked = options.guided;
+    for (const name of ['shadows', 'bloom', 'grain']) {
+      const toggle = field(name);
+      if (toggle) toggle.checked = options[name];
+    }
   }
   form?.addEventListener('input', (e) => {
     const { name, value } = e.target;
     if (!(name in options)) return;
-    options[name] = name === 'quality' ? value : ['voice', 'guided'].includes(name) ? e.target.checked : Number(value);
+    options[name] = ['quality', 'renderScale'].includes(name) ? value : ['voice', 'guided', 'shadows', 'bloom', 'grain'].includes(name) ? e.target.checked : Number(value);
     if (name === 'quality') actions.quality?.(value);
+    if (['renderScale', 'shadows', 'bloom', 'grain'].includes(name)) actions.rendering?.(options);
     applyOptions();
     syncForm();
   });
@@ -415,7 +432,7 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
     play: () => showCinematic('opening', () => { fillBriefing(level); setState('briefing'); }),
     enter: () => lock(),
     start: () => lock(),
-    resume: () => lock(),
+    resume: () => resumeWithoutMouse(),
     restart: () => { actions.restart?.(); lock(); },
     'new-heist': () => goHome(),
     home: () => goHome(),
@@ -446,12 +463,14 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
     if (state === 'interlude' && (e.code === 'Enter' || e.code === 'Space')) {
       e.preventDefault(); e.stopImmediatePropagation(); if (!e.repeat) nextInterlude(); return;
     }
-    if (e.code === 'KeyQ' && !e.repeat && (state === 'paused' || state === 'relock')) {
+    if ((e.code === 'KeyQ' || e.code === 'Escape') && !e.repeat && (state === 'paused' || state === 'relock')) {
       e.preventDefault();
-      if (state === 'relock') setState('paused'); else lock();
+      if (e.code === 'KeyQ' && state === 'relock') setState('paused');
+      else if (e.code === 'Escape') resumeWithoutMouse();
+      else lock();
       return;
     }
-    if (state === 'relock' && (e.code === 'Escape' || e.code === 'Enter' || e.code === 'Space')) {
+    if (state === 'relock' && (e.code === 'Enter' || e.code === 'Space')) {
       e.preventDefault();
       lock();
       return;

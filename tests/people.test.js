@@ -36,3 +36,27 @@ test('people support grounded body variation and eased walking animation', () =>
   assert.ok(Math.abs(leg.rotation.x) < .001, 'walking eases into a standing pose');
   actor.dispose();
 });
+
+test('the gala dress covers the upper legs through the running pose', () => {
+  const colour = 0x123f3a;
+  const actor = createPerson({ style: 'dress', colour });
+  const position = actor.model.geometry.attributes.position;
+  const vertexColour = actor.model.geometry.attributes.color;
+  const dressColour = new THREE.Color(colour);
+  let hem = Infinity;
+  for (let i = 0; i < position.count; i++) {
+    if (Math.abs(vertexColour.getX(i) - dressColour.r) < 0.0001 &&
+        Math.abs(vertexColour.getY(i) - dressColour.g) < 0.0001 &&
+        Math.abs(vertexColour.getZ(i) - dressColour.b) < 0.0001) {
+      hem = Math.min(hem, position.getY(i));
+    }
+  }
+  assert.ok(hem < 0.1, 'dress hem should reach close to the shoes');
+  actor.play('run');
+  const legs = ['leg--1', 'leg-1'].map((name) => actor.model.skeleton.getBoneByName(name));
+  for (let i = 0; i < 60; i++) {
+    actor.update(0.05);
+    for (const leg of legs) assert.ok(Math.abs(leg.rotation.x) <= 0.321, 'running legs stay inside the skirt');
+  }
+  actor.dispose();
+});

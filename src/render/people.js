@@ -109,7 +109,9 @@ export function createPerson({ style = 'suit', colour = 0x426997, skin = 0xba856
   chest, [0, 0, 0], cloth, [1, 1, 1], [0, 0, 0], bodyBlend);
   part(loft([[-.1, .14, .105], [.04, .163, .114], [.135, .15, .105]]), hips, [0, 0, 0], dress ? colour : pants);
   if (dress) {
-    part(loft([[-.64, .255, .19], [-.59, .25, .185], [-.35, .218, .16], [-.10, .176, .13], [.12, .137, .107]]),
+    // A long, wider hem keeps the animated thighs inside the dress in third person.
+    part(loft([[-.88, .32, .30], [-.75, .31, .285], [-.55, .28, .26], [-.35, .25, .225],
+      [-.10, .205, .16], [.12, .15, .11]]),
       hips, [0, 0, 0], colour);
     part(tube(.144, .144, .027), hips, [0, .12, 0], accent, [1, 1, .78]);
     part(tube(.064, .073, .026), chest, [0, .257, .003], skin, [1, 1, .9]);
@@ -178,7 +180,7 @@ export function createPerson({ style = 'suit', colour = 0x426997, skin = 0xba856
     const moving = mode === 'walk' || mode === 'run';
     stride = THREE.MathUtils.damp(stride, moving ? 1 : 0, 10, Math.max(0, dt));
     const gait = Math.sin(time * (mode === 'run' ? 10 : 5.2));
-    const amplitude = stride * (mode === 'run' ? .65 : dress ? .25 : .32);
+    const amplitude = stride * (dress ? (mode === 'run' ? .32 : .25) : mode === 'run' ? .65 : .32);
     for (let i = 0; i < 2; i++) {
       const sign = i === 0 ? 1 : -1;
       bones[legs[i]].rotation.x = sign * gait * amplitude;

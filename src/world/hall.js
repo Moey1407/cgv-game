@@ -10,8 +10,31 @@ const PAINTINGS = [
   { file: 'starry-night.jpg', width: 3.4, side: -1, z: -6.5 },
   { file: 'the-scream.jpg', width: 1.7, side: -1, z: -13.5 },
   { file: 'wave.jpg', width: 3.4, side: 1, z: -6.5 },
-  { file: 'shipwreck.jpg', width: 3.2, side: 1, z: -13.5 }
+  { file: 'shipwreck.jpg', width: 3.2, side: 1, z: -13.5 },
+  { file: 'tree-muhammed-abed.png', width: 2.1, side: -1, z: -21.5, artist: 'MUHAMMED ABED' },
+  { file: 'huzaifa-majeed.png', width: 2.1, side: 1, z: -26.5, artist: 'HUZAIFA MAJEED' }
 ];
+
+function woodGrainTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256; canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#a0784e';
+  ctx.fillRect(0, 0, 256, 512);
+  for (let x = 0; x < 256; x += 2) {
+    const bend = Math.sin(x * 0.11) * 4 + Math.sin(x * 0.027) * 9;
+    ctx.strokeStyle = x % 7 < 3 ? 'rgba(45,22,9,.36)' : 'rgba(246,204,139,.24)';
+    ctx.lineWidth = x % 13 === 0 ? 2 : 1;
+    ctx.beginPath();
+    ctx.moveTo(x + bend, 0);
+    ctx.bezierCurveTo(x - bend, 160, x + bend * 1.4, 330, x - bend, 512);
+    ctx.stroke();
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 8;
+  return texture;
+}
 
 function box(group, w, h, d, material, x, y, z, cast = true) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
@@ -119,7 +142,7 @@ export async function buildHall(scene, materials, renderer, { width, height }) {
     const frontWall = new THREE.Mesh(new THREE.PlaneGeometry(width, height), materials.damaskWall);
     frontWall.position.set(x, y, Z0); frontWall.rotation.y = Math.PI; world.add(frontWall);
   }
-  const oak = new THREE.MeshStandardMaterial({ color: 0x654c35, roughness: 0.56 });
+  const oak = new THREE.MeshStandardMaterial({ map: woodGrainTexture(), color: 0xb89470, roughness: 0.72 });
   const lobbyDoors = [];
   for (const side of [-1, 1]) {
     const leaf = new THREE.Group();
@@ -168,6 +191,12 @@ export async function buildHall(scene, materials, renderer, { width, height }) {
     const x = p.side * (HW - 0.05);
     frame.position.set(x, 3.3, p.z);
     frame.rotation.y = -p.side * Math.PI / 2;
+    if (p.artist) {
+      const plaque = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 0.48),
+        new THREE.MeshBasicMaterial({ map: bannerTexture(p.artist, 'ORIGINAL DRAWING'), side: THREE.DoubleSide }));
+      plaque.position.set(0, -frame.userData.height / 2 - 0.65, 0.12);
+      frame.add(plaque);
+    }
     world.add(frame);
     pictures.push({
       position: new THREE.Vector3(x - p.side * 1.2, 3.3 + frame.userData.height / 2 + 0.9, p.z),

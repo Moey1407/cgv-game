@@ -34,7 +34,7 @@ Open http://localhost:5173/. Press Play for the opening and click Enter the Gala
 | P / M | Toggle picture-in-picture / minimap. The map is local until sonar resolves the full floor |
 | T | Hold behind a guard to sedate him for about 40 seconds (2 doses on Levels 1 and 2) |
 | V | Switch between first-person and third-person view |
-| Esc | Close the camera feeds or step back from the safe |
+| Esc | Close the camera feeds or step back from the safe; press again from pause to resume |
 | Q | Pause menu (resume, restart from checkpoint, options, quit to title) |
 | R / N | After a capture: restart from checkpoint / back to title |
 
@@ -54,7 +54,7 @@ Each stage has a clear objective chain. The Star and evidence carry across the r
 
 Footsteps, sonar, lasers, cameras and the safe all raise the alarm. It climbs from Quiet to Suspicious, Alert and Lockdown, and guards get faster as it rises. Guards hear rings, see you when you are lit and inside their view cone, then investigate, pursue and search. Getting caught sends you back to the last checkpoint.
 
-Auto quality starts on medium and drops if actual frame rate falls below 48 FPS. Low disables expensive post-processing and reduces auxiliary rendering. The FPS/call counter is in the bottom-left corner. Validate performance on the target laptop and lab PC before shipping.
+Auto quality starts on medium and drops if actual frame rate falls below 48 FPS. Low disables expensive post-processing and reduces auxiliary rendering. Options also lets you choose render resolution, shadows, bloom, and film grain. The FPS/call counter is in the bottom-left corner. Validate performance on the target laptop and lab PC before shipping.
 
 ## Build for the LAMP server
 
@@ -102,4 +102,6 @@ Zip the contents of `dist/` so `index.html` sits at the top of the archive. All 
 - Three.js and Vite, MIT Licence.
 - Soldier, Xbot and Michelle models and animations from the Three.js examples (Mixamo, Adobe).
 - Public-domain paintings: The Starry Night (van Gogh), The Scream (Munch), The Great Wave off Kanagawa (Hokusai), The Shipwreck (Turner).
+- Original hand-drawn tree: Muhammed Abed. The supplied desk photograph was cleaned for display in the gallery.
+- Original character drawing: Huzaifa Majeed.
 - Everything else was made by the SIGNAL team.

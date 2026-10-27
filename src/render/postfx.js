@@ -71,6 +71,7 @@ export const QUALITY = {
 
 export function createPostFX(renderer, scene, camera, { quality = 'medium' } = {}) {
   let settings = QUALITY[quality];
+  const preferences = { renderScale: 1, shadows: true, bloom: true, grain: true };
   const size = new THREE.Vector2();
   renderer.getSize(size);
   const target = () => new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, samples: settings.samples });
@@ -91,16 +92,27 @@ export function createPostFX(renderer, scene, camera, { quality = 'medium' } = {
 
   function setQuality(name) {
     if (!QUALITY[name]) return;
-    if (settings === QUALITY[name] && renderer.getPixelRatio() === Math.min(window.devicePixelRatio || 1, settings.pixelRatio)) return;
     settings = QUALITY[name];
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, settings.pixelRatio));
+    const ratio = Math.min(2, settings.pixelRatio * preferences.renderScale);
+    renderer.setPixelRatio(ratio);
     renderer.setSize(size.x, size.y, false);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.autoUpdate = settings.shadows;
+    renderer.shadowMap.enabled = settings.shadows && preferences.shadows;
+    renderer.shadowMap.autoUpdate = settings.shadows && preferences.shadows;
     renderer.shadowMap.needsUpdate = true;
-    bloom.enabled = settings.bloom;
-    composer.setPixelRatio(Math.min(window.devicePixelRatio || 1, settings.pixelRatio));
+    bloom.enabled = settings.bloom && preferences.bloom;
+    grade.uniforms.uGrain.value = preferences.grain ? 0.045 : 0;
+    composer.setPixelRatio(ratio);
   }
+
+  function setPreferences(next) {
+    const scale = Number(next.renderScale);
+    preferences.renderScale = [0.75, 1, 1.25].includes(scale) ? scale : 1;
+    preferences.shadows = next.shadows !== false;
+    preferences.bloom = next.bloom !== false;
+    preferences.grain = next.grain !== false;
+    setQuality(qualityName);
+  }
+  let qualityName = quality;
 
   function set(values) {
     Object.assign(state, values);
@@ -141,5 +153,5 @@ export function createPostFX(renderer, scene, camera, { quality = 'medium' } = {
   grade.uniforms.uResolution.value.copy(size);
   bloom.enabled = settings.bloom;
   composer.setPixelRatio(Math.min(window.devicePixelRatio || 1, settings.pixelRatio));
-  return { set, setQuality, setBloom, setSize, render, dispose, grade, bloom, get quality() { return settings; } };
+  return { set, setQuality: (name) => { qualityName = name; setQuality(name); }, setPreferences, setBloom, setSize, render, dispose, grade, bloom, get quality() { return settings; } };
 }

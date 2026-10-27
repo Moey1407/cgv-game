@@ -358,6 +358,7 @@ body[data-traversal="zipline"] .frame, body[data-traversal="zipline"] .bark { di
 body[data-traversal="vent"] .frame { display: none; }
 .relock { background: rgba(3, 6, 10, 0.35); }
 .relock .screen-box { width: min(320px, calc(100vw - 32px)); align-items: center; text-align: center; }
+.resume-help { margin: 0; color: #9fb7bd; font-size: 12px; line-height: 1.5; }
 .relock-keys { margin: 0; font: 12px ui-monospace, monospace; letter-spacing: 3px; color: #9fb7bd; }
 
 .guide-marker { position: fixed; left: 0; top: 0; width: 0; height: 0; z-index: 4; pointer-events: none; transition: opacity 0.2s; }

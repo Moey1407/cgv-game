@@ -156,13 +156,15 @@ async function start() {
     qa: qa && !new URLSearchParams(location.search).has('menus'),
     actions: {
       lock: () => canvas.requestPointerLock(),
+      unlockedResume: () => hud.toast('PLAYING · CLICK GAME TO RESTORE MOUSE LOOK', 2.6),
       restart: () => restore(checkpoints.restore() ?? snapshotCheckpoint()),
       newHeist: () => newHeist(),
       loadLevel: (n) => enterLevel(n),
       quality: (q) => {
         state.auto = q === 'auto';
         if (q !== 'auto') { applyQuality(q); setMode(state.mode); }
-      }
+      },
+      rendering: (options) => fx.setPreferences(options)
     }
   });
 
@@ -197,6 +199,7 @@ async function start() {
   minimap.hideFromMap(skybox.mesh);
   minimap.hideFromMap(skybox.city);
   const fx = createPostFX(renderer, scene, camera, { quality: 'medium' });
+  fx.setPreferences(screens.options);
   const inLock = createAirlock(materials);
   const outLock = createAirlock(materials);
   scene.add(inLock.group, outLock.group);
@@ -2084,8 +2087,16 @@ async function start() {
   });
   document.addEventListener('keyup', (e) => { keys[e.code] = false; });
   window.addEventListener('blur', () => { for (const k of Object.keys(keys)) keys[k] = false; });
-  canvas.addEventListener('mousedown', (e) => { if (e.button === 0) throwDecoy(); });
-  canvas.addEventListener('click', () => { if (!state.locked && !screens.inMenu) canvas.requestPointerLock(); });
+  let mouseRestoreAt = 0;
+  canvas.addEventListener('mousedown', (e) => { if (e.button === 0 && state.locked) throwDecoy(); });
+  canvas.addEventListener('click', () => {
+    if (!state.locked && !screens.blocking) {
+      mouseRestoreAt = performance.now();
+      canvas.requestPointerLock()?.catch?.(() => {
+        hud.toast('MOUSE FREE · CLICK AGAIN WHEN READY', 2.4);
+      });
+    }
+  });
   function closeOverlay() {
     if (cur.cctv.active >= 0) { cur.cctv.exit(); rects = layoutOverlays(); return true; }
     if (state.inSafe) { state.inSafe = false; hud.safe(false); return true; }
@@ -2097,7 +2108,15 @@ async function start() {
     else { state.pausing = false; screens.pause(); }
   }
   document.addEventListener('pointerlockchange', () => {
+    const wasLocked = state.locked;
     state.locked = document.pointerLockElement === canvas;
+    if (!state.locked && !wasLocked) return;
+    if (!state.locked && wasLocked && mouseRestoreAt > 0 && performance.now() - mouseRestoreAt < 1000 && screens.state === 'playing') {
+      mouseRestoreAt = 0;
+      for (const k of Object.keys(keys)) keys[k] = false;
+      hud.toast('MOUSE FREE · CLICK GAME TO RESTORE LOOK', 2.4);
+      return;
+    }
     if (!state.locked) for (const k of Object.keys(keys)) keys[k] = false;
     const soft = !state.locked && !state.pausing && screens.state === 'playing' && closeOverlay();
     state.pausing = false;
