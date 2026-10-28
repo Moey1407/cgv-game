@@ -6,9 +6,11 @@ import { NIGHTS, TRANSITIONS, cinematicFor, endingFor } from './story.js';
 import { LEVELS, ALL_LOOT } from '../levels/index.js';
 import { chapterFor, lessonDiagram } from './game/chapters.js';
 import { createChapterConversation } from './gameplay/chapterConversation.js';
+import { GRAPHICS_DEFAULTS, GRAPHICS_KEYS, GRAPHICS_PRESETS, normaliseGraphics } from './render/preferences.js';
+import { createCredits } from './credits.js';
 
 const OPTIONS_KEY = 'signal.options.v1';
-export const DEFAULT_OPTIONS = Object.freeze({ sensitivity: 1, master: 0.7, music: 0.6, voice: true, guided: true, quality: 'auto', renderScale: '1', shadows: true, bloom: true, grain: true });
+export const DEFAULT_OPTIONS = Object.freeze({ sensitivity: 1, master: 0.7, music: 0.6, voice: true, guided: true, ...GRAPHICS_DEFAULTS });
 const ALARM_ORDER = ['quiet', 'suspicious', 'alert', 'lockdown'];
 const ALARM_PENALTY = { quiet: 0, suspicious: 5, alert: 12, lockdown: 25 };
 const TIPS = [
@@ -70,7 +72,13 @@ export function createRunTracker({ events, loot = ALL_LOOT } = {}) {
 export function loadOptions(storage) {
   try {
     const saved = JSON.parse(storage?.getItem(OPTIONS_KEY) || '{}');
-    return { ...DEFAULT_OPTIONS, ...saved };
+    const result = { ...DEFAULT_OPTIONS, ...normaliseGraphics(saved) };
+    for (const key of ['voice', 'guided']) if (typeof saved?.[key] === 'boolean') result[key] = saved[key];
+    for (const [key, min, max] of [['sensitivity', 0.3, 2.5], ['master', 0, 1], ['music', 0, 1]]) {
+      const value = saved?.[key];
+      if (value != null && Number.isFinite(Number(value))) result[key] = Math.min(max, Math.max(min, Number(value)));
+    }
+    return result;
   } catch {
     return { ...DEFAULT_OPTIONS };
   }
@@ -127,6 +135,7 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
   };
   const tracker = createRunTracker({ events });
   const options = loadOptions(storage);
+  const credits = createCredits({ dialog: el.credits, doc, reducedMotion: () => options.reducedMotion });
   const MENUS = ['loading', 'home', 'briefing', 'cinematic', 'interlude', 'results'];
   let state = 'loading';
   let optionsFrom = 'pause';
@@ -380,6 +389,8 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
     audio?.setVolume(options.master);
     audio?.setMusicVolume(options.music);
     saveOptions(storage, options);
+    doc.body?.classList.toggle('reduce-motion', options.reducedMotion);
+    doc.body?.classList.toggle('show-fps', options.showFps);
     const EventType = doc.defaultView?.CustomEvent ?? globalThis.CustomEvent;
     if (EventType) doc.dispatchEvent(new EventType('signal:voice', { detail: { enabled: options.voice, volume: options.master } }));
   }
@@ -387,12 +398,12 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
   const form = el.options;
   const field = (name) => form?.querySelector(`[name="${name}"]`);
   function syncForm() {
-    for (const name of ['sensitivity', 'master', 'music']) {
+    for (const name of ['sensitivity', 'master', 'music', 'brightness', 'fov']) {
       const input = field(name);
       if (!input) continue;
       input.value = options[name];
       const out = form.querySelector(`[data-out="${name}"]`);
-      if (out) out.textContent = name === 'sensitivity' ? options[name].toFixed(2) + '×' : Math.round(options[name] * 100) + '%';
+      if (out) out.textContent = name === 'sensitivity' ? options[name].toFixed(2) + '×' : name === 'fov' ? Math.round(options[name]) + '°' : Math.round(options[name] * 100) + '%';
     }
     for (const name of ['quality', 'renderScale']) {
       const select = field(name);
@@ -402,7 +413,7 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
     if (voice) voice.checked = options.voice;
     const guided = field('guided');
     if (guided) guided.checked = options.guided;
-    for (const name of ['shadows', 'bloom', 'grain']) {
+    for (const name of ['shadows', 'bloom', 'grain', 'reflections', 'vignette', 'reducedMotion', 'showFps']) {
       const toggle = field(name);
       if (toggle) toggle.checked = options[name];
     }
@@ -410,12 +421,20 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
   form?.addEventListener('input', (e) => {
     const { name, value } = e.target;
     if (!(name in options)) return;
-    options[name] = ['quality', 'renderScale'].includes(name) ? value : ['voice', 'guided', 'shadows', 'bloom', 'grain'].includes(name) ? e.target.checked : Number(value);
+    options[name] = ['quality', 'renderScale'].includes(name) ? value : e.target.type === 'checkbox' ? e.target.checked : Number(value);
+    Object.assign(options, normaliseGraphics(options));
     if (name === 'quality') actions.quality?.(value);
-    if (['renderScale', 'shadows', 'bloom', 'grain'].includes(name)) actions.rendering?.(options);
+    if (GRAPHICS_KEYS.includes(name)) actions.rendering?.(options);
     applyOptions();
     syncForm();
   });
+
+  function graphicsPreset(name) {
+    Object.assign(options, GRAPHICS_PRESETS[name] ?? GRAPHICS_DEFAULTS);
+    actions.quality?.(options.quality);
+    actions.rendering?.(options);
+    applyOptions(); syncForm();
+  }
 
   function goHome() {
     clearInterval(interludeTimer); interlude = null;
@@ -436,7 +455,7 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
     restart: () => { actions.restart?.(); lock(); },
     'new-heist': () => goHome(),
     home: () => goHome(),
-    options: () => { optionsFrom = state; syncForm(); setState('options'); },
+    options: () => { optionsFrom = state; syncForm(); setState('options'); el.options?.querySelector('.options-panel')?.scrollTo(0, 0); },
     help: () => {
       fillBriefing(level);
       const reference = el.briefing?.querySelector('.controls-reference');
@@ -444,7 +463,11 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
       setState('briefing'); unlock();
     },
     back: () => setState(optionsFrom),
-    credits: () => { try { el.credits?.showModal(); } catch { /* dialog already open */ } },
+    credits: () => credits.open(),
+    'graphics-performance': () => graphicsPreset('performance'),
+    'graphics-balanced': () => graphicsPreset('balanced'),
+    'graphics-cinematic': () => graphicsPreset('cinematic'),
+    'graphics-reset': () => graphicsPreset('default'),
     'cinematic-next': () => nextCinematic(),
     'cinematic-skip': () => finishCinematic(),
     'interlude-next': () => nextInterlude(),
@@ -460,6 +483,10 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
     ACTIONS[button.dataset.action]?.();
   });
   doc.addEventListener('keydown', (e) => {
+    if (el.credits?.open) return;
+    if (state === 'options' && e.code === 'Escape') {
+      e.preventDefault(); e.stopImmediatePropagation(); setState(optionsFrom); return;
+    }
     if (state === 'interlude' && (e.code === 'Enter' || e.code === 'Space')) {
       e.preventDefault(); e.stopImmediatePropagation(); if (!e.repeat) nextInterlude(); return;
     }
@@ -537,7 +564,7 @@ export function createScreens({ events, audio, actions = {}, doc = document, sto
     clearTimeout(resultsTimer);
     resultsTimer = setTimeout(() => {
       if (qa) return;
-      if (done >= 3) stageComplete(3, () => showCinematic('ending', () => { showResults(); try { el.credits?.showModal(); } catch { /* already open */ } }));
+      if (done >= 3) stageComplete(3, () => showCinematic('ending', () => { showResults(); credits.open(); }));
       else stageComplete(done);
     }, done >= 3 ? 2200 : 1200);
   });

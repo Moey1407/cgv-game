@@ -133,6 +133,29 @@ export function brushedSteel({ seed = 3 } = {}) {
   return { colour, normal: heightToNormal(colour, 1.2) };
 }
 
+export function wovenCarpet({ size = 256, seed = 41 } = {}) {
+  const colour = makeCanvas(size), height = makeCanvas(size);
+  const c = colour.getContext('2d'), h = height.getContext('2d');
+  const pixels = c.createImageData(size, size), relief = h.createImageData(size, size);
+  const rand = seeded(seed);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const i = (y * size + x) * 4;
+    const weave = ((x % 4 < 2) === (y % 4 < 2) ? 9 : -9) + (rand() - 0.5) * 12;
+    const u = x / size, v = y / size;
+    const border = Math.min(u, 1 - u);
+    const diamond = Math.abs(u - 0.5) * 2 + Math.abs(v - 0.5);
+    const gold = (border > 0.035 && border < 0.045) || (border > 0.075 && border < 0.082) || Math.abs(diamond - 0.28) < 0.008;
+    const base = gold ? [168, 125, 66] : border < 0.06 ? [65, 12, 22] : [112, 24, 35];
+    for (let k = 0; k < 3; k++) {
+      pixels.data[i + k] = base[k] + weave;
+      relief.data[i + k] = 128 + weave * 2 + (gold ? 10 : 0);
+    }
+    pixels.data[i + 3] = relief.data[i + 3] = 255;
+  }
+  c.putImageData(pixels, 0, 0); h.putImageData(relief, 0, 0);
+  return { colour, normal: heightToNormal(height, 1.4) };
+}
+
 export function createMaterials(field, { maxAnisotropy = 8 } = {}) {
   const tex = (canvas, repeat, colour = true) => {
     const t = toTexture(canvas, repeat, colour);
@@ -142,6 +165,7 @@ export function createMaterials(field, { maxAnisotropy = 8 } = {}) {
   const marble = marbleTiles();
   const wall = damask();
   const steel = brushedSteel();
+  const carpet = wovenCarpet();
   const set = {
     marbleFloor: new THREE.MeshPhysicalMaterial({
       map: tex(marble.colour, [6, 11]), normalMap: tex(marble.normal, [6, 11], false), normalScale: new THREE.Vector2(0.6, 0.6),
@@ -156,7 +180,10 @@ export function createMaterials(field, { maxAnisotropy = 8 } = {}) {
     darkGold: new THREE.MeshStandardMaterial({ color: 0x6e5526, metalness: 0.8, roughness: 0.5 }),
     brass: new THREE.MeshStandardMaterial({ color: 0xd8b25a, metalness: 1, roughness: 0.22 }),
     velvet: new THREE.MeshStandardMaterial({ color: 0x7a0c18, roughness: 0.8 }),
-    carpet: new THREE.MeshStandardMaterial({ color: 0x5a0d14, roughness: 0.95 }),
+    carpet: new THREE.MeshStandardMaterial({
+      map: tex(carpet.colour, [1, 18]), normalMap: tex(carpet.normal, [1, 18], false),
+      normalScale: new THREE.Vector2(0.28, 0.28), roughness: 0.96,
+    }),
     cloth: new THREE.MeshStandardMaterial({ color: 0xf2ece1, roughness: 0.9 }),
     ceiling: new THREE.MeshStandardMaterial({ color: 0x1c140d, roughness: 0.8 }),
     steel: new THREE.MeshStandardMaterial({

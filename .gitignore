@@ -8,3 +8,5 @@ __pycache__/
 *.pyc
 tmp/pdfs/
 output/pdf/
+output/beta-polish/
+brag-output*/

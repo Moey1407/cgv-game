@@ -4,6 +4,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { normaliseGraphics } from './preferences.js';
 
 export const GradeShader = {
   uniforms: {
@@ -71,7 +72,8 @@ export const QUALITY = {
 
 export function createPostFX(renderer, scene, camera, { quality = 'medium' } = {}) {
   let settings = QUALITY[quality];
-  const preferences = { renderScale: 1, shadows: true, bloom: true, grain: true };
+  let preferences = normaliseGraphics();
+  let appliedRatio = null, appliedShadows = null;
   const size = new THREE.Vector2();
   renderer.getSize(size);
   const target = () => new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, samples: settings.samples });
@@ -92,25 +94,30 @@ export function createPostFX(renderer, scene, camera, { quality = 'medium' } = {
 
   function setQuality(name) {
     if (!QUALITY[name]) return;
+    qualityName = name;
     settings = QUALITY[name];
-    const ratio = Math.min(2, settings.pixelRatio * preferences.renderScale);
-    renderer.setPixelRatio(ratio);
-    renderer.setSize(size.x, size.y, false);
-    renderer.shadowMap.enabled = settings.shadows && preferences.shadows;
-    renderer.shadowMap.autoUpdate = settings.shadows && preferences.shadows;
-    renderer.shadowMap.needsUpdate = true;
+    const ratio = Math.min(2, settings.pixelRatio * Number(preferences.renderScale));
+    if (ratio !== appliedRatio) {
+      renderer.setPixelRatio(ratio);
+      composer.setPixelRatio(ratio);
+      appliedRatio = ratio;
+    }
+    const shadows = settings.shadows && preferences.shadows;
+    if (shadows !== appliedShadows) {
+      renderer.shadowMap.enabled = shadows;
+      renderer.shadowMap.autoUpdate = shadows;
+      renderer.shadowMap.needsUpdate = true;
+      appliedShadows = shadows;
+    }
+    renderer.toneMappingExposure = preferences.brightness;
     bloom.enabled = settings.bloom && preferences.bloom;
     grade.uniforms.uGrain.value = preferences.grain ? 0.045 : 0;
-    composer.setPixelRatio(ratio);
+    grade.uniforms.uVignette.value = preferences.vignette ? 0.55 : 0;
   }
 
-  function setPreferences(next) {
-    const scale = Number(next.renderScale);
-    preferences.renderScale = [0.75, 1, 1.25].includes(scale) ? scale : 1;
-    preferences.shadows = next.shadows !== false;
-    preferences.bloom = next.bloom !== false;
-    preferences.grain = next.grain !== false;
-    setQuality(qualityName);
+  function setPreferences(next, name = qualityName) {
+    preferences = normaliseGraphics({ ...preferences, ...next });
+    setQuality(name);
   }
   let qualityName = quality;
 
@@ -138,7 +145,7 @@ export function createPostFX(renderer, scene, camera, { quality = 'medium' } = {
     const u = grade.uniforms;
     u.uTime.value = time;
     u.uAlarm.value = shown.alarm;
-    u.uGlitch.value = shown.glitch;
+    u.uGlitch.value = preferences.reducedMotion ? 0 : shown.glitch;
     u.uDampen.value = shown.dampen;
     u.uDamage.value = shown.damage;
     if (settings.direct) renderer.render(scene, activeCamera);

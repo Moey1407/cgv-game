@@ -155,7 +155,7 @@
       <button type="button" class="primary" data-action="resume">RESUME · ESC / Q</button>
       <button type="button" data-action="help">CONTROLS</button>
       <button type="button" data-action="restart">RESTART FROM CHECKPOINT</button>
-      <button type="button" data-action="options">OPTIONS</button>
+      <button type="button" data-action="options">GRAPHICS, AUDIO &amp; ACCESSIBILITY</button>
       <button type="button" data-action="new-heist">QUIT TO TITLE</button>
     </div>
     <p class="resume-help">Esc resumes play. Click the game to restore mouse look.</p>
@@ -163,25 +163,39 @@
   </div>
 </section>
 <section id="options" class="screen is-hidden" aria-label="Options">
-  <div class="screen-box">
-    <span class="kicker">OPTIONS</span>
+  <div class="screen-box options-panel">
+    <header class="options-heading"><div><span class="kicker">MAKE YOURSELF COMFORTABLE</span><h2>Options</h2></div><small>Saved on this device · ESC to go back</small></header>
+    <div class="options-columns">
+    <fieldset><legend>Sound &amp; play</legend>
     <label>Mouse sensitivity <output data-out="sensitivity"></output><input type="range" name="sensitivity" min="0.3" max="2.5" step="0.05"></label>
     <label>Volume <output data-out="master"></output><input type="range" name="master" min="0" max="1" step="0.05"></label>
     <label>Music <output data-out="music"></output><input type="range" name="music" min="0" max="1" step="0.05"></label>
     <label class="toggle">Voice narration <input type="checkbox" name="voice" checked></label>
     <label class="toggle">Step-by-step guidance <input type="checkbox" name="guided" checked></label>
+    <label class="toggle">Reduce camera motion <input type="checkbox" name="reducedMotion"></label>
+    <small>No head bob, zipline camera cuts or FOV surge. Also reduces menu motion.</small>
+    <label>Field of view <output data-out="fov"></output><input type="range" name="fov" min="55" max="90" step="1"></label>
+    <label>Brightness <output data-out="brightness"></output><input type="range" name="brightness" min="0.7" max="1.5" step="0.05"></label>
     <div class="voice-check"><button type="button" data-action="voice-test">TEST VOICE</button><span id="voice-status">Pre-rendered character dialogue.</span></div>
+    </fieldset>
+    <fieldset><legend>Graphics</legend>
+    <div class="graphics-presets" aria-label="Quick graphics presets"><button type="button" data-action="graphics-performance">FASTER</button><button type="button" data-action="graphics-balanced">BALANCED</button><button type="button" data-action="graphics-cinematic">DETAILED</button></div>
     <label>Graphics quality
       <select name="quality"><option value="auto">Auto</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select>
     </label>
     <label>Render resolution
-      <select name="renderScale"><option value="0.75">75%</option><option value="1">100%</option><option value="1.25">125%</option></select>
+      <select name="renderScale"><option value="0.5">50% · fastest</option><option value="0.75">75%</option><option value="1">100%</option><option value="1.25">125% · sharper</option></select>
     </label>
+    <small>Resolution scales the chosen quality preset. Lower it first if your laptop struggles.</small>
     <label class="toggle">Shadows <input type="checkbox" name="shadows" checked></label>
+    <label class="toggle">Floor reflections <input type="checkbox" name="reflections" checked></label>
     <label class="toggle">Bloom <input type="checkbox" name="bloom" checked></label>
     <label class="toggle">Film grain <input type="checkbox" name="grain" checked></label>
-    <small>Low quality skips bloom and film grain for performance.</small>
-    <div class="buttons"><button type="button" class="primary" data-action="back">BACK</button></div>
+    <label class="toggle">Darkened screen edges <input type="checkbox" name="vignette" checked></label>
+    <label class="toggle">Show FPS &amp; render stats <input type="checkbox" name="showFps"></label>
+    <small>Low skips shadows, reflections and post-effects. Auto can lower quality to keep play responsive. Changes apply without restarting.</small>
+    </fieldset></div>
+    <footer class="buttons options-footer"><button type="button" class="primary" data-action="back">DONE</button><button type="button" data-action="graphics-reset">RESET GRAPHICS</button></footer>
   </div>
 </section>
 <section id="results" class="screen is-hidden" aria-label="Results">
@@ -211,18 +225,26 @@
 
       <section>
         <h3>Created by</h3>
-        <p>Muhammed · Huzaifa · Ahmed · Zidan Fajander · Ibrahim Vorajee</p>
-        <small>Final full-name credits will be confirmed with the team.</small>
+        <p>Muhammed Abed<br>Huzaifa Majeed<br>Ahmed<br>Zidan Fajander<br>Ibrahim Vorajee</p>
+        <small>A collaborative student production<br>COMS3006A / COMS3025A · University of the Witwatersrand · 2026</small>
       </section>
       <section>
-        <h3>Game design &amp; story</h3>
-        <p>SIGNAL Team</p>
+        <h3>One heist. Three acts.</h3>
+        <p>The Gala · get access without breaking cover<br>The Vault · listen, time the beams, take the Star<br>The Double-Cross · leave a signal behind</p>
+        <small>Wren's night at the Varga Museum</small>
+      </section>
+      <section>
         <h3>Gameplay &amp; systems</h3>
-        <p>SIGNAL Team</p>
-        <h3>Visuals &amp; rendering</h3>
-        <p>SIGNAL Team</p>
-        <h3>Audio</h3>
-        <p>SIGNAL Team</p>
+        <p>Guard perception, patrol and search<br>Social cover, badge copying and CCTV loops<br>Safecracking, moving lasers and checkpoints<br>Echo recording, two-actor puzzles and extraction</p>
+        <h3>World &amp; movement</h3>
+        <p>Three authored museum layouts<br>Collision, navigation, vents and rooftop routes<br>Scripted zipline rig and escape camera</p>
+        <h3>Visuals &amp; animation</h3>
+        <p>Procedural architecture and formalwear characters<br>Skinned character animation and walking gala guests<br>Woven carpet, marble, metal and wall materials<br>Lighting, reflections and custom sound-ring shaders</p>
+        <h3>Story &amp; presentation</h3>
+        <p>Mission guidance, chapter conversations and transitions<br>Menus, accessibility options and this closing roll</p>
+        <h3>Sound &amp; testing</h3>
+        <p>Reactive music, positional effects and character dialogue<br>Gameplay tests, performance tuning and browser playtesting</p>
+        <small>Design, implementation and integration by the SIGNAL team.<br>Subsystems were developed together, not by a single author.</small>
       </section>
       <section>
         <h3>Technology</h3>
@@ -235,15 +257,25 @@
       <section>
         <h3>Public-domain paintings</h3>
         <p>The Starry Night · Vincent van Gogh, 1889<br>The Scream · Edvard Munch, 1893<br>The Great Wave off Kanagawa · Katsushika Hokusai, c. 1831<br>The Shipwreck · J. M. W. Turner, 1805</p>
+        <small>Historic works displayed in the museum gallery.<br>Asset sources and licence notes are included in the project documentation.</small>
       </section>
       <section><h3>Original gallery art</h3><p>Hand-drawn tree · Muhammed Abed<br>Character drawing · Huzaifa Majeed</p></section>
       <section>
-        <p>All other geometry, textures, shaders, sound effects and code were made by the SIGNAL team. Music and sound effects are synthesised in the browser.</p>
+        <h3>Built for the browser</h3>
+        <p>JavaScript · HTML · CSS · GLSL<br>Three.js rendering · Vite production build</p>
+        <small>Procedural music and sound effects are synthesised in the browser.<br>Recorded dialogue is loaded as audio clips.<br>Original game geometry, materials and shaders by the SIGNAL team,<br>except the external assets credited above.</small>
+      </section>
+      <section>
+        <h3>Special thanks</h3>
+        <p>Our lecturers and tutors<br>Friends who got lost, got caught, and tried again<br>Everyone who playtested SIGNAL</p>
+        <h3>A last transmission</h3>
+        <p>“One more job,” Dex said.<br>Wren brought her own exit.</p>
       </section>
       <strong class="credits-final">THANK YOU FOR PLAYING</strong>
       <span class="credits-mark">SIGNAL LOST</span>
     </div>
   </div>
+  <div class="credits-controls" aria-label="Credits playback controls"><button type="button" data-credits="toggle" aria-pressed="false">PLAY SCROLL</button><button type="button" data-credits="restart">REPLAY</button><label>Speed <select data-credits="speed"><option value="1">1×</option><option value="2">2×</option></select></label><small>Scroll to read · ESC to close</small></div>
 </dialog>
 <script type="module" src="./src/main.js"></script>
 </body>

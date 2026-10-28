@@ -1,4 +1,27 @@
 /* SIGNAL's mission-book presentation. Kept separate from gameplay layout. */
+.screen .options-panel { width: min(880px, calc(100vw - 32px)); gap: 22px; }
+.options-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; }
+.options-heading h2 { font: 38px Georgia,serif; margin-top: 6px; }
+.options-heading small, .options-panel small { font: 12px/1.5 Arial,sans-serif; color: #50606a; letter-spacing: 0; }
+.options-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.options-columns fieldset { border: 0; border-top: 2px solid #c8bd9f; padding: 14px 0 0; margin: 0; min-width: 0; display: flex; flex-direction: column; gap: 13px; }
+.options-columns legend { font: 800 15px Arial,sans-serif; padding: 0 12px 0 0; }
+.options-columns label { letter-spacing: 0; }
+.graphics-presets { display: flex; gap: 7px; flex-wrap: wrap; }
+.screen .graphics-presets button { font-size: 10px; padding: 8px 10px; }
+.options-footer { position: sticky; bottom: -28px; background: var(--paper); padding: 12px 0 5px; border-top: 1px solid #c8bd9f; }
+.screen .options-footer button { font-size: 11px; padding: 10px 12px; }
+body.show-fps:not(.in-menu):not(.cctv-mode) .stats { display: block; }
+body.reduce-motion *, body.reduce-motion *::before, body.reduce-motion *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+.credits .credits-viewport { inset: 64px 0 85px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.credits .credits-roll { position: static; margin: 0 auto; padding: 20vh 0 15vh; transform: none; animation: none; }
+.credits .credits-roll section { margin: 70px auto; }
+.credits .credits-mark { padding-bottom: 0; }
+.credits-controls { position: fixed; z-index: 3; inset: auto 0 0; padding: 18px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px; background: #020408f2; border-top: 1px solid #34474f; }
+.credits-controls button, .credits-controls select { background: #eddfba; color: #152530; border: 2px solid #b99b56; border-radius: 3px; padding: 9px 12px; font: 700 11px Arial,sans-serif; cursor: pointer; }
+.credits-controls label, .credits-controls small { font: 12px Arial,sans-serif; color: #d4dce0; }
+.credits-controls button:focus-visible, .credits-controls select:focus-visible { outline: 2px solid #72efff; outline-offset: 3px; }
+@media(max-width: 650px) { .screen .options-panel { padding: 18px; } .options-footer { bottom: -18px; } .options-columns { grid-template-columns: 1fr; } .options-heading { display: block; } .options-heading small { display: block; margin-top: 8px; } .credits-controls small { display: none; } }
 body.capture-still > :not(#view) { visibility: hidden !important; }
 :root { --ink: #152530; --paper: #f0ead9; --gold: #e9bd62; --muted-ink: #50606a; --blue: #82b9c8; }
 .page button, .screen button, .interlude button, .cinematic button { border: 2px solid var(--ink); border-radius: 3px; background: var(--paper); color: var(--ink); padding: 12px 20px; box-shadow: 0 4px 0 #07121b; font: 800 13px Arial, sans-serif; letter-spacing: .045em; cursor: pointer; transition: transform .12s, background .12s, box-shadow .12s; }

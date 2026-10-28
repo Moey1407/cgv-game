@@ -164,7 +164,7 @@ async function start() {
         state.auto = q === 'auto';
         if (q !== 'auto') { applyQuality(q); setMode(state.mode); }
       },
-      rendering: (options) => fx.setPreferences(options)
+      rendering: (options) => applyRenderingOptions(options)
     }
   });
 
@@ -528,12 +528,18 @@ async function start() {
   function applyQuality(name) {
     state.quality = name;
     const q = QUALITY[name];
-    fx.setQuality(name);
-    hall.setReflection(q.reflection, window.innerWidth, window.innerHeight);
+    applyRenderingOptions(screens.options);
     cur?.cctv.setQuality({ rate: q.feedRate, width: q.feedWidth, height: q.feedHeight });
     minimap.setRate(q.mapRate);
     guests.setLimit(q.crowdLimit);
     guests.update(elapsed);
+  }
+
+  function applyRenderingOptions(options) {
+    fx.setPreferences(options, state.quality);
+    hall.setReflection(options.reflections ? QUALITY[state.quality].reflection : 0, window.innerWidth, window.innerHeight);
+    if (!state.zip) { camera.fov = options.fov; camera.updateProjectionMatrix(); }
+    for (const g of cur?.guards ?? []) g.torch.shadow.autoUpdate = renderer.shadowMap.enabled && state.quality === 'high';
   }
 
   function setMode(mode) {
@@ -556,7 +562,7 @@ async function start() {
       g.torch.userData.base ??= g.torch.intensity;
       g.torch.intensity = on ? g.torch.userData.base : 0;
       g.torch.userData.on = on;
-      g.torch.shadow.autoUpdate = on && state.quality === 'high';
+      g.torch.shadow.autoUpdate = on && renderer.shadowMap.enabled && state.quality === 'high';
       if (on && state.quality === 'high') g.torch.shadow.needsUpdate = true;
     }
     fx.setBloom({ threshold: mode === 'gala' ? 0.9 : 0.6, strength: mode === 'gala' ? 0.32 : 0.5 });
@@ -687,7 +693,7 @@ async function start() {
     state.spawnGrace = 2.5;
     state.zip = null;
     endZip();
-    camera.fov = 68; camera.updateProjectionMatrix();
+    camera.fov = screens.options.fov; camera.updateProjectionMatrix();
     state.vent = null;
     state.climb = null;
     ui.fade.classList.remove('is-on');
@@ -1152,7 +1158,7 @@ async function start() {
     for (const w of trolley.userData.wheels) w.rotation.x += dt * (z.t > 0 && z.t < 1 ? 40 : 0);
     zipPose.eye.copy(zipPose.cable).addScaledVector(zipPose.side, swing);
     zipPose.eye.y -= 1.1;
-    const outside = z.t > 0.32 && z.t < 0.7;
+    const outside = !screens.options.reducedMotion && z.t > 0.32 && z.t < 0.7;
     if (outside) {
       zipRig.hide();
       avatar.visible = true;
@@ -1184,7 +1190,8 @@ async function start() {
         pitch -= Math.sin(k * Math.PI) * 0.45;
       }
       camera.rotation.set(pitch, ride, -z.lean * 0.045);
-      camera.fov = 68 + Math.sin(e * Math.PI) * 8; camera.updateProjectionMatrix();
+      if (screens.options.reducedMotion) camera.rotation.z = 0;
+      camera.fov = screens.options.fov + (screens.options.reducedMotion ? 0 : Math.sin(e * Math.PI) * 8); camera.updateProjectionMatrix();
       zipRig.update(z.t >= 1 ? Math.max(0, 1 - (z.land ?? 0) * 2) : mount, e, z.lean, elapsed);
     }
     if (z.t >= 1 && (z.land ?? 0) > 0.9 && !z.done) {
@@ -1327,7 +1334,7 @@ async function start() {
       }
     }
     player.height += (profile.height - player.height) * Math.min(1, dt * 10);
-    const bob = player.moving && player.y === 0 ? Math.sin(time * (profile.id === 'run' || profile.id === 'sprint' ? 12 : 8.5)) * 0.025 : 0;
+    const bob = !screens.options.reducedMotion && player.moving && player.y === 0 ? Math.sin(time * (profile.id === 'run' || profile.id === 'sprint' ? 12 : 8.5)) * 0.025 : 0;
     camera.position.set(player.position.x, player.base + player.y + player.height + bob, player.position.z);
     if (state.shake > 0) {
       state.shake = Math.max(0, state.shake - dt);
@@ -1839,7 +1846,7 @@ async function start() {
 
   let shadowTick = 0;
   function refreshStaticShadows(dt) {
-    if (QUALITY[state.quality].shadows) return;
+    if (!renderer.shadowMap.enabled || QUALITY[state.quality].shadows) return;
     shadowTick += dt;
     if (shadowTick < 0.5) return;
     shadowTick = 0;
@@ -2137,10 +2144,9 @@ async function start() {
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
     fx.setSize(window.innerWidth, window.innerHeight);
-    hall.setReflection(QUALITY[state.quality].reflection, window.innerWidth, window.innerHeight);
+    hall.setReflection(screens.options.reflections ? QUALITY[state.quality].reflection : 0, window.innerWidth, window.innerHeight);
     rects = layoutOverlays();
   });
-  ui.closeCredits.addEventListener('click', () => ui.credits.close());
 
   applyQuality('medium');
   await newHeist();
