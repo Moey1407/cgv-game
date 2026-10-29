@@ -37,11 +37,14 @@ export function createCollision(data) {
     return best;
   }
 
-  function inside(x, z, r = 0.35, y = 0) {
+  // `height` is how tall whoever is moving currently is, so crouching and crawling
+  // genuinely fit under a low gap instead of only lowering the camera. It defaults
+  // to a standing adult, which is what guards and the navigation grid want.
+  function inside(x, z, r = 0.35, y = 0, height = 1.7) {
     const ground = groundAt(x, z, y);
     if (ground === null) return false;
     for (const b of solids.values()) {
-      if (b.maxY <= ground + 0.2 || b.minY >= ground + 1.7) continue;
+      if (b.maxY <= ground + 0.2 || b.minY >= ground + height) continue;
       if (circleHitsBox(x, z, r, b)) return false;
     }
     return true;

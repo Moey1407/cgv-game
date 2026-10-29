@@ -77,7 +77,13 @@ export function createPerson({ style = 'suit', colour = 0x426997, skin = 0xba856
   const pants = uniform ? 0x354d69 : (trouser ?? tint(colour, .55));
 
   // Smaller shaped head: chin, jaw, cheeks, temples and forehead, not a ball.
-  part(tube(.049, .062, .14), head, [0, -.055, 0], skin);
+  // The neck is shared between chest and head rather than riding the head alone:
+  // weighted purely to the head it swung clear of the shoulders and hung in the
+  // air as soon as she looked down to crouch or crawl.
+  // Three height segments, so there are rings in between for the chest-to-head
+  // weighting to actually grade across: a plain two-ring tube would snap.
+  part(new THREE.CylinderGeometry(.049, .062, .14, 10, 3), head, [0, -.055, 0], skin, [1, 1, 1], [0, 0, 0],
+    { joint: chest, bottom: 1.525, top: 1.655 });
   part(loft([[-.107, .035, .046, .026], [-.092, .063, .061, .014], [-.05, .085, .077, 0],
     [.005, .097, .085, -.005], [.065, .096, .086, -.008], [.112, .075, .074, -.014], [.139, .012, .027, -.016]]),
   head, [0, .065, 0], skin);
@@ -107,13 +113,19 @@ export function createPerson({ style = 'suit', colour = 0x426997, skin = 0xba856
   part(loft([[-.31, dress ? .15 : .177, .12], [-.19, dress ? .132 : .165, .113], [-.06, dress ? .143 : .187, .115],
     [.10, dress ? .18 : .212, dress ? .112 : .124], [.20, .216, .098], [.25, .17, .079], [.28, .065, .052]]),
   chest, [0, 0, 0], cloth, [1, 1, 1], [0, 0, 0], bodyBlend);
-  part(loft([[-.1, .14, .105], [.04, .163, .114], [.135, .15, .105]]), hips, [0, 0, 0], dress ? colour : pants);
+  // Everything around the waist is split between hips and chest on the same
+  // curve as the torso above it. Pinned rigidly to the hips, a belt or sash sat
+  // still while the jacket leaned and pushed straight out through the front of
+  // it the moment Wren bent into a crouch or a crawl.
+  const waist = (y) => [0, y - positions[chest].y, 0];
+  part(loft([[-.1, .14, .105], [.04, .163, .114], [.135, .15, .105]]), chest,
+    waist(positions[hips].y), dress ? colour : pants, [1, 1, 1], [0, 0, 0], bodyBlend);
   if (dress) {
     // A long, wider hem keeps the animated thighs inside the dress in third person.
     part(loft([[-.88, .32, .30], [-.75, .31, .285], [-.55, .28, .26], [-.35, .25, .225],
       [-.10, .205, .16], [.12, .15, .11]]),
       hips, [0, 0, 0], colour);
-    part(tube(.144, .144, .027), hips, [0, .12, 0], accent, [1, 1, .78]);
+    part(tube(.144, .144, .027), chest, waist(positions[hips].y + .12), accent, [1, 1, .78], [0, 0, 0], bodyBlend);
     part(tube(.064, .073, .026), chest, [0, .257, .003], skin, [1, 1, .9]);
     for (const side of [-1, 1]) {
       part(sphere(.012), head, [side * .103, .035, .007], 0xe4c170, [.5, 1.3, .5]);
@@ -135,8 +147,9 @@ export function createPerson({ style = 'suit', colour = 0x426997, skin = 0xba856
     part(box(.06, .014, .013), chest, [-.112, .085, .123], tint(cloth, .7));
     if (!uniform) part(box(.035, .018, .014), chest, [-.112, .101, .125], shirt, [1, 1, 1], [0, 0, -.12]);
     for (const y of [-.065, -.14]) part(sphere(.007), chest, [.02, y, .117], 0xb8ad99, [1, 1, .35]);
-    part(tube(.165, .165, .035), hips, [0, .06, 0], 0x30343a, [1, 1, .69]);
-    part(box(.034, .026, .014), hips, [0, .06, .119], 0xbca67a);
+    part(tube(.165, .165, .035), chest, waist(positions[hips].y + .06), 0x30343a, [1, 1, .69], [0, 0, 0], bodyBlend);
+    const buckle = waist(positions[hips].y + .06);
+    part(box(.034, .026, .014), chest, [buckle[0], buckle[1], .119], 0xbca67a, [1, 1, 1], [0, 0, 0], bodyBlend);
   }
   for (let i = 0; i < 2; i++) {
     const side = i === 0 ? -1 : 1, sleeve = dress ? skin : cloth;
@@ -147,9 +160,19 @@ export function createPerson({ style = 'suit', colour = 0x426997, skin = 0xba856
     for (let finger = 0; finger < 3; finger++) part(tube(.007, .006, .042), elbows[i], [(finger - 1) * .013, -.318, .012], skin);
     part(sphere(.015), elbows[i], [-side * .026, -.27, .025], skin, [.55, 1.25, .7], [0, 0, side * -.4]);
     if (!dress) part(tube(.037, .037, .024), elbows[i], [0, -.235, 0], uniform ? 0xb1c3cd : shirt);
-    part(loft([[-.405, .061, .063], [-.30, .073, .077], [-.1, .088, .09], [.025, .085, .084]], 10), legs[i], [0, 0, 0], dress ? skin : pants);
-    part(sphere(.06), knees[i], [0, -.005, 0], dress ? skin : pants, [1, 1, 1.03]);
-    part(loft([[-.40, .041, .045], [-.29, .047, .053], [-.13, .061, .063], [.012, .059, .063]], 10), knees[i], [0, 0, 0], dress ? skin : pants);
+    // A gown covers the leg to the ankle, so a dressed character is built from
+    // the knee down only. The thigh was the piece that pushed through the
+    // skirt: it is widest right at the hip, where the dress is narrowest, and
+    // it swings furthest when she walks.
+    if (!dress) {
+      part(loft([[-.405, .061, .063], [-.30, .073, .077], [-.1, .088, .09], [.025, .085, .084]], 10), legs[i], [0, 0, 0], pants);
+      part(sphere(.06), knees[i], [0, -.005, 0], pants, [1, 1, 1.03]);
+      part(loft([[-.40, .041, .045], [-.29, .047, .053], [-.13, .061, .063], [.012, .059, .063]], 10), knees[i], [0, 0, 0], pants);
+    } else {
+      // Only the last hand's breadth above the ankle, so the top of the leg is
+      // always behind the hem and never has a visible end to show.
+      part(loft([[-.40, .041, .045], [-.34, .0435, .048], [-.28, .046, .051]], 10), knees[i], [0, 0, 0], skin);
+    }
     part(sphere(.069), knees[i], [0, -.43, .046], uniform ? 0x252b34 : 0x45403a, [.84, .54, 1.55]);
     part(box(.115, .015, .19), knees[i], [0, -.463, .049], 0x292b2e);
   }
@@ -174,25 +197,70 @@ export function createPerson({ style = 'suit', colour = 0x426997, skin = 0xba856
   const mesh = new THREE.SkinnedMesh(geometry, material);
   mesh.name = root.name + '-body'; mesh.add(bones[hips]); mesh.bind(new THREE.Skeleton(bones));
   mesh.frustumCulled = false; mesh.castShadow = uniform; root.add(mesh);
-  let mode = uniform ? 'walk' : 'idle', time = phase, stride = 0;
+  // Postures are held in the skeleton rather than faked by squashing or tipping
+  // the whole figure. Legs and arms hang down the bone's -Y, the chest and head
+  // run up +Y, so a positive rotation.x folds a limb back but leans a torso
+  // forward. Keys: hip height, thigh, knee, torso lean, head lift, shoulder,
+  // elbow, and how much of the walk cycle survives the posture.
+  // Hip heights are solved against the leg chain, not guessed: dropping the hips
+  // without folding the legs enough simply buries the feet in the floor. From hip
+  // to sole is 0.885 straight, so each posture folds thigh and shin by exactly
+  // enough to take up the drop, landing the sole just on the ground with the foot
+  // under the hip.
+  const POSE = {
+    stand: { hipY: .94, legX: 0, kneeX: 0, chestX: 0, headX: 0, armX: 0, armZ: .065, elbowX: -.12, swing: 1 },
+    // Deep squat: knees out in front, heels under her, head at about 1.1 -- which
+    // is where the crouching camera sits.
+    crouch: { hipY: .42, legX: -1.15, kneeX: 2.36, chestX: .36, headX: -.34, armX: -.52, armZ: .20, elbowX: -1.15, swing: .34 },
+    // Hands and knees: the knee carries her weight on the floor and the shin lies
+    // flat behind it, so the sole ends up level with the knee rather than under it.
+    crawl: { hipY: .28, legX: 1.03, kneeX: .65, chestX: 1.40, headX: -1.00, armX: -1.62, armZ: .26, elbowX: .34, swing: .5 }
+  };
+  if (dress) {
+    // The squat survives a gown: with no thigh and the leg starting at the ankle,
+    // the only visible piece sits low and central, still well inside the hem.
+    // A crawl does not -- a shin trailing that far back would leave the skirt
+    // entirely -- so there she keeps her legs tucked beneath her, where the hem
+    // and the floor hide them between them.
+    POSE.crawl = { ...POSE.crawl, hipY: .30, legX: .28, kneeX: .30, chestX: 1.20, headX: -.85, armX: -1.42 };
+  }
+  let mode = uniform ? 'walk' : 'idle', posture = 'stand', time = phase, stride = 0;
+  let crouchMix = 0, crawlMix = 0;
   function update(dt) {
     time += dt;
+    const step = Math.max(0, dt);
     const moving = mode === 'walk' || mode === 'run';
-    stride = THREE.MathUtils.damp(stride, moving ? 1 : 0, 10, Math.max(0, dt));
+    stride = THREE.MathUtils.damp(stride, moving ? 1 : 0, 10, step);
+    crouchMix = THREE.MathUtils.damp(crouchMix, posture === 'crouch' ? 1 : 0, 9, step);
+    crawlMix = THREE.MathUtils.damp(crawlMix, posture === 'crawl' ? 1 : 0, 9, step);
+    const standMix = Math.max(0, 1 - crouchMix - crawlMix);
+    const total = standMix + crouchMix + crawlMix || 1;
+    const pose = (key) => (POSE.stand[key] * standMix + POSE.crouch[key] * crouchMix
+      + POSE.crawl[key] * crawlMix) / total;
+    const hipY = pose('hipY'), legX = pose('legX'), kneeX = pose('kneeX'), swing = pose('swing');
+    const armX = pose('armX'), armZ = pose('armZ'), elbowX = pose('elbowX');
     const gait = Math.sin(time * (mode === 'run' ? 10 : 5.2));
-    const amplitude = stride * (dress ? (mode === 'run' ? .32 : .25) : mode === 'run' ? .65 : .32);
+    const amplitude = stride * swing * (dress ? (mode === 'run' ? .32 : .25) : mode === 'run' ? .65 : .32);
     for (let i = 0; i < 2; i++) {
       const sign = i === 0 ? 1 : -1;
-      bones[legs[i]].rotation.x = sign * gait * amplitude;
-      bones[knees[i]].rotation.x = Math.max(0, -sign * gait) * amplitude * 1.3;
-      bones[arms[i]].rotation.set(-sign * gait * amplitude * .65, 0, -sign * .065);
-      bones[elbows[i]].rotation.x = -.12 - (1 - stride) * (.06 + Math.sin(time * .65) * .035);
+      bones[legs[i]].rotation.x = legX + sign * gait * amplitude;
+      bones[knees[i]].rotation.x = kneeX + Math.max(0, -sign * gait) * amplitude * 1.3;
+      bones[arms[i]].rotation.set(armX - sign * gait * amplitude * .65, 0, -sign * armZ);
+      bones[elbows[i]].rotation.x = elbowX - (1 - stride) * (.06 + Math.sin(time * .65) * .035) * standMix;
     }
-    bones[chest].rotation.y = stride * gait * .035 + (1 - stride) * Math.sin(time * .55) * .025;
-    bones[head].rotation.y = (1 - stride) * Math.sin(time * .4) * .10;
-    bones[hips].position.y = .94 + stride * Math.abs(gait) * .01 + (1 - stride) * Math.sin(time) * .003;
+    bones[chest].rotation.x = pose('chestX');
+    bones[chest].rotation.y = (stride * gait * .035 + (1 - stride) * Math.sin(time * .55) * .025) * standMix;
+    bones[head].rotation.x = pose('headX');
+    bones[head].rotation.y = (1 - stride) * Math.sin(time * .4) * .10 * standMix;
+    bones[hips].position.y = hipY + (stride * Math.abs(gait) * .01 + (1 - stride) * Math.sin(time) * .003) * standMix;
   }
   update(0);
-  return { root, model: mesh, play(name) { mode = String(name).toLowerCase(); }, update,
-    dispose() { geometry.dispose(); material.dispose(); mesh.skeleton.dispose(); } };
+  return {
+    root, model: mesh, update,
+    play(name, stance) {
+      mode = String(name).toLowerCase();
+      if (stance !== undefined) posture = String(stance).toLowerCase();
+    },
+    dispose() { geometry.dispose(); material.dispose(); mesh.skeleton.dispose(); }
+  };
 }

@@ -111,14 +111,27 @@ export function createCCTV(renderer, scene, cameras, { feedWidth = 480, feedHeig
     return (feeds[index]?.loopTimer ?? 0) > 0;
   }
 
+  // Meshes in the world that display these feeds -- the security office monitors.
+  // They have to leave the scene while a feed is captured: drawing into a render
+  // target while something in that same scene samples that target is a feedback
+  // loop. WebGL refuses it, drops the draw and logs GL_INVALID_OPERATION, and at
+  // one message per monitor per frame the console flood alone wedges the page.
+  // Hiding them also stops a camera pointed at the office showing a monitor
+  // inside a monitor.
+  let shielded = [];
+  function shield(meshes) { shielded = meshes ?? []; }
+
   function renderFeed(feed, interval = 0) {
     if (feed.loopTimer > 0 && feed.fresh) return;
     if (feed.age < interval) return;
     feed.age = 0;
+    const hidden = [];
+    for (const mesh of shielded) if (mesh.visible) { mesh.visible = false; hidden.push(mesh); }
     const prev = renderer.getRenderTarget();
     renderer.setRenderTarget(feed.target);
     renderer.render(scene, feed.camera);
     renderer.setRenderTarget(prev);
+    for (const mesh of hidden) mesh.visible = true;
     feed.fresh = true;
   }
 
@@ -211,6 +224,7 @@ export function createCCTV(renderer, scene, cameras, { feedWidth = 480, feedHeig
 
   return {
     feeds,
+    shield,
     enter,
     exit,
     next,

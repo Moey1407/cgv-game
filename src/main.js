@@ -169,7 +169,35 @@ async function start() {
   });
 
   const canvas = $('view');
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: qa });
+
+  // A machine with no WebGL, or a GPU driver that gives up mid-demo, used to
+  // leave nothing but a black page and a console message nobody was looking at.
+  // Say what happened on the screen instead.
+  function fatal(headline, detail) {
+    const panel = document.createElement('div');
+    panel.id = 'fatal';
+    panel.setAttribute('role', 'alert');
+    panel.innerHTML = `<h1>${headline}</h1><p>${detail}</p>`;
+    document.body.appendChild(panel);
+    ui.loading?.classList.add('hidden');
+  }
+
+  let contextLost = false;
+  let renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: qa });
+  } catch (error) {
+    console.error('[signal] WebGL unavailable:', error);
+    fatal('SIGNAL cannot start', 'This game needs WebGL, and this browser will not give it to us. Try a recent Chrome, Edge or Firefox, and check that hardware acceleration is switched on in your browser settings.');
+    return;
+  }
+  // Losing the context is recoverable in principle but not worth rebuilding a
+  // whole museum for: stop the loop cleanly and tell the player to reload.
+  canvas.addEventListener('webglcontextlost', (event) => {
+    event.preventDefault();
+    contextLost = true;
+    fatal('Graphics stopped', 'The browser dropped this page’s connection to the graphics card. Reload to pick up from your last checkpoint.');
+  });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.shadowMap.enabled = true;
@@ -269,6 +297,10 @@ async function start() {
   const state = {
     mode: 'gala', dampen: false, cell: 6, pip: false, map: true, quality: 'medium', auto: !qa,
     damage: 0, locked: false, sonarCooldown: 0, mapReveal: 0, laserCooldown: 0, exposure: 0, stun: 0, shake: 0, lastClear: new THREE.Vector3(),
+    // The last spot Wren legally stood on. Anything that has to shove her out of
+    // a solid uses it to decide which way is "back", so a door closing on her
+    // never ejects her through to the far side.
+    lastFree: new THREE.Vector3(0, 0, 0), hasFree: false,
     hasKeycard: false, hasStar: false, inSafe: false, ended: null, detections: 0, time: 0,
     echoStep: 0, echoLast: new THREE.Vector3(), fadeEcho: 0, lastDt: 1 / 60, safeGlow: 0, safeNoise: 0,
     zip: null, vent: null, searchCooldown: 0, attract: 0,
@@ -279,13 +311,20 @@ async function start() {
 
   function emitNoise(position, colour, radius, { source, damped = false, speed, strength = 0.85, cause } = {}) {
     if (cause === 'sonar') state.mapReveal = 2.4;
-    // Level 1 guest cover: on the public floor Wren's footsteps blend into the party, so
-    // they make no ring and no guard hears them. Rings appear once the cover is gone
-    // (past the velvet rope, sprinting, crouching), which is exactly when sound matters.
-    if (cur?.n === 1 && source === 'player' && cause === 'footstep' && !damped
-      && galaCover({ x: player.position.x, z: player.position.z, movement: player.profile.id, gadgetHeat: state.socialHeat, compromised: cur.flags.coverBlown }).safe) return;
+    // Level 1 guest cover: while Wren is still passing as a guest the gala shows no
+    // sound at all. Her own footsteps blend into the party, so they make no ring and
+    // no guard hears them; everything else -- guards, doors, decoys, the Echo -- is
+    // still heard, it simply draws nothing, because she is reading the room as a
+    // guest rather than through the signal. The moment the cover is gone (past the
+    // velvet rope, sprinting, crouching, gadget heat) the whole field lights up,
+    // which is exactly when sound starts to matter.
+    const covered = cur?.n === 1 && galaCover({
+      x: player.position.x, z: player.position.z, movement: player.profile.id,
+      gadgetHeat: state.socialHeat, compromised: cur.flags.coverBlown
+    }).safe;
+    if (covered && source === 'player' && cause === 'footstep' && !damped) return;
     const y = position.y ?? 0;
-    field.emit(tmp.next.set(position.x, y + 0.02, position.z), colour, radius, { speed: speed ?? Math.max(5, radius * 0.9), strength, source });
+    if (!covered) field.emit(tmp.next.set(position.x, y + 0.02, position.z), colour, radius, { speed: speed ?? Math.max(5, radius * 0.9), strength, source });
     if (damped || !cur) return;
     const reach = radius * (HEARING[state.mode] ?? 1);
     let heard = false;
@@ -295,10 +334,21 @@ async function start() {
     if (heard && cause) alarm.raise(ALARM_RAISE[cause] ?? 4, cause);
   }
 
-  function canStand(x, z, r = 0.35, y = player.base) {
+  function canStand(x, z, r = 0.35, y = player.base, height = 1.7) {
     if (!cur) return false;
     if (state.transit?.sealed) return state.transit.lock.inside(x, z, r, y);
-    return cur.collision.inside(x, z, r, y) || inLock.inside(x, z, r, y) || outLock.inside(x, z, r, y);
+    return cur.collision.inside(x, z, r, y, height) || inLock.inside(x, z, r, y) || outLock.inside(x, z, r, y);
+  }
+
+  // How tall Wren is right now. Taken from the stance she has asked for rather
+  // than the eased camera, so pressing crouch fits her under a gap on the same
+  // frame -- the lasers already work that way.
+  function bodyHeight() {
+    return player.profile.height;
+  }
+
+  function canFit(x, z, r = 0.35, y = player.base) {
+    return canStand(x, z, r, y, bodyHeight());
   }
 
   function clearDecoys() {
@@ -431,6 +481,9 @@ async function start() {
       : data.cameras.map(cameraFromData);
     const cctv = createCCTV(renderer, scene, cameraDefs, { aspect: window.innerWidth / window.innerHeight });
     for (const feed of cctv.feeds) { feed.camera.layers.enable(LAYER_WORLD_ONLY); feed.camera.layers.enable(LAYER_AVATAR); }
+    // The office monitors show these feeds, so they cannot be in the scene while
+    // a feed is captured -- see shield() in cctv.js.
+    cctv.shield(wing?.monitors);
     cctv.setRate(QUALITY[state.quality].feedRate);
     const cctvSystem = createCctvSystem(cameraDefs.map((c, i) => ({
       id: i,
@@ -806,9 +859,25 @@ async function start() {
     });
   }
 
+  // Hand the shut parts of both airlocks to the level's collision every frame, so
+  // a closed passage door is as solid as a wall. Re-applied each frame because
+  // the doors animate and each level builds its own collision.
+  function syncLockCollision() {
+    if (!cur?.collision) return;
+    for (const [tag, lock] of [['in', inLock], ['out', outLock]]) {
+      const shut = lock.solids();
+      for (const name of ['near', 'far']) {
+        const id = 'airlock-' + tag + '-' + name;
+        const box = shut.find((s) => s.name === name);
+        if (box) cur.collision.block(id, box); else cur.collision.unblock(id);
+      }
+    }
+  }
+
   function updateTransit(dt) {
     inLock.update(dt);
     outLock.update(dt);
+    syncLockCollision();
     const t = state.transit;
     if (!t) return false;
     t.timer += dt;
@@ -1165,7 +1234,7 @@ async function start() {
       avatar.position.copy(zipPose.eye).setY(zipPose.eye.y - 1.55);
       avatar.rotation.set(0, ride + Math.PI, swing * 0.5);
       avatarBody.rotation.set(0, 0, 0); avatarBody.position.set(0, 0, 0); avatarBody.scale.set(1, 1, 1);
-      wren.play('idle');
+      wren.play('idle', 'stand');
       wren.update(dt);
       hangPose();
       const k = (z.t - 0.32) / 0.38;
@@ -1264,13 +1333,11 @@ async function start() {
     avatar.rotation.y = player.yaw + Math.PI;
     const id = player.profile.id;
     const crawl = id === 'crawl';
-    const crouch = id === 'crouch';
-    avatarBody.rotation.x += ((crawl ? 1.42 : 0) - avatarBody.rotation.x) * Math.min(1, dt * 8);
-    avatarBody.position.y += ((crawl ? 0.14 : 0) - avatarBody.position.y) * Math.min(1, dt * 8);
-    avatarBody.position.z += ((crawl ? -0.8 : 0) - avatarBody.position.z) * Math.min(1, dt * 8);
-    const squash = crouch ? 0.64 : 1;
-    avatarBody.scale.y += (squash - avatarBody.scale.y) * Math.min(1, dt * 8);
-    wren.play(!player.moving ? 'idle' : id === 'run' || id === 'sprint' ? 'run' : 'walk');
+    // Crouching and crawling are posed in the skeleton by createPerson, so the
+    // body group is left alone: squashing or tipping the whole figure read as a
+    // shrinking statue rather than someone lowering herself.
+    wren.play(!player.moving ? 'idle' : id === 'run' || id === 'sprint' ? 'run' : 'walk',
+      crawl ? 'crawl' : id === 'crouch' ? 'crouch' : 'stand');
     wren.update(dt * (crawl ? 0.6 : 1));
   }
 
@@ -1313,12 +1380,13 @@ async function start() {
     player.yaw += ((keys.ArrowLeft ? 1 : 0) - (keys.ArrowRight ? 1 : 0)) * 2.1 * dt;
     player.pitch = THREE.MathUtils.clamp(player.pitch + ((keys.ArrowUp ? 1 : 0) - (keys.ArrowDown ? 1 : 0)) * 1.5 * dt, -1.3, 1.3);
     player.moving = (f !== 0 || s !== 0) && state.stun <= 0;
-    if (!canStand(player.position.x, player.position.z)) unstick();
+    if (!canFit(player.position.x, player.position.z)) unstick();
+    else { state.lastFree.set(player.position.x, player.base, player.position.z); state.hasFree = true; }
     stamina.update(dt, player.moving && profile.id === 'sprint');
     if (player.moving) {
       tmp.dir.set(s, 0, -f).normalize().applyAxisAngle(tmp.up, player.yaw).multiplyScalar(profile.speed * dt);
-      if (canStand(player.position.x + tmp.dir.x, player.position.z)) player.position.x += tmp.dir.x;
-      if (canStand(player.position.x, player.position.z + tmp.dir.z)) player.position.z += tmp.dir.z;
+      if (canFit(player.position.x + tmp.dir.x, player.position.z)) player.position.x += tmp.dir.x;
+      if (canFit(player.position.x, player.position.z + tmp.dir.z)) player.position.z += tmp.dir.z;
       player.step -= dt;
       if (player.step <= 0 && player.y <= 0) {
         player.step = profile.step * 0.6;
@@ -1409,13 +1477,21 @@ async function start() {
 
   function unstick() {
     const { x, z } = player.position;
-    const level = (nx, nz) => cur.collision.inside(nx, nz, 0.35, player.base);
-    for (const ok of state.transit?.sealed ? [canStand] : [level, canStand]) {
+    const level = (nx, nz) => cur.collision.inside(nx, nz, 0.35, player.base, bodyHeight());
+    for (const ok of state.transit?.sealed ? [canFit] : [level, canFit]) {
       for (let r = 0.1; r <= 1.6; r += 0.1) {
+        // Still the smallest nudge that frees her, but among the ways out at that
+        // distance take the one back toward where she last stood. Taking the first
+        // free angle instead let a shutter closing on her pop her out whichever
+        // side the scan happened to reach first, often straight through the door.
+        let best = null, nearest = Infinity;
         for (let a = 0; a < 24; a += 1) {
           const nx = x + Math.cos(a / 24 * Math.PI * 2) * r, nz = z + Math.sin(a / 24 * Math.PI * 2) * r;
-          if (ok(nx, nz) && canStand(nx, nz)) { player.position.x = nx; player.position.z = nz; return true; }
+          if (!(ok(nx, nz) && canFit(nx, nz))) continue;
+          const d = state.hasFree ? (nx - state.lastFree.x) ** 2 + (nz - state.lastFree.z) ** 2 : 0;
+          if (d < nearest) { nearest = d; best = { nx, nz }; }
         }
+        if (best) { player.position.x = best.nx; player.position.z = best.nz; return true; }
       }
     }
     return false;
@@ -1707,11 +1783,22 @@ async function start() {
       }
     }
     const col = cur.built.collision;
-    if (sh.lift > 1.9) col.unblock('shutter');
-    else {
+    // Only the panel itself is solid -- it starts at whatever height the shutter
+    // has reached. Blocking the full opening meant a shutter held waist-high was
+    // as impassable as a closed one, so ducking under a half-raised one did
+    // nothing. Now the gap underneath is real, and the stance-aware collision
+    // decides whether she fits through it standing, crouched or flat.
+    const SHUTTER_TOP = 4;
+    const gap = Math.max(0, Math.min(SHUTTER_TOP, sh.lift));
+    if (gap >= SHUTTER_TOP) col.unblock('shutter');
+    else col.block('shutter', { pos: [0, (gap + SHUTTER_TOP) / 2, -20.1], size: [4.2, SHUTTER_TOP - gap, 0.4] });
+    if (gap < bodyHeight()) {
       const inDoor = Math.abs(player.position.x) < 2.6 && player.position.z < -19.45 && player.position.z > -20.75 && player.base < 10;
-      if (inDoor) player.position.z = player.position.z < -20.1 ? -20.8 : -19.4;
-      col.block('shutter', { pos: [0, 2, -20.1], size: [4.2, 4, 0.4] });
+      // Which half of the doorway she is standing in is not where she came from.
+      // Testing her own z sent anyone caught a step past the middle out the far
+      // side, so a shutter closing on her carried her through it; the last spot
+      // she legally stood decides which side she is pushed back to.
+      if (inDoor) player.position.z = (state.hasFree ? state.lastFree.z : 0) < -20.1 ? -20.8 : -19.4;
     }
     if (!f.pastShutter && player.position.z < -21.5 && player.base < 10) {
       f.pastShutter = true;
@@ -1869,7 +1956,26 @@ async function start() {
     }
   }
 
+  // The loop keeps itself alive from inside frameBody, so a single throw anywhere
+  // in a frame used to end the game outright: nothing re-queued the next frame
+  // and the picture just stopped, with no clue beyond one line in the console.
+  // Interaction handlers are the usual source, which is why it looked like the
+  // game froze whenever Wren actually did something. A frame that fails is now
+  // reported and the loop carries on, so one bad frame costs a frame.
+  let frameFaults = 0;
   function frame() {
+    if (contextLost) return;
+    try {
+      frameBody();
+    } catch (error) {
+      frameFaults += 1;
+      if (frameFaults <= 5) console.error('[signal] frame failed, loop continuing:', error);
+      if (qa) throw error;
+      requestAnimationFrame(frame);
+    }
+  }
+
+  function frameBody() {
     const wallDt = Math.min(clock.getDelta(), 1);
     const raw = Math.min(wallDt, qa ? 1 : 0.05);
     if (document.hidden) {

@@ -112,13 +112,47 @@ export function createAirlock(materials) {
     return transform.toLocal(x, z);
   }
 
+  // Where the panel edge has reached, in local x. Everything from here to the
+  // +x jamb is still shut.
+  function edge(name) {
+    return world.doors[name].open * AIRLOCK.half * 2.05 - AIRLOCK.half;
+  }
+
   function inside(x, z, r = 0.35, y = 0) {
     if (Math.abs(y - transform.y) > 1.5) return false;
     const p = transform.toLocal(x, z);
     if (Math.abs(p.x) > AIRLOCK.half - r) return false;
-    const near = doorOpen('near') ? 1.4 : -r - 0.08;
-    const far = doorOpen('far') ? -AIRLOCK.length - 1.4 : -AIRLOCK.length + r + 0.08;
+    // This widens where Wren may stand, so it has to agree with the solids above
+    // or it would wave her through a gap she does not fit in. A door counts as
+    // open only where she actually clears the panel.
+    const clears = (name) => p.x + r < edge(name);
+    const near = clears('near') ? 1.4 : -r - 0.08;
+    const far = clears('far') ? -AIRLOCK.length - 1.4 : -AIRLOCK.length + r + 0.08;
     return p.z < near && p.z > far;
+  }
+
+  // Whatever each panel still covers of its opening, as a world-space box the
+  // level's collision can hold. inside() above is OR'd into canStand, so it can
+  // only ever widen where Wren may stand -- it can never stop her. Without these
+  // the panels were scenery: she could walk into a shut door until she was half
+  // inside it and see straight through to the other side.
+  function solids() {
+    const span = AIRLOCK.half * 2;
+    // The panel slides toward +x, so the part of the opening it has not yet
+    // uncovered runs from its leading edge across to the far jamb.
+    const sideways = Math.abs(Math.sin(transform.yaw)) > 0.5;
+    const out = [];
+    for (const [name, lz] of [['near', -0.05], ['far', -AIRLOCK.length + 0.05]]) {
+      const covered = Math.max(0, Math.min(span, span - world.doors[name].open * AIRLOCK.half * 2.05));
+      if (covered < 0.05) continue;
+      const centre = transform.toWorld(AIRLOCK.half - covered / 2, lz);
+      out.push({
+        name,
+        pos: [centre.x, transform.y + AIRLOCK.height / 2, centre.z],
+        size: sideways ? [0.24, AIRLOCK.height, covered] : [covered, AIRLOCK.height, 0.24]
+      });
+    }
+    return out;
   }
 
   function contains(x, z, y = 0) {
@@ -135,7 +169,7 @@ export function createAirlock(materials) {
   return {
     group: world.group,
     twin: twin.group,
-    place, setDoor, update, inside, contains, local, doorOpen, dispose,
+    place, setDoor, update, inside, contains, local, doorOpen, solids, dispose,
     get transform() { return transform; },
     get doors() { return world.doors; }
   };
